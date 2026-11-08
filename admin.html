@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BANCA FC FERNANDO CASTAÑO - Panel Central Administrativo y Control de Taquillas</title>
+  <!-- TailwindCSS CDN con fallback nativo en css/admin.css -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            slate950: '#020617',
+            royal: '#2563eb'
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+
+  <!-- =========================================================================
+       PANTALLA DE ACCESO ADMINISTRATIVO (PROTECCIÓN CON CONTRASEÑA osrovzlo2026)
+       ========================================================================= -->
+  <div id="modal-admin-login" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+    <div class="bg-slate-900 border-2 border-blue-600/60 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl">
+      <div class="bg-gradient-to-r from-blue-900/80 via-slate-900 to-indigo-950 px-6 py-5 border-b border-slate-800 flex items-center gap-3.5">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-900 border-2 border-amber-400 flex items-center justify-center shadow-lg">
+          <span class="text-xl font-black text-white">FC</span>
+        </div>
+        <div>
+          <h2 class="text-sm font-black uppercase tracking-wide text-white">BANCA FC FERNANDO CASTAÑO</h2>
+          <p class="text-xs text-amber-400 font-semibold">Acceso Exclusivo Administrador Central</p>
+        </div>
+      </div>
+      <form id="form-admin-login" class="p-6 space-y-4">
+        <p class="text-xs text-slate-300 leading-relaxed">
+          Ingrese la contraseña maestra del administrador para acceder al monitoreo global de agencias, control de riesgo y liquidación de sorteos.
+        </p>
+        <div>
+          <label for="input-admin-login-pass" class="block text-xs font-bold text-slate-300 mb-1.5">
+            🔑 Contraseña del Administrador:
+          </label>
+          <input type="password" id="input-admin-login-pass" required placeholder="Ingrese contraseña administrativa..." autocomplete="current-password" class="w-full bg-slate-950 text-white font-mono text-sm px-4 py-2.5 rounded-xl border border-slate-700 focus:outline-none focus:border-blue-500">
+          <div id="admin-login-error" class="hidden text-xs font-bold text-rose-400 mt-2">
+            ❌ Contraseña administrativa incorrecta. Verifique e intente de nuevo.
+          </div>
+        </div>
+        <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-blue-900/50 transition">
+          🔓 Desbloquear Panel Administrativo
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       1. ENCABEZADO CORPORATIVO GLOBAL (BARRA SUPERIOR EJECUTIVA)
+       ========================================================================= -->
+  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-30 shadow-xl">
+    <div class="max-w-[1920px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+
+      <!-- Identidad Corporativa: Logotipo FC y Título -->
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-900 border-2 border-amber-400/80 flex items-center justify-center shadow-lg shadow-blue-900/50">
+          <span class="text-xl font-black tracking-tighter text-white">FC</span>
+        </div>
+        <div>
+          <div class="flex flex-wrap items-center gap-2">
+            <h1 class="text-base md:text-lg font-black tracking-wide text-white uppercase">
+              BANCA FC FERNANDO CASTAÑO
+            </h1>
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              <span class="live-dot"></span> EN VIVO POS
+            </span>
+            <span id="header-firebase-status-badge" class="badge-pill badge-suspendida cursor-pointer" title="Clic para configurar sincronización web con Google Firebase">
+              ☁️ Firebase: Sin configurar
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 font-medium">
+            Panel Central Administrativo y Control de Taquillas • Venezuela &amp; Colombia
+          </p>
+        </div>
+      </div>
+
+      <!-- Controles Centrales: Selector de Moneda de Consolidación, Tasas de Cambio y Filtro de Fecha -->
+      <div class="flex flex-wrap items-center gap-3 bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2">
+
+        <!-- Selector de Moneda de Consolidación Global -->
+        <div class="flex flex-col">
+          <label for="global-currency-selector" class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+            Moneda Consolidación
+          </label>
+          <select id="global-currency-selector" class="bg-slate-800 text-amber-400 font-bold text-xs rounded-lg px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:border-blue-500">
+            <option value="COP">🇨🇴 Pesos Colombianos (COP $)</option>
+            <option value="VES">🇻🇪 Bolívares (VES Bs.)</option>
+            <option value="USD">🇺🇸 Dólares (USD $)</option>
+          </select>
+        </div>
+
+        <div class="h-7 w-[1px] bg-slate-800 hidden sm:block"></div>
+
+        <!-- Configurador de Tasas de Cambio del Día -->
+        <div class="flex items-center gap-2">
+          <div>
+            <label for="rate-cop-ves" class="block text-[10px] uppercase font-bold text-slate-400">Tasa COP/VES</label>
+            <input type="number" id="rate-cop-ves" step="0.01" class="w-20 bg-slate-900 text-slate-100 font-mono text-xs px-2 py-1 rounded border border-slate-700 focus:border-blue-500" title="Cuántos Pesos Colombianos equivalen a 1 Bolívar">
+          </div>
+          <div>
+            <label for="rate-usd-cop" class="block text-[10px] uppercase font-bold text-slate-400">USD/COP</label>
+            <input type="number" id="rate-usd-cop" step="10" class="w-20 bg-slate-900 text-slate-100 font-mono text-xs px-2 py-1 rounded border border-slate-700 focus:border-blue-500" title="Pesos Colombianos por 1 Dólar">
+          </div>
+          <div>
+            <label for="rate-usd-ves" class="block text-[10px] uppercase font-bold text-slate-400">USD/VES</label>
+            <input type="number" id="rate-usd-ves" step="0.1" class="w-16 bg-slate-900 text-slate-100 font-mono text-xs px-2 py-1 rounded border border-slate-700 focus:border-blue-500" title="Bolívares por 1 Dólar">
+          </div>
+          <button type="button" id="btn-save-rates" class="mt-3.5 px-2.5 py-1 bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 border border-blue-500/30 rounded text-xs font-bold transition" title="Aplicar Tasas del Día">
+            Aplicar
+          </button>
+        </div>
+
+        <div class="h-7 w-[1px] bg-slate-800 hidden lg:block"></div>
+
+        <!-- Filtro de Fecha / Rango -->
+        <div class="flex items-center gap-2">
+          <div>
+            <label for="global-date-filter" class="block text-[10px] uppercase font-bold text-slate-400">Periodo / Rango</label>
+            <select id="global-date-filter" class="bg-slate-800 text-slate-200 font-semibold text-xs rounded-lg px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:border-blue-500">
+              <option value="TODAY">Hoy (En Vivo)</option>
+              <option value="YESTERDAY">Ayer</option>
+              <option value="WEEK">Semana Actual</option>
+              <option value="MONTH">Mes Actual</option>
+              <option value="ALL">Todo el Histórico</option>
+              <option value="CUSTOM">Rango Personalizado</option>
+            </select>
+          </div>
+          <div id="custom-date-range-box" class="hidden flex items-center gap-1.5 mt-3.5">
+            <input type="date" id="filter-date-from" class="bg-slate-900 text-slate-200 text-xs px-2 py-1 rounded border border-slate-700">
+            <span class="text-slate-500">a</span>
+            <input type="date" id="filter-date-to" class="bg-slate-900 text-slate-200 text-xs px-2 py-1 rounded border border-slate-700">
+          </div>
+        </div>
+      </div>
+
+      <!-- Botones de Acción Rápida en Cabecera -->
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="button" id="btn-header-firebase-config" class="px-3 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-900/40 flex items-center gap-1.5 transition" title="Configurar sincronización web en tiempo real con Google Firebase">
+          <span>☁️</span> Nube Firebase / GitHub
+        </button>
+        <button type="button" id="btn-header-new-agency" class="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-900/40 flex items-center gap-1.5 transition">
+          <span>➕</span> Crear Nueva Agencia
+        </button>
+        <button type="button" id="btn-header-load-results" class="px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-900/30 flex items-center gap-1.5 transition">
+          <span>🏆</span> Cargar Resultados / Liquidar
+        </button>
+        <button type="button" id="btn-header-export-csv" class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-900/40 flex items-center gap-1.5 transition">
+          <span>📥</span> Exportar CSV / Excel
+        </button>
+        <a href="index.html" target="_blank" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition" title="Abrir Taquilla POS en otra pestaña">
+          <span>🎰</span> Abrir POS Taquilla
+        </a>
+        <button type="button" id="btn-lock-admin" class="px-2.5 py-2 rounded-lg bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-700/60 font-bold text-xs transition" title="Bloquear pantalla administrativa con contraseña">
+          🔒 Bloquear
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       2. PANEL DE MONITOREO GLOBAL (6 KPIs FINANCIEROS EN TIEMPO REAL)
+       ========================================================================= -->
+  <section class="max-w-[1920px] w-full mx-auto px-4 pt-4 pb-2">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+
+      <!-- KPI 1: Ventas Brutas Globales -->
+      <div class="kpi-card">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">1. Ventas Brutas Globales</span>
+          <span class="text-blue-400 text-base">💰</span>
+        </div>
+        <div id="kpi-ventas-brutas" class="text-xl md:text-2xl font-black font-mono text-white tracking-tight">$ 0</div>
+        <div class="mt-1.5 flex items-center justify-between text-[11px] text-slate-400">
+          <span id="kpi-sub-tickets-total">0 tickets emitidos</span>
+          <span class="text-blue-400 font-semibold" id="kpi-badge-currency-1">COP</span>
+        </div>
+      </div>
+
+      <!-- KPI 2: Tickets Anulados -->
+      <div class="kpi-card">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">2. Tickets Anulados</span>
+          <span class="text-rose-400 text-base">🚫</span>
+        </div>
+        <div id="kpi-tickets-anulados" class="text-xl md:text-2xl font-black font-mono text-rose-400 tracking-tight">$ 0</div>
+        <div class="mt-1.5 flex items-center justify-between text-[11px] text-slate-400">
+          <span id="kpi-sub-anulados-count" class="text-rose-300 font-semibold">0 tickets anulados</span>
+          <span>Descontado</span>
+        </div>
+      </div>
+
+      <!-- KPI 3: Ventas Netas -->
+      <div class="kpi-card">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">3. Ventas Netas</span>
+          <span class="text-sky-400 text-base">📈</span>
+        </div>
+        <div id="kpi-ventas-netas" class="text-xl md:text-2xl font-black font-mono text-sky-300 tracking-tight">$ 0</div>
+        <div class="mt-1.5 flex items-center justify-between text-[11px] text-slate-400">
+          <span>Brutas - Anulados</span>
+          <span id="kpi-sub-activos-count" class="text-sky-400 font-semibold">0 activos</span>
+        </div>
+      </div>
+
+      <!-- KPI 4: Comisión de Agencias (%) -->
+      <div class="kpi-card">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">4. Comisión de Agencias</span>
+          <span class="text-indigo-400 text-base">🏪</span>
+        </div>
+        <div id="kpi-comision-agencias" class="text-xl md:text-2xl font-black font-mono text-indigo-300 tracking-tight">$ 0</div>
+        <div class="mt-1.5 flex items-center justify-between text-[11px] text-slate-400">
+          <span id="kpi-sub-comision-promedio">Prom: 15.0%</span>
+          <span>Retención Taquillas</span>
+        </div>
+      </div>
+
+      <!-- KPI 5: Total Premios Generados / Pagados -->
+      <div class="kpi-card">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">5. Total Premios Día</span>
+          <span class="text-amber-400 text-base">🏆</span>
+        </div>
+        <div id="kpi-total-premios" class="text-xl md:text-2xl font-black font-mono text-amber-400 tracking-tight">$ 0</div>
+        <div class="mt-1.5 flex items-center justify-between text-[11px] text-slate-400">
+          <span id="kpi-sub-premios-pagados" class="text-emerald-400">Pagados: $ 0</span>
+          <span id="kpi-sub-premios-pendientes" class="text-amber-300">Pend: $ 0</span>
+        </div>
+      </div>
+
+      <!-- KPI 6: Utilidad / Ganancia Neta (Banca FC Fernando Castaño) -->
+      <div id="kpi-card-utilidad" class="kpi-card kpi-profit-positive">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[11px] font-black uppercase tracking-wider text-emerald-300">6. Utilidad Neta Banca FC</span>
+          <span id="kpi-utilidad-badge" class="badge-pill badge-activa">A FAVOR BANCA</span>
+        </div>
+        <div id="kpi-utilidad-neta" class="text-xl md:text-2xl font-black font-mono text-white tracking-tight">$ 0</div>
+        <div class="mt-1.5 flex items-center justify-between text-[11px] text-slate-200">
+          <span id="kpi-sub-margen-pct" class="font-bold">Margen: 0.0%</span>
+          <span class="text-[10px] opacity-80">Neta - Comis. - Premios</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       BARRA DE NAVEGACIÓN DE LOS 4 MÓDULOS OPERATIVOS + HERRAMIENTAS DE BD
+       ========================================================================= -->
+  <div class="max-w-[1920px] w-full mx-auto px-4 mt-2">
+    <div class="bg-slate-900 border border-slate-800 rounded-t-xl flex flex-wrap items-center justify-between px-2">
+      <nav class="flex flex-wrap items-center">
+        <button type="button" class="admin-nav-tab active" data-tab="tab-agencias">
+          <span>🏢</span> 1. Gestión y Monitoreo de Agencias / Rutas
+        </button>
+        <button type="button" class="admin-nav-tab" data-tab="tab-tickets-riesgo">
+          <span>🛡️</span> 2. Auditoría de Tickets en Vivo &amp; Semáforo de Riesgo
+        </button>
+        <button type="button" class="admin-nav-tab" data-tab="tab-resultados">
+          <span>🏆</span> 3. Carga de Resultados y Liquidación Automática
+        </button>
+        <button type="button" class="admin-nav-tab" data-tab="tab-cobradores">
+          <span>🛵</span> 4. Consolidado por Cobradores y Parámetros
+        </button>
+      </nav>
+
+      <!-- Estado de Sincronización y Botones de Base de Datos -->
+      <div class="flex flex-wrap items-center gap-2 py-1.5 px-2">
+        <span id="last-sync-timestamp" class="text-[11px] text-slate-400 font-mono hidden md:inline">
+          Sincronizado: --:--:--
+        </span>
+        <button type="button" id="btn-open-network-modal" class="px-2.5 py-1 rounded bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition" title="Conectar o sincronizar con otras Laptops (Red Wi-Fi o Archivo JSON)">
+          🌐 Conectar Otras Laptops / Importar Ventas
+        </button>
+        <button type="button" id="btn-simulate-live-sale" class="px-2.5 py-1 rounded bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition" title="Simular venta entrante desde una taquilla">
+          ⚡ Simular Venta POS
+        </button>
+        <button type="button" id="btn-restore-demo" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold transition" title="Restaurar datos de demostración precargados">
+          🔄 Cargar Demo
+        </button>
+        <button type="button" id="btn-reset-zero" class="px-2.5 py-1 rounded bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-700/60 text-xs font-bold transition" title="Dejar tickets y resultados en cero para pasar a producción">
+          🗑️ Reiniciar BD en Cero
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       CONTENEDOR PRINCIPAL DE VISTAS (SPA)
+       ========================================================================= -->
+  <main class="max-w-[1920px] w-full mx-auto px-4 pb-10 flex-1">
+    <div class="bg-slate-900/90 border-x border-b border-slate-800 rounded-b-xl p-4 shadow-2xl">
+
+      <!-- =====================================================================
+           VISTA 1: MÓDULO 1 - GESTIÓN Y MONITOREO DE AGENCIAS / TAQUILLAS
+           ===================================================================== -->
+      <section id="tab-agencias" class="admin-tab-view space-y-4">
+
+        <!-- Barra de Filtros de Agencia -->
+        <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+          <div class="flex flex-wrap items-center gap-3 flex-1">
+            <div class="relative flex-1 min-w-[240px] max-w-md">
+              <input type="text" id="agency-search-input" placeholder="🔍 Buscar por código (7336), nombre de agencia, zona o responsable..." class="w-full bg-slate-900 text-slate-100 text-xs rounded-lg pl-3 pr-8 py-2 border border-slate-700 focus:outline-none focus:border-blue-500">
+            </div>
+
+            <!-- Filtro por Cobrador + Gestión Rápida (Agregar / Eliminar Cobrador) -->
+            <div class="flex items-center gap-1.5">
+              <label for="filter-agency-collector" class="text-xs font-bold text-slate-400">Cobrador:</label>
+              <select id="filter-agency-collector" class="bg-slate-900 text-slate-200 text-xs rounded-lg px-2.5 py-2 border border-slate-700 focus:outline-none focus:border-blue-500">
+                <option value="ALL">Todos los Cobradores</option>
+              </select>
+              <button type="button" id="btn-quick-manage-collectors" class="px-2.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-400 border border-slate-700 text-xs font-bold transition" title="Agregar o Eliminar Cobradores">
+                🛵 +/- Cobrador
+              </button>
+            </div>
+
+            <!-- Filtro por Estado -->
+            <div class="flex items-center gap-1.5">
+              <label for="filter-agency-status" class="text-xs font-bold text-slate-400">Estado:</label>
+              <select id="filter-agency-status" class="bg-slate-900 text-slate-200 text-xs rounded-lg px-2.5 py-2 border border-slate-700 focus:outline-none focus:border-blue-500">
+                <option value="ALL">Todas (Activas + Suspendidas)</option>
+                <option value="ACTIVA">Solo Activas</option>
+                <option value="SUSPENDIDA">Solo Suspendidas</option>
+              </select>
+            </div>
+
+            <!-- Selector de modo de visualización de montos en la tabla -->
+            <div class="flex items-center gap-1.5">
+              <label class="inline-flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" id="chk-convert-table-amounts" class="rounded bg-slate-800 border-slate-600 text-blue-600">
+                <span>Convertir filas a moneda global</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button type="button" id="btn-open-new-agency-2" class="px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1.5 shadow">
+              <span>+</span> Nueva Agencia / Taquilla
+            </button>
+          </div>
+        </div>
+
+        <!-- Tabla Maestra de Monitoreo por Agencia -->
+        <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/60">
+          <table class="fc-data-table">
+            <thead>
+              <tr>
+                <th>Código / Agencia</th>
+                <th>Zona / Cobrador</th>
+                <th>Estado</th>
+                <th>Moneda</th>
+                <th class="text-center">Tickets (Act / Anul)</th>
+                <th class="text-right">Venta Bruta</th>
+                <th class="text-right">Venta Neta</th>
+                <th class="text-right">Comisión Taquilla</th>
+                <th class="text-right">Premios</th>
+                <th class="text-right">Utilidad Neta (Banca FC)</th>
+                <th class="text-center">Acciones Rápidas</th>
+              </tr>
+            </thead>
+            <tbody id="agencies-master-tbody">
+              <!-- Renderizado dinámico por js/admin.js -->
+            </tbody>
+            <tfoot id="agencies-master-tfoot" class="bg-slate-900/95 font-bold border-t-2 border-slate-700">
+              <!-- Totales consolidados -->
+            </tfoot>
+          </table>
+        </div>
+
+      </section>
+
+      <!-- =====================================================================
+           VISTA 2: MÓDULO 3 - AUDITORÍA DE TICKETS EN VIVO Y CONTROL DE RIESGO
+           ===================================================================== -->
+      <section id="tab-tickets-riesgo" class="admin-tab-view hidden space-y-6">
+
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-5">
+
+          <!-- Columna Izquierda (7 cols): Monitor de Tickets en Vivo -->
+          <div class="xl:col-span-7 flex flex-col space-y-3">
+            <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 class="text-sm font-black uppercase tracking-wide text-white flex items-center gap-2">
+                  <span>🎟️</span> Monitor de Tickets en Vivo (Todas las Taquillas)
+                </h2>
+                <p class="text-xs text-slate-400">Audita cada ticket emitido, verifica su impresión térmica, pague o anule administrativamente.</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <input type="text" id="live-ticket-search" placeholder="Buscar Ticket #, Serial o Agencia..." class="bg-slate-900 text-slate-100 text-xs rounded-lg px-3 py-1.5 border border-slate-700 focus:outline-none focus:border-blue-500">
+                <select id="live-ticket-agency-filter" class="bg-slate-900 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 border border-slate-700">
+                  <option value="ALL">Todas las Agencias</option>
+                </select>
+                <select id="live-ticket-status-filter" class="bg-slate-900 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 border border-slate-700">
+                  <option value="ALL">Todos los Estados</option>
+                  <option value="ACTIVO">ACTIVO</option>
+                  <option value="GANADOR">GANADOR (Pendiente Pago)</option>
+                  <option value="PAGADO">PAGADO</option>
+                  <option value="ANULADO">ANULADO</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/60 max-h-[600px]">
+              <table class="fc-data-table">
+                <thead>
+                  <tr>
+                    <th>Ticket # / Serial</th>
+                    <th>Fecha / Hora</th>
+                    <th>Agencia</th>
+                    <th class="text-center">Jugadas</th>
+                    <th class="text-right">Total Venta</th>
+                    <th class="text-right">Premio</th>
+                    <th class="text-center">Estado</th>
+                    <th class="text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="live-tickets-tbody">
+                  <!-- Renderizado dinámico -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Columna Derecha (5 cols): Semáforo de Riesgo / Topes por Número y Animalito -->
+          <div class="xl:col-span-5 flex flex-col space-y-3">
+            <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 class="text-sm font-black uppercase tracking-wide text-amber-400 flex items-center gap-2">
+                  <span>🚦</span> Semáforo de Riesgo y Topes por Número / Animalito
+                </h2>
+                <p class="text-xs text-slate-400">Exposición financiera y premio potencial si el número resulta ganador.</p>
+              </div>
+              <select id="risk-category-filter" class="bg-slate-900 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 border border-slate-700">
+                <option value="ALL">Todas las Modalidades</option>
+                <option value="triple">Triples (500x)</option>
+                <option value="terminal">Terminales (60x)</option>
+                <option value="animalito">Animalitos (30x)</option>
+                <option value="zodiac">Zodiacales / Astro</option>
+                <option value="cuatro_cifras">4 Cifras / Chance</option>
+              </select>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/60 max-h-[600px]">
+              <table class="fc-data-table">
+                <thead>
+                  <tr>
+                    <th>Sorteo / Operadora</th>
+                    <th>Número / Animalito</th>
+                    <th class="text-right">Apostado Acum.</th>
+                    <th class="text-right">Exposición (Premio Potencial)</th>
+                    <th class="w-36">% Tope Riesgo</th>
+                  </tr>
+                </thead>
+                <tbody id="risk-semaphore-tbody">
+                  <!-- Renderizado dinámico -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- =====================================================================
+           VISTA 3: MÓDULO 4 - CARGA DE RESULTADOS Y LIQUIDACIÓN AUTOMÁTICA
+           ===================================================================== -->
+      <section id="tab-resultados" class="admin-tab-view hidden space-y-5">
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+          <!-- Panel Izquierdo (5 cols): Formulario de Carga y Liquidación -->
+          <div class="lg:col-span-5 bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-4">
+            <div class="border-b border-slate-800 pb-3">
+              <h2 class="text-base font-black text-amber-400 uppercase flex items-center gap-2">
+                <span>🏆</span> Publicar Resultado Oficial y Liquidar Sorteo
+              </h2>
+              <p class="text-xs text-slate-400 mt-1">
+                Al guardar el resultado, el motor de <strong>Banca FC Fernando Castaño</strong> recorrerá todos los tickets activos de todas las agencias y liquidará los premios al instante.
+              </p>
+            </div>
+
+            <form id="form-admin-load-result" class="space-y-3">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-slate-300 mb-1">Fecha del Sorteo:</label>
+                  <input type="date" id="res-admin-date" required class="w-full bg-slate-900 text-white text-xs rounded-lg px-3 py-2 border border-slate-700">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-300 mb-1">Categoría de Sorteo:</label>
+                  <select id="res-admin-category" class="w-full bg-slate-900 text-white text-xs rounded-lg px-3 py-2 border border-slate-700">
+                    <option value="sin_signo">1. Sin Signo (Triples y Terminales)</option>
+                    <option value="con_signo">2. Con Signo (Zodiacales y Astros)</option>
+                    <option value="cuatro_cifras">3. 4 Cifras / Chance Colombia</option>
+                    <option value="animalitos">4. Animalitos (Ruletas)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1">Sorteo / Operadora Oficial:</label>
+                <select id="res-admin-lottery" required class="w-full bg-slate-900 text-amber-300 font-bold text-xs rounded-lg px-3 py-2 border border-slate-700">
+                  <!-- Dinámico según categoría -->
+                </select>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-slate-300 mb-1">Número Ganador:</label>
+                  <input type="text" id="res-admin-number" required placeholder="Ej: 845, 05, 4729" maxlength="5" class="w-full bg-slate-900 text-emerald-400 font-mono font-black text-base rounded-lg px-3 py-1.5 border border-slate-700">
+                </div>
+                <div id="res-admin-sign-box">
+                  <label class="block text-xs font-bold text-slate-300 mb-1">Signo (Si aplica):</label>
+                  <select id="res-admin-sign" class="w-full bg-slate-900 text-white text-xs rounded-lg px-3 py-2 border border-slate-700">
+                    <option value="">-- Sin Signo --</option>
+                  </select>
+                </div>
+                <div id="res-admin-5ta-box">
+                  <label class="block text-xs font-bold text-slate-300 mb-1">5ta Balota (Chance):</label>
+                  <input type="text" id="res-admin-ball5" placeholder="Opcional (1 díg)" maxlength="1" class="w-full bg-slate-900 text-white font-mono text-xs rounded-lg px-3 py-2 border border-slate-700">
+                </div>
+              </div>
+
+              <div id="res-admin-animal-preview" class="hidden p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-xs flex items-center justify-between">
+                <span class="text-slate-400">Animalito detectado:</span>
+                <strong id="res-admin-animal-label" class="text-amber-400 text-sm">🦁 05 - León</strong>
+              </div>
+
+              <!-- Resumen de Multiplicadores Oficiales Activos -->
+              <div class="bg-slate-900/90 border border-slate-800 rounded-lg p-3 text-[11px] text-slate-300 space-y-1">
+                <div class="font-bold text-slate-200 uppercase mb-1">Tabla de Multiplicadores Oficiales Banca FC:</div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono">
+                  <div>Triple: <strong class="text-emerald-400" id="lbl-mult-triple">500x</strong></div>
+                  <div>Terminal: <strong class="text-emerald-400" id="lbl-mult-terminal">60x</strong></div>
+                  <div>Aprox. Term: <strong class="text-emerald-400" id="lbl-mult-aprox">5x</strong></div>
+                  <div>Animalito: <strong class="text-emerald-400" id="lbl-mult-animalito">30x</strong></div>
+                  <div>4 Cifras: <strong class="text-emerald-400" id="lbl-mult-4cifras">4500x</strong></div>
+                  <div>Astro 4C: <strong class="text-emerald-400" id="lbl-mult-astro">40000x</strong></div>
+                </div>
+              </div>
+
+              <button type="submit" class="w-full py-2.5 px-4 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wide shadow-lg transition">
+                ⚡ Guardar Resultado y Liquidar Tickets Ganadores
+              </button>
+            </form>
+          </div>
+
+          <!-- Panel Derecho (7 cols): Resultados Cargados y Tickets Ganadores Detectados -->
+          <div class="lg:col-span-7 space-y-4">
+
+            <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4">
+              <h3 class="text-sm font-black uppercase text-white mb-3 flex items-center justify-between">
+                <span>📋 Resultados Oficiales Publicados en la Fecha</span>
+                <span id="results-count-badge" class="badge-pill badge-activa">0 Sorteos</span>
+              </h3>
+              <div class="overflow-x-auto max-h-60 border border-slate-800 rounded-lg">
+                <table class="fc-data-table">
+                  <thead>
+                    <tr>
+                      <th>Código Sorteo</th>
+                      <th>Resultado Oficial</th>
+                      <th>Hora Publicación</th>
+                      <th class="text-center">Tickets Premiados</th>
+                      <th class="text-right">Total Premios Sorteo</th>
+                      <th class="text-center">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-results-tbody">
+                    <!-- Dinámico -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4">
+              <h3 class="text-sm font-black uppercase text-amber-400 mb-3">
+                🎯 Tickets Ganadores Detectados Automáticamente
+              </h3>
+              <div class="overflow-x-auto max-h-72 border border-slate-800 rounded-lg">
+                <table class="fc-data-table">
+                  <thead>
+                    <tr>
+                      <th>Ticket #</th>
+                      <th>Agencia</th>
+                      <th>Detalle Jugada Ganadora</th>
+                      <th class="text-right">Apostado</th>
+                      <th class="text-right">Premio Liquidado</th>
+                      <th class="text-center">Estado Pago</th>
+                      <th class="text-center">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-winning-tickets-tbody">
+                    <!-- Dinámico -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- =====================================================================
+           VISTA 4: COBRADORES POR RUTA Y PARÁMETROS GLOBALES DE BANCA FC
+           ===================================================================== -->
+      <section id="tab-cobradores" class="admin-tab-view hidden space-y-6">
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+          <!-- Consolidado de Rutas por Cobrador (7 cols) -->
+          <div class="lg:col-span-7 bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+              <div>
+                <h2 class="text-sm font-black uppercase text-white">🛵 Liquidación de Rutas por Cobrador</h2>
+                <p class="text-xs text-slate-400">Consolidado de efectivo a recoger o pagar por cada cobrador asignado.</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="text" id="input-new-collector-name" placeholder="Nombre nuevo cobrador..." class="bg-slate-900 text-white text-xs px-2.5 py-1.5 rounded border border-slate-700">
+                <button type="button" id="btn-add-collector" class="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold">
+                  + Agregar Cobrador
+                </button>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto border border-slate-800 rounded-lg">
+              <table class="fc-data-table">
+                <thead>
+                  <tr>
+                    <th>Cobrador Asignado</th>
+                    <th class="text-center">Agencias a Cargo</th>
+                    <th class="text-right">Ventas Netas Ruta</th>
+                    <th class="text-right">Comisiones Ruta</th>
+                    <th class="text-right">Premios Ruta</th>
+                    <th class="text-right">Total a Recoger para Banca FC</th>
+                    <th class="text-center">Acciones / Corte WA</th>
+                  </tr>
+                </thead>
+                <tbody id="collectors-summary-tbody">
+                  <!-- Dinámico -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Parámetros Globales de Multiplicadores y Topes de Banca FC (5 cols) -->
+          <div class="lg:col-span-5 bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-4">
+            <div class="border-b border-slate-800 pb-3">
+              <h2 class="text-sm font-black uppercase text-sky-400">⚙️ Parámetros de Multiplicadores y Topes Globales</h2>
+              <p class="text-xs text-slate-400">Configura los pagos oficiales de Banca FC Fernando Castaño.</p>
+            </div>
+
+            <form id="form-global-multipliers" class="space-y-3">
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs text-slate-400 font-bold mb-1">Triple Directo (x):</label>
+                  <input type="number" id="param-mult-triple" class="w-full bg-slate-900 text-white font-mono text-xs px-3 py-2 rounded border border-slate-700">
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-400 font-bold mb-1">Terminal Derecho (x):</label>
+                  <input type="number" id="param-mult-terminal" class="w-full bg-slate-900 text-white font-mono text-xs px-3 py-2 rounded border border-slate-700">
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-400 font-bold mb-1">Aproximación Terminal (x):</label>
+                  <input type="number" id="param-mult-aprox" class="w-full bg-slate-900 text-white font-mono text-xs px-3 py-2 rounded border border-slate-700">
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-400 font-bold mb-1">Animalitos Ruleta (x):</label>
+                  <input type="number" id="param-mult-animalito" class="w-full bg-slate-900 text-white font-mono text-xs px-3 py-2 rounded border border-slate-700">
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-400 font-bold mb-1">4 Cifras Directo (x):</label>
+                  <input type="number" id="param-mult-4cifras" class="w-full bg-slate-900 text-white font-mono text-xs px-3 py-2 rounded border border-slate-700">
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-400 font-bold mb-1">4 Cifras Combinado (x):</label>
+                  <input type="number" id="param-mult-4comb" class="w-full bg-slate-900 text-white font-mono text-xs px-3 py-2 rounded border border-slate-700">
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-400 font-bold mb-1">Modalidad La 5ta (x):</label>
+                  <input type="number" id="param-mult-la5ta" class="w-full bg-slate-900 text-white font-mono text-xs px-3 py-2 rounded border border-slate-700">
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-400 font-bold mb-1">Super Astro 4 Cifras + Signo (x):</label>
+                  <input type="number" id="param-mult-astro4" class="w-full bg-slate-900 text-white font-mono text-xs px-3 py-2 rounded border border-slate-700">
+                </div>
+              </div>
+
+              <div class="pt-2 border-t border-slate-800 grid grid-cols-3 gap-2">
+                <div>
+                  <label class="block text-[11px] text-slate-400 font-bold mb-1">Tope Global Triple (COP):</label>
+                  <input type="number" id="param-tope-triple" class="w-full bg-slate-900 text-amber-300 font-mono text-xs px-2.5 py-1.5 rounded border border-slate-700">
+                </div>
+                <div>
+                  <label class="block text-[11px] text-slate-400 font-bold mb-1">Tope Global Terminal:</label>
+                  <input type="number" id="param-tope-terminal" class="w-full bg-slate-900 text-amber-300 font-mono text-xs px-2.5 py-1.5 rounded border border-slate-700">
+                </div>
+                <div>
+                  <label class="block text-[11px] text-slate-400 font-bold mb-1">Tope Global Animalito:</label>
+                  <input type="number" id="param-tope-animalito" class="w-full bg-slate-900 text-amber-300 font-mono text-xs px-2.5 py-1.5 rounded border border-slate-700">
+                </div>
+              </div>
+
+              <div class="pt-2 border-t border-slate-800">
+                <label class="block text-[11px] text-rose-400 font-bold mb-1">🔐 Contraseña Maestra del Administrador (Acceso y Reinicio en Cero):</label>
+                <input type="text" id="param-admin-reset-pass" placeholder="Por defecto: osrovzlo2026" class="w-full bg-slate-900 text-white font-mono font-bold text-xs px-3 py-2 rounded border border-rose-700/60">
+              </div>
+
+              <button type="submit" class="w-full py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wide shadow">
+                💾 Guardar Multiplicadores, Topes y Clave Maestra
+              </button>
+            </form>
+          </div>
+
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <!-- =========================================================================
+       MODAL 1: CREAR / EDITAR AGENCIA (+ NUEVA AGENCIA)
+       ========================================================================= -->
+  <div id="modal-agency-form" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl">
+      <div class="bg-slate-950 px-5 py-3.5 border-b border-slate-800 flex items-center justify-between">
+        <h3 id="modal-agency-title" class="text-sm font-black uppercase tracking-wide text-white">
+          ➕ Registrar Nueva Agencia / Taquilla POS
+        </h3>
+        <button type="button" class="text-slate-400 hover:text-white text-lg font-bold" data-close-admin-modal="modal-agency-form">✕</button>
+      </div>
+
+      <form id="form-agency-crud" class="p-5 space-y-4 max-h-[82vh] overflow-y-auto">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Código Agencia / Usuario POS *</label>
+            <input type="text" id="ag-code" required placeholder="Ej: 7342" class="w-full bg-slate-950 text-amber-400 font-mono font-bold text-sm px-3 py-2 rounded-lg border border-slate-700">
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-bold text-slate-300 mb-1">ID Serial de Terminal (14 dígitos) *</label>
+            <div class="flex gap-2">
+              <input type="text" id="ag-serial" required maxlength="14" class="flex-1 bg-slate-950 text-slate-200 font-mono text-xs px-3 py-2 rounded-lg border border-slate-700">
+              <button type="button" id="btn-gen-serial" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-sky-400 border border-slate-700 rounded-lg text-xs font-bold">
+                🎲 Generar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Nombre de la Agencia / Taquilla *</label>
+            <input type="text" id="ag-name" required placeholder="Ej: AG RUBIO CENTRO" class="w-full bg-slate-950 text-white text-xs px-3 py-2 rounded-lg border border-slate-700">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Zona / Municipio / País *</label>
+            <input type="text" id="ag-zone" required placeholder="Ej: Rubio, Junín (VEN) o Cúcuta (COL)" class="w-full bg-slate-950 text-white text-xs px-3 py-2 rounded-lg border border-slate-700">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Responsable / Receptor *</label>
+            <input type="text" id="ag-manager" required placeholder="Nombre del encargado" class="w-full bg-slate-950 text-white text-xs px-3 py-2 rounded-lg border border-slate-700">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Teléfono WhatsApp Receptor</label>
+            <input type="text" id="ag-whatsapp" placeholder="+58414... o +57310..." class="w-full bg-slate-950 text-white text-xs px-3 py-2 rounded-lg border border-slate-700">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Cobrador Asignado *</label>
+            <div class="flex gap-1.5">
+              <select id="ag-collector" class="flex-1 bg-slate-950 text-white text-xs px-2.5 py-2 rounded-lg border border-slate-700">
+                <!-- Llenado dinámico -->
+              </select>
+              <button type="button" id="btn-form-manage-collectors" class="px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-sky-400 border border-slate-700 rounded-lg text-xs font-bold" title="Agregar o Eliminar Cobrador">
+                +/-
+              </button>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Moneda Nativa Taquilla *</label>
+            <select id="ag-currency" class="w-full bg-slate-950 text-amber-400 font-bold text-xs px-3 py-2 rounded-lg border border-slate-700">
+              <option value="COP">COP ($ Pesos)</option>
+              <option value="VES">VES (Bs. Bolívares)</option>
+              <option value="USD">USD ($ Dólares)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">% Comisión Agencia *</label>
+            <input type="number" id="ag-commission" required min="0" max="40" step="0.5" value="15" class="w-full bg-slate-950 text-emerald-400 font-bold text-xs px-3 py-2 rounded-lg border border-slate-700">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Tope Máx. por Número *</label>
+            <input type="number" id="ag-max-bet" required value="50000" class="w-full bg-slate-950 text-white font-mono text-xs px-3 py-2 rounded-lg border border-slate-700">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Cupo de Crédito Agencia</label>
+            <input type="number" id="ag-credit-limit" value="2500000" class="w-full bg-slate-950 text-white font-mono text-xs px-3 py-2 rounded-lg border border-slate-700">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Contraseña Acceso POS *</label>
+            <input type="text" id="ag-password" required placeholder="Clave taquillero" class="w-full bg-slate-950 text-white font-mono text-xs px-3 py-2 rounded-lg border border-slate-700">
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800">
+          <div>
+            <div class="text-xs font-bold text-white">Estado Operativo de la Agencia</div>
+            <div class="text-[11px] text-slate-400">Si se suspende, la taquilla POS quedará bloqueada para emitir tickets.</div>
+          </div>
+          <select id="ag-status" class="bg-slate-900 text-white font-bold text-xs px-3 py-2 rounded-lg border border-slate-700">
+            <option value="ACTIVA">🟢 ACTIVA (Operando)</option>
+            <option value="SUSPENDIDA">🔴 SUSPENDIDA (Bloqueada)</option>
+          </select>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+          <button type="button" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold" data-close-admin-modal="modal-agency-form">
+            Cancelar
+          </button>
+          <button type="submit" class="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase shadow-lg">
+            Guardar Agencia en Banca FC
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 2: AUDITORÍA INDIVIDUAL DE TAQUILLA (EXPEDIENTE DE AGENCIA)
+       ========================================================================= -->
+  <div id="modal-audit-agency" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-5">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-6xl w-full max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
+
+      <!-- Cabecera del Expediente -->
+      <div class="bg-slate-950 px-5 py-3.5 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-0.5 rounded bg-blue-600 text-white font-mono font-black text-xs" id="audit-ag-code">7336</span>
+            <h3 id="audit-ag-name" class="text-base font-black text-white uppercase">AG BARRIO SUCRE</h3>
+            <span id="audit-ag-status-badge" class="badge-pill badge-activa">ACTIVA</span>
+          </div>
+          <p id="audit-ag-meta" class="text-xs text-slate-400 mt-0.5">
+            Serial Terminal: 61526296537336 • Zona: San Cristóbal • Cobrador: Raúl Zambrano
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" id="btn-audit-copy-whatsapp" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow">
+            <span>📲</span> Copiar / Enviar Corte WhatsApp
+          </button>
+          <button type="button" id="btn-audit-reset-agency" class="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/40 font-bold text-xs" title="Reiniciar ventas y premios de esta agencia en cero (Con Contraseña)">
+            🧹 Reiniciar Agencia en 0
+          </button>
+          <button type="button" id="btn-audit-delete-agency" class="px-3 py-1.5 rounded-lg bg-rose-950 hover:bg-rose-800 text-rose-300 border border-rose-700 font-bold text-xs" title="Eliminar esta agencia del sistema">
+            🗑️ Eliminar Agencia
+          </button>
+          <button type="button" id="btn-audit-open-pos-as" class="px-3 py-1.5 rounded-lg bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 border border-blue-500/40 font-bold text-xs">
+            🎰 Activar en POS
+          </button>
+          <button type="button" class="text-slate-400 hover:text-white text-xl font-bold px-2" data-close-admin-modal="modal-audit-agency">✕</button>
+        </div>
+      </div>
+
+      <!-- Cuerpo del Expediente -->
+      <div class="p-5 overflow-y-auto space-y-5 flex-1">
+
+        <!-- 1. Resumen Financiero Individual de la Agencia -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+            <div class="text-[10px] uppercase font-bold text-slate-400">Ventas Brutas</div>
+            <div id="audit-kpi-brutas" class="text-base font-black font-mono text-white mt-0.5">$ 0</div>
+          </div>
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+            <div class="text-[10px] uppercase font-bold text-slate-400">Anulados</div>
+            <div id="audit-kpi-anulados" class="text-base font-black font-mono text-rose-400 mt-0.5">$ 0</div>
+          </div>
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+            <div class="text-[10px] uppercase font-bold text-slate-400">Venta Neta</div>
+            <div id="audit-kpi-netas" class="text-base font-black font-mono text-sky-400 mt-0.5">$ 0</div>
+          </div>
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+            <div class="text-[10px] uppercase font-bold text-slate-400">Comisión Receptor</div>
+            <div id="audit-kpi-comision" class="text-base font-black font-mono text-indigo-300 mt-0.5">$ 0</div>
+          </div>
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+            <div class="text-[10px] uppercase font-bold text-slate-400">Premios Pagados</div>
+            <div id="audit-kpi-pagados" class="text-base font-black font-mono text-emerald-400 mt-0.5">$ 0</div>
+          </div>
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+            <div class="text-[10px] uppercase font-bold text-slate-400">Premios Pendientes</div>
+            <div id="audit-kpi-pendientes" class="text-base font-black font-mono text-amber-400 mt-0.5">$ 0</div>
+          </div>
+          <div id="audit-kpi-balance-box" class="bg-emerald-950/60 p-3 rounded-xl border border-emerald-500/60">
+            <div id="audit-kpi-balance-label" class="text-[10px] uppercase font-black text-emerald-300">Saldo a Entregar Cobrador</div>
+            <div id="audit-kpi-balance" class="text-base font-black font-mono text-white mt-0.5">$ 0</div>
+          </div>
+        </div>
+
+        <!-- 2. Desglose por las 4 Categorías y Simulador/Inyector Manual -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+          <!-- Desglose por Categoría (7 cols) -->
+          <div class="lg:col-span-7 bg-slate-950/80 border border-slate-800 rounded-xl p-3.5">
+            <h4 class="text-xs font-black uppercase text-slate-300 mb-2.5">
+              📊 Desglose de Ventas por Categoría en esta Taquilla
+            </h4>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                <div class="text-[11px] font-bold text-sky-400">1. Sin Signo (Triples/Term)</div>
+                <div id="audit-cat-sinsigno" class="text-sm font-black font-mono text-white mt-1">$ 0</div>
+                <div id="audit-cat-sinsigno-cnt" class="text-[10px] text-slate-400">0 jugadas</div>
+              </div>
+              <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                <div class="text-[11px] font-bold text-purple-400">2. Con Signo (Zod/Astro)</div>
+                <div id="audit-cat-consigno" class="text-sm font-black font-mono text-white mt-1">$ 0</div>
+                <div id="audit-cat-consigno-cnt" class="text-[10px] text-slate-400">0 jugadas</div>
+              </div>
+              <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                <div class="text-[11px] font-bold text-amber-400">3. 4 Cifras / La 5ta</div>
+                <div id="audit-cat-4cifras" class="text-sm font-black font-mono text-white mt-1">$ 0</div>
+                <div id="audit-cat-4cifras-cnt" class="text-[10px] text-slate-400">0 jugadas</div>
+              </div>
+              <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                <div class="text-[11px] font-bold text-emerald-400">4. Animalitos Ruletas</div>
+                <div id="audit-cat-animalitos" class="text-sm font-black font-mono text-white mt-1">$ 0</div>
+                <div id="audit-cat-animalitos-cnt" class="text-[10px] text-slate-400">0 jugadas</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Simulador / Inyector de Ventas y Premios Manuales (5 cols) -->
+          <div class="lg:col-span-5 bg-slate-950/80 border border-slate-800 rounded-xl p-3.5">
+            <h4 class="text-xs font-black uppercase text-amber-400 mb-2">
+              ⚡ Inyector de Ventas / Cierre Manual en Vivo
+            </h4>
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label class="block text-[10px] text-slate-400 font-bold">Categoría</label>
+                <select id="inject-cat" class="w-full bg-slate-900 text-white text-xs px-2 py-1.5 rounded border border-slate-700">
+                  <option value="triple">Triple (Sin Signo)</option>
+                  <option value="terminal">Terminal</option>
+                  <option value="animalito">Animalito</option>
+                  <option value="zodiac">Zodiacal / Astro</option>
+                  <option value="cuatro_cifras">4 Cifras / Chance</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] text-slate-400 font-bold">Nro / Animal</label>
+                <input type="text" id="inject-number" value="777" maxlength="4" class="w-full bg-slate-900 text-white font-mono text-xs px-2 py-1.5 rounded border border-slate-700">
+              </div>
+              <div>
+                <label class="block text-[10px] text-slate-400 font-bold">Monto Venta</label>
+                <input type="number" id="inject-amount" value="20000" class="w-full bg-slate-900 text-emerald-400 font-mono text-xs px-2 py-1.5 rounded border border-slate-700">
+              </div>
+            </div>
+            <div class="flex items-center gap-2 mt-2.5">
+              <button type="button" id="btn-inject-sale" class="flex-1 py-1.5 px-2 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs">
+                + Inyectar Ticket Venta
+              </button>
+              <button type="button" id="btn-inject-prize" class="flex-1 py-1.5 px-2 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs">
+                🏆 Inyectar Ticket Premiado
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 3. Listado de Tickets de esta Agencia -->
+        <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5">
+          <div class="flex items-center justify-between mb-2.5">
+            <h4 class="text-xs font-black uppercase text-white">
+              🧾 Listado de Tickets Emitidos por esta Agencia
+            </h4>
+            <span id="audit-tickets-count" class="text-xs text-slate-400">0 tickets</span>
+          </div>
+          <div class="overflow-x-auto max-h-72 border border-slate-800 rounded-lg">
+            <table class="fc-data-table">
+              <thead>
+                <tr>
+                  <th>Ticket #</th>
+                  <th>Serial Seguridad</th>
+                  <th>Fecha y Hora</th>
+                  <th>Detalle de Jugadas</th>
+                  <th class="text-right">Monto Venta</th>
+                  <th class="text-right">Premio</th>
+                  <th class="text-center">Estado</th>
+                  <th class="text-center">Acciones Administrativas</th>
+                </tr>
+              </thead>
+              <tbody id="audit-agency-tickets-tbody">
+                <!-- Dinámico -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 3: VISTA PREVIA DEL TICKET TÉRMICO (AUDITORÍA DE IMPRESIÓN)
+       ========================================================================= -->
+  <div id="modal-admin-ticket-preview" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl">
+      <div class="bg-slate-950 px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+        <span class="text-xs font-black uppercase text-white">🖨️ Vista Previa Exacta del Ticket Térmico POS</span>
+        <button type="button" class="text-slate-400 hover:text-white font-bold" data-close-admin-modal="modal-admin-ticket-preview">✕</button>
+      </div>
+      <div class="p-5 bg-slate-800/80 max-h-[75vh] overflow-y-auto flex justify-center">
+        <div id="admin-thermal-ticket-box"></div>
+      </div>
+      <div class="bg-slate-950 px-4 py-3 border-t border-slate-800 flex items-center justify-between gap-2">
+        <button type="button" id="btn-admin-print-ticket" class="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs">
+          🖨️ Imprimir Comprobante
+        </button>
+        <button type="button" id="btn-admin-wa-ticket" class="flex-1 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs">
+          📲 Enviar por WhatsApp
+        </button>
+        <button type="button" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-bold" data-close-admin-modal="modal-admin-ticket-preview">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 4: GESTIÓN RÁPIDA DE COBRADORES (AGREGAR Y ELIMINAR COBRADOR)
+       ========================================================================= -->
+  <div id="modal-manage-collectors" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl">
+      <div class="bg-slate-950 px-5 py-3.5 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="text-sm font-black uppercase text-white flex items-center gap-2">
+          <span>🛵</span> Gestionar Cobradores de Banca FC
+        </h3>
+        <button type="button" class="text-slate-400 hover:text-white font-bold text-lg" data-close-admin-modal="modal-manage-collectors">✕</button>
+      </div>
+      <div class="p-5 space-y-4">
+        <form id="form-modal-add-collector" class="flex gap-2">
+          <input type="text" id="modal-input-collector-name" required placeholder="Nombre y apellido del cobrador..." class="flex-1 bg-slate-950 text-white text-xs px-3 py-2 rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500">
+          <button type="submit" class="px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs">
+            + Agregar
+          </button>
+        </form>
+        <div>
+          <div class="text-[11px] font-bold uppercase text-slate-400 mb-2">Cobradores Registrados (Clic en 🗑️ para eliminar):</div>
+          <div id="modal-collectors-list" class="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+            <!-- Renderizado dinámico -->
+          </div>
+        </div>
+      </div>
+      <div class="bg-slate-950 px-5 py-3 border-t border-slate-800 flex justify-end">
+        <button type="button" class="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold" data-close-admin-modal="modal-manage-collectors">
+          Listo
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 5: CONFIRMACIÓN CON CONTRASEÑA PARA REINICIAR EN CERO
+       (REINICIAR BANCA GLOBAL O REINICIAR AGENCIA INDIVIDUAL EN CERO)
+       ========================================================================= -->
+  <div id="modal-password-reset" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border-2 border-rose-600/80 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl">
+      <div class="bg-rose-950/90 px-5 py-3.5 border-b border-rose-800 flex items-center justify-between">
+        <h3 id="modal-reset-title" class="text-sm font-black uppercase text-white flex items-center gap-2">
+          <span>🔐</span> Autorización Requerida - Reiniciar en Cero
+        </h3>
+        <button type="button" class="text-rose-200 hover:text-white font-bold text-lg" data-close-admin-modal="modal-password-reset">✕</button>
+      </div>
+      <form id="form-password-reset" class="p-5 space-y-4">
+        <p id="modal-reset-description" class="text-xs text-slate-300 leading-relaxed bg-slate-950 p-3 rounded-xl border border-slate-800">
+          Está a punto de reiniciar los registros en cero. Ingrese la contraseña administrativa de <strong>Banca FC Fernando Castaño</strong> para confirmar.
+        </p>
+        <div>
+          <label for="input-reset-password" class="block text-xs font-bold text-amber-400 mb-1.5">
+            🔑 Contraseña de Seguridad Administrativa:
+          </label>
+          <input type="password" id="input-reset-password" required placeholder="Ingrese la contraseña del administrador" autocomplete="off" class="w-full bg-slate-950 text-white font-mono text-sm px-3.5 py-2.5 rounded-xl border border-slate-700 focus:outline-none focus:border-rose-500">
+          <div id="reset-password-error" class="hidden text-xs font-bold text-rose-400 mt-1.5">
+            ❌ Contraseña incorrecta. Intente nuevamente.
+          </div>
+          <div class="text-[11px] text-slate-400 mt-1">
+            Nota: Ingrese la contraseña maestra configurada (<code class="text-amber-300 font-bold">osrovzlo2026</code>) o la clave de la agencia. Puede cambiarla en la pestaña 4 (Parámetros).
+          </div>
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+          <button type="button" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold" data-close-admin-modal="modal-password-reset">
+            Cancelar
+          </button>
+          <button type="submit" id="btn-confirm-password-reset" class="px-5 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-black uppercase shadow-lg">
+            🔓 Confirmar y Reiniciar en Cero
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 6: SINCRONIZACIÓN WEB EN TIEMPO REAL (GOOGLE FIREBASE + GITHUB PAGES)
+       ========================================================================= -->
+  <div id="modal-network-sync" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl">
+      <div class="bg-slate-950 px-5 py-3.5 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="text-sm font-black uppercase text-sky-400 flex items-center gap-2">
+          <span>☁️</span> Sincronización Web en Tiempo Real (Google Firebase + GitHub Pages)
+        </h3>
+        <button type="button" class="text-slate-400 hover:text-white font-bold text-lg" data-close-admin-modal="modal-network-sync">✕</button>
+      </div>
+
+      <div class="p-5 space-y-5 max-h-[82vh] overflow-y-auto">
+
+        <!-- CONFIGURACIÓN PRINCIPAL: GOOGLE FIREBASE REALTIME DATABASE -->
+        <div class="bg-slate-950 border-2 border-sky-500/40 rounded-xl p-4 space-y-3.5">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h4 class="text-xs font-black uppercase text-sky-400">
+                🚀 Conexión en Nube con Google Firebase (Sincronización Instantánea 24/7)
+              </h4>
+              <p class="text-[11px] text-slate-400 mt-0.5">
+                Conecta todas las taquillas y tu laptop administrativa desde cualquier lugar por Internet.
+              </p>
+            </div>
+            <span id="fb-modal-status-badge" class="badge-pill badge-suspendida">Sin configurar</span>
+          </div>
+
+          <div class="bg-slate-900/90 border border-slate-800 rounded-lg p-3 text-xs text-slate-300 space-y-1.5">
+            <div class="font-bold text-amber-400">Pasos rápidos para obtener tu URL gratuita de Firebase (2 minutos):</div>
+            <ol class="list-decimal list-inside space-y-1 text-[11px] text-slate-300">
+              <li>Entra en <a href="https://console.firebase.google.com/" target="_blank" class="text-sky-400 underline font-bold">console.firebase.google.com</a> con tu correo Google y haz clic en <strong>"Crear un proyecto"</strong> (Ej: <code class="text-emerald-300">banca-fc-castano</code>).</li>
+              <li>En el menú izquierdo abre <strong>Compilación → Realtime Database</strong> y haz clic en <strong>"Crear base de datos"</strong>.</li>
+              <li>Elige ubicación <strong>Estados Unidos (us-central1)</strong> y selecciona <strong>"Comenzar en modo de prueba"</strong> (habilita lectura y escritura).</li>
+              <li>Copia la URL que aparece arriba en tu base de datos (termina en <code class="text-amber-300">.firebaseio.com/</code> o <code class="text-amber-300">.firebasedatabase.app/</code>) y pégala aquí abajo:</li>
+            </ol>
+          </div>
+
+          <form id="form-firebase-config" class="space-y-3">
+            <div>
+              <label for="input-firebase-db-url" class="block text-xs font-bold text-slate-200 mb-1">
+                🔗 URL de Firebase Realtime Database (o bloque <code class="text-amber-300">firebaseConfig</code>):
+              </label>
+              <input type="text" id="input-firebase-db-url" required placeholder="https://banca-fc-castano-default-rtdb.firebaseio.com" class="w-full bg-slate-900 text-emerald-400 font-mono text-xs px-3.5 py-2.5 rounded-lg border border-slate-700 focus:outline-none focus:border-sky-500">
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="submit" id="btn-save-firebase-url" class="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-black text-xs uppercase shadow-lg transition">
+                ☁️ Guardar y Conectar con Firebase Ahora
+              </button>
+              <button type="button" id="btn-force-pull-server" class="px-3.5 py-2 rounded-lg bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 border border-blue-500/40 text-xs font-bold transition">
+                🔄 Sincronizar Nube Ahora
+              </button>
+              <button type="button" id="btn-disconnect-firebase" class="px-3 py-2 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 text-xs font-bold transition">
+                Desconectar
+              </button>
+            </div>
+          </form>
+
+          <!-- Enlace directo listo para enviar a las taquillas -->
+          <div id="fb-share-links-box" class="hidden bg-emerald-950/30 border border-emerald-500/40 rounded-xl p-3 space-y-2">
+            <div class="text-[11px] font-black uppercase text-emerald-400">
+              ✅ ¡Enlace Automático para tus Laptops de Taquilla POS!
+            </div>
+            <p class="text-[11px] text-slate-300">
+              Envía este enlace por WhatsApp a tus taquilleros. Al abrirlo en su navegador, la taquilla quedará conectada automáticamente a tu nube de Firebase sin que ellos tengan que configurar nada:
+            </p>
+            <div class="flex items-center gap-2">
+              <input type="text" id="input-share-pos-url" readonly class="flex-1 bg-slate-950 text-amber-300 font-mono text-xs px-3 py-2 rounded border border-slate-700">
+              <button type="button" id="btn-copy-share-pos-url" class="px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs whitespace-nowrap">
+                📋 Copiar Link Taquilla
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RESPALDO / IMPORTACIÓN MANUAL DE ARCHIVO JSON -->
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2.5">
+          <h4 class="text-xs font-black uppercase text-slate-300">
+            💾 Respaldo Manual o Importación de Ventas Offline (.JSON)
+          </h4>
+          <p class="text-xs text-slate-400">
+            También puedes exportar una copia de seguridad de toda la base de datos o importar ventas hechas sin internet:
+          </p>
+          <div class="flex flex-wrap items-center gap-3 pt-1">
+            <label class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs cursor-pointer shadow flex items-center gap-2">
+              <span>📂</span> Importar Archivo .JSON de Taquilla
+              <input type="file" id="input-import-pos-json" accept=".json" class="hidden">
+            </label>
+            <button type="button" id="btn-export-master-json" class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs">
+              💾 Descargar Respaldo Completo (.JSON)
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="bg-slate-950 px-5 py-3 border-t border-slate-800 flex justify-end">
+        <button type="button" class="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold" data-close-admin-modal="modal-network-sync">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Área dedicada para impresión desde Admin -->
+  <div id="admin-print-area"></div>
+
+  <!-- Notificación Toast Flotante -->
+  <div id="admin-toast" class="fixed bottom-5 right-5 z-50 hidden bg-slate-900 border-2 border-emerald-500 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 max-w-md">
+    <span id="admin-toast-icon" class="text-xl">✅</span>
+    <div id="admin-toast-msg" class="text-xs font-semibold">Operación realizada con éxito</div>
+  </div>
+
+  <!-- Scripts Modulares Compartidos con el POS + Sincronización Nube Firebase -->
+  <script src="js/catalogs.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/firebase-sync.js"></script>
+  <script src="js/print.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agencia 1000: AG Fernando Castaño | Usuario: 1000 - [Ventas]</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ==========================================================
+       1. PANTALLA DE LOGIN CON FONDO RETRO Y LOGO CENTRAL
+       ========================================================== -->
+  <div id="modal-login-pos" class="login-wallpaper-screen">
+    <!-- Contenedor centrado: Título de Fernando Castaño encima del modal -->
+    <div class="login-central-wrapper">
+      <div class="login-brand-top">
+        <div class="brand-fc-crest">
+          <span class="fc-shield-monogram">FC</span>
+        </div>
+        <div class="brand-titles">
+          <div class="brand-main-title">FERNANDO CASTAÑO</div>
+          <div class="brand-sub-title">SEGURO TE PAGA (1000 SORTEOS)</div>
+        </div>
+      </div>
+
+      <!-- Cuadro de Diálogo Estilo Windows Clásico -->
+      <div class="win-dialog-box">
+      <div class="win-dialog-titlebar">
+        <span>Inicio de Sesión - Taquilla de Ventas</span>
+        <button type="button" class="win-ctrl-btn close" id="btn-login-close-x">×</button>
+      </div>
+      <div class="win-dialog-content">
+        <div class="login-field-row">
+          <label>ID Terminal:</label>
+          <input type="text" class="win-input-text" value="202606111000" readonly style="background: #e5e7eb; color: #374151;">
+        </div>
+
+        <div class="login-field-row">
+          <label for="login-usuario">Usuario de Taquilla:</label>
+          <input type="text" id="login-usuario" class="win-input-text" value="1000" autofocus autocomplete="off">
+        </div>
+
+        <div class="login-field-row">
+          <label for="login-password">Contraseña de Acceso:</label>
+          <input type="password" id="login-password" class="win-input-text" placeholder="••••••••" autocomplete="current-password">
+          <div id="login-caps-warning" class="caps-warning-pill hidden">
+            ⚠️ Bloq Mayús activado
+          </div>
+        </div>
+
+        <div class="login-btn-row">
+          <button type="button" id="btn-login-aceptar" class="win-btn primary">Aceptar (Enter)</button>
+          <button type="button" id="btn-login-cancelar" class="win-btn">Cancelar (ESC)</button>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <!-- Logotipo con Iniciales FC en la esquina inferior izquierda -->
+    <div class="brand-fc-corner">
+      <div class="fc-badge-icon">FC</div>
+      <div class="fc-corner-text">
+        <div class="fc-banca-name">BANCA FC</div>
+        <div class="fc-banca-sub">Fernando Castaño | Taquilla Oficial</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================
+       2. ESTRUCTURA PRINCIPAL DE LA VENTANA POS
+       ========================================================== -->
+  <div class="app-window-frame">
+
+    <!-- Barra de Título Superior de la Ventana Windows -->
+    <header class="main-title-bar">
+      <div class="title-bar-left">
+        <span style="font-size: 15px;">🎰</span>
+        <span id="window-title-bar-text">Agencia 1000: AG Fernando Castaño | Usuario: 1000 - [Ventas]</span>
+      </div>
+      <div class="title-bar-controls">
+        <button type="button" class="win-ctrl-btn" title="Minimizar">_</button>
+        <button type="button" class="win-ctrl-btn" title="Maximizar">□</button>
+        <button type="button" class="win-ctrl-btn close" title="Cerrar">×</button>
+      </div>
+    </header>
+
+    <!-- Barra de Menús Desplegables Funcionales -->
+    <nav class="main-menu-bar">
+      <!-- Ventas -->
+      <div class="menu-item-dropdown">
+        <button type="button" class="dropdown-toggle"><u>V</u>entas</button>
+        <div class="dropdown-menu-list hidden">
+          <button type="button" id="menu-item-f2-venta"><span>F2 Venta de Ticket</span> <kbd>F2</kbd></button>
+          <button type="button" id="menu-item-f3-anular"><span>F3 Anular Ticket</span> <kbd>F3</kbd></button>
+          <button type="button" id="menu-item-reimprimir"><span>Reimprimir Ticket</span> <kbd>Ctrl+P</kbd></button>
+          <hr>
+          <button type="button" id="menu-item-aguila"><span>Águila Última Polla</span></button>
+        </div>
+      </div>
+
+      <!-- Premiación -->
+      <div class="menu-item-dropdown">
+        <button type="button" class="dropdown-toggle"><u>P</u>remiación</button>
+        <div class="dropdown-menu-list hidden">
+          <button type="button" id="menu-item-status-ganadores"><span>Status Ticket Ganadores</span></button>
+          <button type="button" id="menu-item-numeros-premiados"><span>Números Premiados</span></button>
+          <button type="button" id="menu-item-tickets-ganadores"><span>Tickets Ganadores</span></button>
+          <hr>
+          <button type="button" id="menu-item-pago-ticket"><span>Pago de Ticket</span></button>
+          <button type="button" id="menu-item-pagar-polla"><span>Pagar Polla</span></button>
+        </div>
+      </div>
+
+      <!-- Reportes -->
+      <div class="menu-item-dropdown">
+        <button type="button" class="dropdown-toggle"><u>R</u>eportes</button>
+        <div class="dropdown-menu-list hidden">
+          <button type="button" id="menu-item-reporte-general-num"><span>Reporte General x Nros</span></button>
+          <button type="button" id="menu-item-cuadre-caja"><span>Relación Final (Cuadre de Caja)</span></button>
+          <button type="button" id="menu-item-reportes-tickets"><span>Reportes de Tickets</span></button>
+          <button type="button" id="menu-item-edo-cuentas"><span>Edo. de Cuentas</span></button>
+          <hr>
+          <button type="button" id="menu-item-reporte-polla"><span>Reporte de Polla</span></button>
+        </div>
+      </div>
+
+      <!-- Configuración -->
+      <div class="menu-item-dropdown">
+        <button type="button" class="dropdown-toggle"><u>C</u>onfiguración</button>
+        <div class="dropdown-menu-list hidden">
+          <button type="button" id="menu-item-datos-agencia"><span>Datos de la Agencia</span></button>
+          <button type="button" id="menu-item-parametros"><span>Parámetros del Sistema</span></button>
+        </div>
+      </div>
+
+      <!-- Mensajes -->
+      <div class="menu-item-dropdown">
+        <button type="button" class="dropdown-toggle"><u>M</u>ensajes</button>
+        <div class="dropdown-menu-list hidden">
+          <button type="button" id="menu-item-leer-mensajes"><span>Leer Mensajes</span> <kbd>M</kbd></button>
+        </div>
+      </div>
+
+      <!-- Utilidades -->
+      <div class="menu-item-dropdown">
+        <button type="button" class="dropdown-toggle"><u>U</u>tilidades</button>
+        <div class="dropdown-menu-list hidden">
+          <button type="button" id="menu-item-f4-calculadora"><span>F4 Calculadora</span> <kbd>F4</kbd></button>
+          <button type="button" id="menu-item-f10-minimizar"><span>F10 Pantalla Completa</span> <kbd>F10</kbd></button>
+        </div>
+      </div>
+
+      <!-- Actualizar -->
+      <div class="menu-item-dropdown">
+        <button type="button" class="dropdown-toggle"><u>A</u>ctualizar / Nube</button>
+        <div class="dropdown-menu-list hidden">
+          <button type="button" id="menu-item-actualizar"><span>🔄 Sincronizar Sorteos y Nube Firebase</span></button>
+          <button type="button" id="menu-item-config-red-server"><span>☁️ Configurar URL de Nube Firebase</span></button>
+          <hr>
+          <button type="button" id="menu-item-exportar-cierre-json"><span>📤 Descargar Paquete de Ventas (.JSON)</span></button>
+        </div>
+      </div>
+
+      <!-- Panel Central Banca FC -->
+      <div class="menu-item-dropdown">
+        <button type="button" class="dropdown-toggle" id="menu-item-panel-admin" style="color: #0f766e; font-weight: bold;" onclick="window.open('admin.html', '_blank')">📊 Panel Central Banca FC</button>
+      </div>
+
+      <!-- Salir -->
+      <div class="menu-item-dropdown">
+        <button type="button" class="dropdown-toggle" id="menu-item-salir"><u>S</u>alir</button>
+      </div>
+    </nav>
+
+    <!-- Barra de Estado / Info Rápida de Cabecera -->
+    <div class="header-status-ribbon">
+      <div class="ribbon-left">
+        <span class="status-badge-correlativo" id="header-ticket-correlativo">Ticket #00010919</span>
+        <span class="status-badge-currency" id="header-active-currency">COP</span>
+        <span class="status-inset-box" id="header-agency-label">AGENCIA: 1000 - FERNANDO CASTAÑO</span>
+      </div>
+      <div class="ribbon-right">
+        <span class="status-inset-box" id="pos-firebase-status-badge" style="cursor: pointer; font-weight: bold;" title="Clic para configurar conexión con Google Firebase">☁️ Firebase: Sin configurar</span>
+        <span class="status-inset-box" id="header-live-clock">--/--/---- | --:--:--</span>
+        <span style="color: #15803d; font-weight: bold;">● CONECTADO</span>
+      </div>
+    </div>
+
+    <!-- ==========================================================
+         LAYOUT DE 3 PANELES (TAQUILLA DE ALTA VELOCIDAD)
+         ========================================================== -->
+    <main class="pos-3panel-workspace">
+
+      <!-- --------------------------------------------------------
+           PANEL 1 (IZQUIERDO): SELECTOR DE CATEGORÍAS Y SORTEOS
+           -------------------------------------------------------- -->
+      <section class="panel-categories-lotteries">
+        <!-- 4 Pestañas Superiores -->
+        <div class="panel-categories-tabs">
+          <button type="button" class="cat-tab-btn active" data-cat="sin_signo">SIN SIGNO</button>
+          <button type="button" class="cat-tab-btn" data-cat="con_signo">CON SIGNO</button>
+          <button type="button" class="cat-tab-btn" data-cat="cuatro_cifras">4 CIFRAS</button>
+          <button type="button" class="cat-tab-btn" data-cat="animalitos">ANIMALITOS</button>
+        </div>
+
+        <!-- Buscador Rápido y Herramientas -->
+        <div class="lottery-filter-box">
+          <input type="text" id="lottery-search-input" class="win-input-text" placeholder="🔍 Filtrar sorteo en vivo..." style="padding: 4px 6px; font-size: 12px;">
+          <div class="filter-tools-row">
+            <button type="button" id="btn-marcar-todos" class="btn-mini-tool" title="Marcar todos los sorteos visibles">Marcar Todos</button>
+            <button type="button" id="btn-desmarcar-todos" class="btn-mini-tool" title="Desmarcar todos los sorteos (C)">Desmarcar (C)</button>
+          </div>
+        </div>
+
+        <!-- Lista Desplazable con Checkboxes de Sorteos -->
+        <div id="lottery-checkbox-list" class="lottery-scroll-container">
+          <!-- Generado dinámicamente por pos.renderLotteriesList() -->
+        </div>
+      </section>
+
+      <!-- --------------------------------------------------------
+           PANEL 2 (CENTRAL): CAPTURA DE JUGADAS Y CUADRO DE COMANDOS
+           -------------------------------------------------------- -->
+      <section class="panel-capture-commands">
+        <!-- Caja de Entradas Rápidas -->
+        <div class="fast-entry-box">
+          <!-- Campo Número / Nro -->
+          <div class="entry-row-grid">
+            <label class="field-label" for="input-numero">Número / Nro:</label>
+            <div style="position: relative; width: 100%;">
+              <input type="text" id="input-numero" class="pos-hero-input" maxlength="5" placeholder="000" autocomplete="off">
+            </div>
+            <div id="badge-animalito-live-preview" class="badge-live-animal hidden">
+              <!-- Nombre y emoji en vivo -->
+            </div>
+          </div>
+
+          <!-- Campo Monto -->
+          <div class="entry-row-grid">
+            <label class="field-label" for="input-monto">Monto:</label>
+            <input type="number" id="input-monto" class="pos-hero-input" value="1000" step="100" min="50" autocomplete="off">
+            <span style="font-weight: bold; color: #666; font-size: 14px;">[Enter: Agregar]</span>
+          </div>
+
+          <!-- Campo Signo (Solo visible en 'CON SIGNO') -->
+          <div class="entry-row-grid hidden" id="row-input-signo">
+            <label class="field-label" for="select-signo-rapido">Signo Zodiacal:</label>
+            <select id="select-signo-rapido" class="win-input-text" style="font-size: 16px; font-weight: bold; padding: 4px;">
+              <!-- Llenado dinámicamente con los 12 signos -->
+            </select>
+            <span style="font-size: 11px; color: #555;">[X: Todos]</span>
+          </div>
+
+          <!-- Selector de "La 5ta" y "Combinado" (Solo en '4 CIFRAS') -->
+          <div id="container-5ta-balota" class="hidden" style="display: flex; gap: 16px; padding-left: 140px;">
+            <label style="display: flex; align-items: center; gap: 6px; font-weight: bold; cursor: pointer; color: #92400e;">
+              <input type="checkbox" id="chk-la-5ta-balota"> Modalidad "La 5ta" (5ta balota)
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-weight: bold; cursor: pointer; color: #1e40af;">
+              <input type="checkbox" id="chk-combinado-rapido"> Combinado [O]
+            </label>
+          </div>
+        </div>
+
+        <!-- Contadores en Tiempo Real -->
+        <div class="realtime-counters-bar">
+          <div class="counter-tile">
+            <span class="counter-title">Triples:</span>
+            <span class="counter-num" id="count-triples">0</span>
+          </div>
+          <div class="counter-tile">
+            <span class="counter-title">Terminales:</span>
+            <span class="counter-num" id="count-terminales">0</span>
+          </div>
+          <div class="counter-tile">
+            <span class="counter-title">Loterías Sel.:</span>
+            <span class="counter-num" id="count-loterias">0</span>
+          </div>
+        </div>
+
+        <!-- Panel de Comandos y Atajos (Triples, 4 Cifras, Con Signo) -->
+        <div id="normal-command-bar" class="command-keyboard-grid">
+          <button type="button" class="pos-key-btn" id="cmd-btn-permuta" title="Genera todas las permutaciones de 3 o 4 cifras">
+            <span class="key-code">P</span>
+            <span class="key-desc">Permutas</span>
+          </button>
+          <button type="button" class="pos-key-btn" id="cmd-btn-series" title="Genera serie de 0 al 9 para el terminal o centena">
+            <span class="key-code">S</span>
+            <span class="key-desc">Series</span>
+          </button>
+          <button type="button" class="pos-key-btn" id="cmd-btn-todos-signos" title="Aplica la jugada a los 12 signos zodiacales">
+            <span class="key-code">X</span>
+            <span class="key-desc">Todos Signos</span>
+          </button>
+          <button type="button" class="pos-key-btn" id="cmd-btn-repetir-terminal" title="Repite el terminal de la última jugada">
+            <span class="key-code">R</span>
+            <span class="key-desc">Repetir Term</span>
+          </button>
+          <button type="button" class="pos-key-btn" id="cmd-btn-repetir-loteria" title="Restaura la selección de loterías anterior">
+            <span class="key-code">L</span>
+            <span class="key-desc">Rep. Lotería</span>
+          </button>
+          <button type="button" class="pos-key-btn" id="cmd-btn-repetir-ticket" title="Carga las jugadas del ticket anterior">
+            <span class="key-code">T</span>
+            <span class="key-desc">Rep. Ticket</span>
+          </button>
+          <button type="button" class="pos-key-btn" id="cmd-btn-desmarcar-lot" title="Desmarca los sorteos activos">
+            <span class="key-code">C</span>
+            <span class="key-desc">Desmarcar</span>
+          </button>
+          <button type="button" class="pos-key-btn" id="cmd-btn-mensajes" title="Leer mensajes de la central">
+            <span class="key-code">M</span>
+            <span class="key-desc">Mensajes</span>
+          </button>
+          <button type="button" class="pos-key-btn action-clear" id="cmd-btn-anular-todo" title="Limpia todo el pre-ticket actual">
+            <span class="key-code">A</span>
+            <span class="key-desc">Anular Todo</span>
+          </button>
+          <button type="button" class="pos-key-btn action-print" id="cmd-btn-imprimir" style="grid-column: span 3;" title="Emite e imprime el ticket">
+            <span class="key-code">+ / /</span>
+            <span class="key-desc" style="font-size: 13px; font-weight: 900;">IMPRIMIR TICKET</span>
+          </button>
+        </div>
+
+        <!-- Barra Inferior Especial para Animalitos -->
+        <div id="animalito-command-bar" class="animalitos-fast-bar hidden">
+          <button type="button" class="anm-action-btn" id="btn-anm-borrar">Borrar Pantalla (A)</button>
+          <button type="button" class="anm-action-btn" id="btn-anm-desmarcar">Desmarcar Sorteo (C)</button>
+          <button type="button" class="anm-action-btn" id="btn-anm-repetir">Repetir Ticket (T)</button>
+          <button type="button" class="anm-action-btn" id="btn-anm-anular">Anular Tickets (M)</button>
+          <button type="button" class="anm-action-btn" id="btn-anm-pagar">Pagar Ticket</button>
+          <button type="button" class="anm-action-btn" id="btn-anm-ruleta-rapida" style="background: #e0f2fe; color: #0369a1;">Ruleta 0-36 (Grid)</button>
+          <button type="button" class="anm-action-btn" id="btn-anm-imprimir" style="grid-column: span 2; background: #dcfce7; font-weight: 900;">Imprimir (/ , +)</button>
+        </div>
+      </section>
+
+      <!-- --------------------------------------------------------
+           PANEL 3 (DERECHO): PRE-VISUALIZACIÓN DEL TICKET EN VIVO
+           -------------------------------------------------------- -->
+      <section class="panel-ticket-preview">
+        <!-- Cabecera de la Previsualización -->
+        <div class="preview-top-header">
+          <span>Pre-Ticket en Curso</span>
+          <span class="preview-ticket-badge">Ticket #00010919</span>
+        </div>
+
+        <!-- Rollo de Papel con Lista Desplazable de Jugadas -->
+        <div id="pre-ticket-items-list" class="pre-ticket-paper-roll">
+          <!-- Renderizado dinámico por pos.renderPreTicket() -->
+        </div>
+
+        <!-- Totalizador General del Ticket -->
+        <div class="preview-bottom-totalizer">
+          <div class="totalizer-meta-row">
+            <span>RESUMEN DE VENTA</span>
+            <span id="pre-ticket-count-display">0 jugadas</span>
+          </div>
+          <div class="totalizer-amount-display" id="pre-ticket-total-display">$ 0</div>
+        </div>
+
+        <!-- Botones de Acción Directa -->
+        <div class="preview-action-buttons">
+          <button type="button" id="btn-limpiar-pre-ticket" class="btn-big-action secondary" title="Limpiar jugadas cargadas">Limpiar (A)</button>
+          <button type="button" id="btn-imprimir-pre-ticket" class="btn-big-action primary" title="Imprimir ticket (+) / (/)">IMPRIMIR (+ / /)</button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ==========================================================
+       MODALES Y VENTANAS FLOTANTES
+       ========================================================== -->
+
+  <!-- 1. Modal F3 Anular Ticket -->
+  <div id="modal-anular-ticket" class="modal-overlay hidden">
+    <div class="modal-container" style="width: 480px;">
+      <div class="modal-header">
+        <span>F3 - Anulación de Ticket de Taquilla</span>
+        <button type="button" class="win-ctrl-btn close" data-close-modal="modal-anular-ticket">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+          <input type="text" id="input-anular-search" class="win-input-text" placeholder="Ingrese Ticket # (ej. 00010918) o Serial..." style="flex: 1;">
+          <button type="button" id="btn-buscar-anular" class="win-btn primary">Buscar</button>
+        </div>
+        <div id="anular-ticket-details">
+          <div class="alert alert-info">Ingrese el número de ticket o serial para consultar los detalles antes de anular.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="btn-confirmar-anular" class="win-btn" style="color: #dc2626;" disabled>Confirmar Anulación</button>
+        <button type="button" class="win-btn" data-close-modal="modal-anular-ticket">Cerrar (ESC)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Modal Reimprimir Ticket -->
+  <div id="modal-reimprimir-ticket" class="modal-overlay hidden">
+    <div class="modal-container" style="width: 540px;">
+      <div class="modal-header">
+        <span>Reimpresión de Tickets Emitidos</span>
+        <button type="button" class="win-ctrl-btn close" data-close-modal="modal-reimprimir-ticket">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+          <button type="button" id="btn-reimprimir-ultimo" class="win-btn primary" style="flex: 1;">Reimprimir Último Ticket Emitido</button>
+        </div>
+        <input type="text" id="input-reimprimir-search" class="win-input-text" placeholder="Filtrar por ticket # o serial..." style="width: 100%; margin-bottom: 8px;">
+        <div id="reimprimir-tickets-list" style="max-height: 280px; overflow-y: auto; border: 1px solid #ccc; background: #fff;">
+          <!-- Lista de tickets -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="win-btn" data-close-modal="modal-reimprimir-ticket">Cerrar (ESC)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Modal Números Premiados (Carga de Resultados) -->
+  <div id="modal-numeros-premiados" class="modal-overlay hidden">
+    <div class="modal-container" style="width: 600px;">
+      <div class="modal-header">
+        <span>Carga de Números Premiados Oficiales</span>
+        <button type="button" class="win-ctrl-btn close" data-close-modal="modal-numeros-premiados">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid-2col" style="margin-bottom: 10px;">
+          <div>
+            <label style="font-weight: bold;">Fecha del Sorteo:</label>
+            <input type="date" id="input-resultados-fecha" class="win-input-text" style="width: 100%;">
+          </div>
+          <div>
+            <label style="font-weight: bold;">Sorteo / Lotería:</label>
+            <select id="select-resultados-loteria" class="win-input-text" style="width: 100%; font-size: 11px;">
+              <!-- Opciones de todas las loterías -->
+            </select>
+          </div>
+        </div>
+
+        <div class="form-grid-2col" style="margin-bottom: 10px;">
+          <div>
+            <label style="font-weight: bold;">Número Ganador:</label>
+            <input type="text" id="input-resultados-numero" class="win-input-text" placeholder="Ej. 845, 05 o 4729" style="width: 100%;">
+          </div>
+          <div>
+            <label style="font-weight: bold;">Signo Zodiacal (si aplica):</label>
+            <select id="select-resultados-signo" class="win-input-text" style="width: 100%;">
+              <!-- Signos -->
+            </select>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 12px;">
+          <input type="text" id="input-resultados-5ta" class="win-input-text" placeholder="5ta balota (opcional)" style="width: 160px;">
+          <button type="button" id="btn-guardar-resultado" class="win-btn primary" style="flex: 1;">Guardar Resultado y Recalcular Premios</button>
+        </div>
+
+        <h4 style="font-size: 12px; font-weight: bold; margin-bottom: 4px;">Resultados cargados para la fecha seleccionada:</h4>
+        <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc;">
+          <table class="pos-table-clean">
+            <thead>
+              <tr>
+                <th>Lotería</th>
+                <th>Resultado Oficial</th>
+                <th>Hora Carga</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-resultados-guardados">
+              <!-- Resultados -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="win-btn" data-close-modal="modal-numeros-premiados">Cerrar (ESC)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Modal Verificar y Pagar Premios -->
+  <div id="modal-verificar-ticket" class="modal-overlay hidden">
+    <div class="modal-container" style="width: 520px;">
+      <div class="modal-header">
+        <span>Verificación y Pago de Tickets Ganadores</span>
+        <button type="button" class="win-ctrl-btn close" data-close-modal="modal-verificar-ticket">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+          <input type="text" id="input-verificar-ticket" class="win-input-text" placeholder="Escanear código de barra, serial o ticket #..." style="flex: 1;">
+          <button type="button" id="btn-verificar-ticket" class="win-btn primary">Verificar</button>
+        </div>
+        <div id="verificar-ticket-result">
+          <div class="alert alert-info">Ingrese o escanee el código del ticket para evaluar sus aciertos contra los sorteos oficiales.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="btn-pagar-ticket-ganador" class="win-btn" style="background: #15803d; color: #fff;" disabled>PAGAR PREMIO AL CLIENTE</button>
+        <button type="button" class="win-btn" data-close-modal="modal-verificar-ticket">Cerrar (ESC)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Modal Relación Final (Cuadre de Caja) -->
+  <div id="modal-cuadre-caja" class="modal-overlay hidden">
+    <div class="modal-container" style="width: 580px;">
+      <div class="modal-header">
+        <span>Relación Final - Cuadre de Caja de Taquilla</span>
+        <button type="button" class="win-ctrl-btn close" data-close-modal="modal-cuadre-caja">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; gap: 10px; margin-bottom: 12px; align-items: center;">
+          <label style="font-weight: bold;">Fecha:</label>
+          <input type="text" id="input-cuadre-fecha" class="win-input-text" style="width: 120px;" placeholder="DD/MM/YYYY">
+          <label style="font-weight: bold; margin-left: 8px;">Moneda:</label>
+          <select id="select-cuadre-moneda" class="win-input-text" style="width: 100px;">
+            <option value="COP">COP ($)</option>
+            <option value="VES">VES (Bs.)</option>
+            <option value="USD">USD ($)</option>
+          </select>
+          <button type="button" id="btn-filtrar-cuadre" class="win-btn primary">Calcular</button>
+        </div>
+
+        <div class="cuadre-summary-grid">
+          <div class="cuadre-card-stat">
+            <div class="stat-label">Tickets Emitidos:</div>
+            <div class="stat-val" id="cuadre-val-tickets">0</div>
+          </div>
+          <div class="cuadre-card-stat">
+            <div class="stat-label">Ventas Brutas:</div>
+            <div class="stat-val" id="cuadre-val-brutas">$ 0</div>
+          </div>
+          <div class="cuadre-card-stat">
+            <div class="stat-label">Tickets Anulados:</div>
+            <div class="stat-val text-danger" id="cuadre-val-anulados">$ 0</div>
+          </div>
+          <div class="cuadre-card-stat">
+            <div class="stat-label">Ventas Netas:</div>
+            <div class="stat-val text-success" id="cuadre-val-netas">$ 0</div>
+          </div>
+          <div class="cuadre-card-stat">
+            <div class="stat-label">Premios Pagados:</div>
+            <div class="stat-val" style="color: #d97706;" id="cuadre-val-premios">$ 0</div>
+          </div>
+          <div class="cuadre-card-stat">
+            <div class="stat-label">Comisión Agencia:</div>
+            <div class="stat-val" id="cuadre-val-comision">$ 0 (10%)</div>
+          </div>
+        </div>
+
+        <div style="background: #111827; padding: 12px; border: 2px inset #555; display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: #fff; font-weight: bold; font-size: 14px;">SALDO NETO A ENTREGAR A LA BANCA:</span>
+          <span id="cuadre-val-balance" class="text-xl text-success font-bold" style="font-family: 'Courier New', monospace; font-size: 24px;">$ 0</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="btn-imprimir-cuadre" class="win-btn primary">Imprimir Cuadre Térmico</button>
+        <button type="button" id="btn-exportar-cuadre-csv" class="win-btn">Exportar CSV</button>
+        <button type="button" id="btn-exportar-paquete-json" class="win-btn" style="background: #0f766e; color: #fff; font-weight: bold;" title="Descarga archivo para cargarlo en el Administrativo de otra Laptop">📤 Enviar Ventas al Admin (.JSON)</button>
+        <button type="button" class="win-btn" data-close-modal="modal-cuadre-caja">Cerrar (ESC)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Modal Reporte por Números (Riesgo y Topes) -->
+  <div id="modal-reporte-numeros" class="modal-overlay hidden">
+    <div class="modal-container" style="width: 500px;">
+      <div class="modal-header">
+        <span>Reporte General por Números y Control de Riesgo</span>
+        <button type="button" class="win-ctrl-btn close" data-close-modal="modal-reporte-numeros">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="max-height: 320px; overflow-y: auto; border: 1px solid #ccc;">
+          <table class="pos-table-clean">
+            <thead>
+              <tr>
+                <th>Número / Signo / Animal</th>
+                <th>Modalidad</th>
+                <th>Cantidad</th>
+                <th>Total Apostado</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-reporte-numeros">
+              <!-- Datos de reporte -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="win-btn" data-close-modal="modal-reporte-numeros">Cerrar (ESC)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. Modal Configuración y Parámetros -->
+  <div id="modal-configuracion" class="modal-overlay hidden">
+    <div class="modal-container" style="width: 520px;">
+      <div class="modal-header">
+        <span>Configuración de Parámetros de Taquilla</span>
+        <button type="button" class="win-ctrl-btn close" data-close-modal="modal-configuracion">×</button>
+      </div>
+      <form id="form-parametros">
+        <div class="modal-body">
+          <div class="form-grid-2col" style="margin-bottom: 8px;">
+            <div>
+              <label style="font-weight: bold;">Código de Agencia:</label>
+              <input type="text" id="cfg-agency-code" class="win-input-text" style="width: 100%;">
+            </div>
+            <div>
+              <label style="font-weight: bold;">Nombre de la Agencia:</label>
+              <input type="text" id="cfg-agency-name" class="win-input-text" style="width: 100%;">
+            </div>
+          </div>
+
+          <div class="form-grid-2col" style="margin-bottom: 8px;">
+            <div>
+              <label style="font-weight: bold;">Usuario / Taquilla:</label>
+              <input type="text" id="cfg-user-id" class="win-input-text" style="width: 100%;">
+            </div>
+            <div>
+              <label style="font-weight: bold;">Moneda Principal:</label>
+              <select id="cfg-currency" class="win-input-text" style="width: 100%;">
+                <option value="COP">COP ($ Pesos Colombianos)</option>
+                <option value="VES">VES (Bs. Bolívares)</option>
+                <option value="USD">USD ($ Dólares)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid-2col" style="margin-bottom: 12px;">
+            <div>
+              <label style="font-weight: bold;">Ancho de Papel Térmico:</label>
+              <select id="cfg-paper-width" class="win-input-text" style="width: 100%;">
+                <option value="58mm">58mm (Estándar Taquilla)</option>
+                <option value="80mm">80mm (Ancho)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-weight: bold;">Comisión Agencia (%):</label>
+              <input type="number" id="cfg-commission" class="win-input-text" style="width: 100%;" min="0" max="50">
+            </div>
+          </div>
+
+          <h4 style="font-size: 12px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 2px; margin-bottom: 8px;">Multiplicadores de Pago:</h4>
+          <div class="form-grid-2col" style="gap: 6px;">
+            <div>
+              <label style="font-size: 11px;">Triple (Directo):</label>
+              <input type="number" id="cfg-mult-triple" class="win-input-text" style="width: 100%;">
+            </div>
+            <div>
+              <label style="font-size: 11px;">Terminal (Derecho):</label>
+              <input type="number" id="cfg-mult-terminal" class="win-input-text" style="width: 100%;">
+            </div>
+            <div>
+              <label style="font-size: 11px;">Aproximación Terminal:</label>
+              <input type="number" id="cfg-mult-aprox" class="win-input-text" style="width: 100%;">
+            </div>
+            <div>
+              <label style="font-size: 11px;">Animalitos (Ruleta):</label>
+              <input type="number" id="cfg-mult-animalito" class="win-input-text" style="width: 100%;">
+            </div>
+            <div>
+              <label style="font-size: 11px;">4 Cifras Directo:</label>
+              <input type="number" id="cfg-mult-4cifras" class="win-input-text" style="width: 100%;">
+            </div>
+            <div>
+              <label style="font-size: 11px;">Modalidad La 5ta:</label>
+              <input type="number" id="cfg-mult-la5ta" class="win-input-text" style="width: 100%;">
+            </div>
+            <div>
+              <label style="font-size: 11px;">Astro 4 Cifras + Signo:</label>
+              <input type="number" id="cfg-mult-astro" class="win-input-text" style="width: 100%;">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="win-btn primary">Guardar Parámetros</button>
+          <button type="button" class="win-btn" data-close-modal="modal-configuracion">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 8. Modal Calculadora Windows POS (F4) -->
+  <div id="modal-calculadora" class="modal-overlay hidden">
+    <div class="modal-container" style="width: 250px;">
+      <div class="modal-header">
+        <span>F4 Calculadora</span>
+        <button type="button" class="win-ctrl-btn close" data-close-modal="modal-calculadora">×</button>
+      </div>
+      <div class="calc-window-body">
+        <input type="text" id="calc-display" class="calc-screen-input" value="0" readonly>
+        <div class="calc-keys-grid">
+          <button type="button" class="calc-btn" data-val="C">C</button>
+          <button type="button" class="calc-btn" data-val="CE">CE</button>
+          <button type="button" class="calc-btn" data-val="/">/</button>
+          <button type="button" class="calc-btn" data-val="*">×</button>
+
+          <button type="button" class="calc-btn" data-val="7">7</button>
+          <button type="button" class="calc-btn" data-val="8">8</button>
+          <button type="button" class="calc-btn" data-val="9">9</button>
+          <button type="button" class="calc-btn" data-val="-">-</button>
+
+          <button type="button" class="calc-btn" data-val="4">4</button>
+          <button type="button" class="calc-btn" data-val="5">5</button>
+          <button type="button" class="calc-btn" data-val="6">6</button>
+          <button type="button" class="calc-btn" data-val="+">+</button>
+
+          <button type="button" class="calc-btn" data-val="1">1</button>
+          <button type="button" class="calc-btn" data-val="2">2</button>
+          <button type="button" class="calc-btn" data-val="3">3</button>
+          <button type="button" class="calc-btn" data-val="=" style="grid-row: span 2; height: 100%;">=</button>
+
+          <button type="button" class="calc-btn" data-val="0" style="grid-column: span 2;">0</button>
+          <button type="button" class="calc-btn" data-val=".">.</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 9. Modal Mensajes Internos -->
+  <div id="modal-mensajes" class="modal-overlay hidden">
+    <div class="modal-container" style="width: 500px;">
+      <div class="modal-header">
+        <span>Mensajes y Circulares de la Central</span>
+        <button type="button" class="win-ctrl-btn close" data-close-modal="modal-mensajes">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="mensajes-list-container" style="display: flex; flex-direction: column; gap: 8px;">
+          <!-- Mensajes renderizados -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="win-btn" data-close-modal="modal-mensajes">Cerrar (ESC)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10. Modal Ruleta y Selector Visual Rápido de Animalitos -->
+  <div id="modal-ruleta-animalitos" class="modal-overlay hidden">
+    <div class="modal-container" style="width: 620px;">
+      <div class="modal-header">
+        <span>Ruleta de Animalitos (0 al 36 y Ballena 00)</span>
+        <button type="button" class="win-ctrl-btn close" data-close-modal="modal-ruleta-animalitos">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="animalitos-quick-grid" class="animal-picker-grid">
+          <!-- Botones rápidos generados dinámicamente -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="win-btn" data-close-modal="modal-ruleta-animalitos">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 11. Modal de Vista Previa de Impresión Térmica -->
+  <div id="modal-print-preview" class="modal-overlay hidden">
+    <div class="modal-container" style="width: 380px;">
+      <div class="modal-header">
+        <span>Vista Previa del Ticket Térmico</span>
+        <button type="button" class="win-ctrl-btn close" id="btn-close-print-preview">×</button>
+      </div>
+      <div class="modal-body" style="background: #555; padding: 12px; display: flex; justify-content: center;">
+        <div id="print-receipt-container" style="box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+          <!-- Recibo térmico -->
+        </div>
+      </div>
+      <div class="modal-footer" style="flex-wrap: wrap;">
+        <button type="button" id="btn-share-whatsapp" class="win-btn" style="background: #25D366; color: #fff; font-weight: bold;">WhatsApp</button>
+        <button type="button" id="btn-download-ticket-txt" class="win-btn">Descargar .TXT</button>
+        <button type="button" id="btn-trigger-window-print" class="win-btn primary" style="background: #0284c7; color: #fff;">Imprimir (Enter)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================
+       ÁREA EXCLUSIVA DE IMPRESIÓN (@media print)
+       ========================================================== -->
+  <div id="print-dedicated-area"></div>
+
+  <!-- Scripts Modulares -->
+  <script src="js/catalogs.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/firebase-sync.js"></script>
+  <script src="js/print.js"></script>
+  <script src="js/pos.js"></script>
+  <script src="js/modals.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

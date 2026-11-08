@@ -1,0 +1,1294 @@
+/* css/styles.css - Estilos POS Windows Clásico y Reglas de Impresión Térmica */
+/* Sistema "Banca FC - Fernando Castaño (Seguro Te Paga)" */
+
+:root {
+  --pos-win-blue: #0b3b60;
+  --pos-win-header-start: #0a246a;
+  --pos-win-header-end: #3a6ea5;
+  --pos-bg-grey: #ece9d8;
+  --pos-panel-border: #7f9db9;
+  --pos-btn-face: #f0f0f0;
+  --pos-btn-border-light: #ffffff;
+  --pos-btn-border-dark: #707070;
+  --pos-btn-border-darker: #404040;
+  --pos-lcd-bg: #111827;
+  --pos-lcd-text: #10b981;
+  --pos-lcd-amber: #f59e0b;
+  --pos-accent-blue: #0284c7;
+  --pos-danger: #dc2626;
+  --pos-success: #16a34a;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  user-select: none;
+}
+
+body {
+  background-color: #316ac5;
+  height: 100vh;
+  overflow: hidden;
+  font-size: 13px;
+  color: #000;
+}
+
+/* ==========================================================
+   PANTALLA DE LOGIN Y FONDO RETRO CON PATRÓN DE HERRADURAS
+   ========================================================== */
+.login-wallpaper-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background-color: #5c9cd8;
+  /* Patrón de herraduras en SVG */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cpath fill='%234887c4' fill-opacity='0.45' d='M40 18c-9.9 0-18 8.1-18 18 0 8.3 5.7 15.3 13.5 17.3l-2.5 8.7c-12-3.1-20-13.8-20-26 0-14.9 12.1-27 27-27s27 12.1 27 27c0 12.2-8 22.9-20 26l-2.5-8.7c7.8-2 13.5-9 13.5-17.3 0-9.9-8.1-18-18-18z'/%3E%3C/svg%3E");
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-central-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 10;
+  max-width: 90vw;
+}
+
+.login-brand-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.brand-fc-crest {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, #0a246a 0%, #1e3a8a 100%);
+  border: 3px solid #ffd700;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.4);
+}
+
+.fc-shield-monogram {
+  font-size: 28px;
+  font-weight: 900;
+  color: #ffd700;
+  letter-spacing: 2px;
+  font-family: "Impact", "Segoe UI", Arial, sans-serif;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+}
+
+.brand-main-title {
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #ffd700;
+  text-transform: uppercase;
+  text-shadow: 2px 2px 6px rgba(0,0,0,0.7);
+  line-height: 1.1;
+}
+
+.brand-sub-title {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: #ffffff;
+  text-shadow: 1px 1px 4px rgba(0,0,0,0.7);
+  margin-top: 2px;
+}
+
+.brand-fc-corner {
+  position: absolute;
+  bottom: 22px;
+  left: 26px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 5;
+}
+
+.fc-badge-icon {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, #0a246a 0%, #1e3a8a 100%);
+  border: 2px solid #ffd700;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 900;
+  color: #ffd700;
+  letter-spacing: 1px;
+  font-family: "Impact", "Segoe UI", Arial, sans-serif;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.5);
+  text-shadow: 1px 1px 3px #000;
+}
+
+.fc-banca-name {
+  font-size: 18px;
+  font-weight: 900;
+  color: #ffd700;
+  letter-spacing: 1px;
+  text-shadow: 1px 1px 4px rgba(0,0,0,0.7);
+  line-height: 1.1;
+}
+
+.fc-banca-sub {
+  font-size: 11px;
+  font-weight: bold;
+  color: #ffffff;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
+}
+
+/* Modal de Login Estilo Windows Clásico */
+.win-dialog-box {
+  background: var(--pos-bg-grey);
+  border: 2px solid;
+  border-color: #dfdfdf #404040 #404040 #dfdfdf;
+  box-shadow: 4px 4px 15px rgba(0,0,0,0.5);
+  width: 380px;
+}
+
+.win-dialog-titlebar {
+  background: linear-gradient(to right, var(--pos-win-header-start), var(--pos-win-header-end));
+  color: #ffffff;
+  font-weight: bold;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.win-dialog-content {
+  padding: 16px;
+}
+
+.login-field-row {
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.login-field-row label {
+  font-weight: 600;
+  color: #333;
+}
+
+.win-input-text {
+  border: 2px inset #d4d0c8;
+  background: #ffffff;
+  padding: 6px 8px;
+  font-size: 14px;
+  font-weight: bold;
+  outline: none;
+}
+
+.win-input-text:focus {
+  background: #fffbe6;
+  border-color: #0b3b60;
+}
+
+.caps-warning-pill {
+  background: #fef08a;
+  border: 1px solid #eab308;
+  color: #854d0e;
+  padding: 4px 8px;
+  font-size: 11px;
+  border-radius: 3px;
+  margin-top: 4px;
+}
+
+.login-btn-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.win-btn {
+  background: var(--pos-btn-face);
+  border: 2px solid;
+  border-color: var(--pos-btn-border-light) var(--pos-btn-border-darker) var(--pos-btn-border-darker) var(--pos-btn-border-light);
+  padding: 6px 16px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  outline: none;
+}
+
+.win-btn:active {
+  border-color: var(--pos-btn-border-darker) var(--pos-btn-border-light) var(--pos-btn-border-light) var(--pos-btn-border-darker);
+  padding: 7px 15px 5px 17px;
+}
+
+.win-btn.primary {
+  color: #0b3b60;
+  font-weight: bold;
+}
+
+/* ==========================================================
+   ESTRUCTURA PRINCIPAL DE LA VENTANA POS (DESK WINDOW)
+   ========================================================== */
+.app-window-frame {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--pos-bg-grey);
+}
+
+/* Barra de Título Superior de Windows */
+.main-title-bar {
+  background: linear-gradient(to right, var(--pos-win-header-start), var(--pos-win-header-end));
+  color: #ffffff;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #000;
+}
+
+.title-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: bold;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+}
+
+.title-bar-controls {
+  display: flex;
+  gap: 2px;
+}
+
+.win-ctrl-btn {
+  background: #d4d0c8;
+  border: 1px solid;
+  border-color: #fff #404040 #404040 #fff;
+  width: 22px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.win-ctrl-btn.close {
+  background: #c23616;
+  color: #fff;
+}
+
+/* Menú Superior Desplegable */
+.main-menu-bar {
+  background: #f0ede0;
+  border-bottom: 1px solid #999;
+  display: flex;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+
+.menu-item-dropdown {
+  position: relative;
+}
+
+.dropdown-toggle {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #000;
+}
+
+.dropdown-toggle:hover {
+  background: #316ac5;
+  color: #ffffff;
+}
+
+.dropdown-menu-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  background: #ffffff;
+  border: 2px solid;
+  border-color: #dfdfdf #404040 #404040 #dfdfdf;
+  box-shadow: 3px 3px 10px rgba(0,0,0,0.3);
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdown-menu-list button {
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+}
+
+.dropdown-menu-list button:hover {
+  background: #316ac5;
+  color: #ffffff;
+}
+
+.dropdown-menu-list hr {
+  margin: 2px 0;
+  border: none;
+  border-top: 1px solid #d4d0c8;
+}
+
+/* Barra de Estado / Info Rápida de Cabecera */
+.header-status-ribbon {
+  background: #dcd7ca;
+  border-bottom: 2px groove #fff;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.ribbon-left, .ribbon-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-inset-box {
+  background: #ffffff;
+  border: 1px inset #999;
+  padding: 3px 8px;
+  font-weight: bold;
+}
+
+.status-badge-correlativo {
+  background: #1e3a8a;
+  color: #ffffff;
+  padding: 3px 8px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  border-radius: 2px;
+}
+
+.status-badge-currency {
+  background: #047857;
+  color: #ffffff;
+  padding: 2px 6px;
+  font-weight: bold;
+  border-radius: 2px;
+}
+
+/* ==========================================================
+   LAYOUT PRINCIPAL DE 3 PANELES (TAQUILLA RÁPIDA)
+   ========================================================== */
+.pos-3panel-workspace {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  padding: 6px;
+  gap: 6px;
+  background: #5080c0;
+}
+
+/* ----------------------------------------------------------
+   PANEL 1 (IZQUIERDO): CATEGORÍAS Y LISTA DE SORTEOS
+   ---------------------------------------------------------- */
+.panel-categories-lotteries {
+  width: 340px;
+  background: var(--pos-bg-grey);
+  border: 2px solid;
+  border-color: #ffffff #808080 #808080 #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-categories-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: #d4d0c8;
+  border-bottom: 2px solid #808080;
+}
+
+.cat-tab-btn {
+  padding: 8px 2px;
+  font-size: 11px;
+  font-weight: bold;
+  border: 1px solid #808080;
+  background: #e0ded4;
+  cursor: pointer;
+  text-align: center;
+}
+
+.cat-tab-btn.active {
+  background: #ffffff;
+  border-bottom-color: #ffffff;
+  color: #0b3b60;
+  box-shadow: inset 0 2px 0 #0b3b60;
+}
+
+.lottery-filter-box {
+  padding: 6px;
+  background: #f4f2ea;
+  border-bottom: 1px solid #d4d0c8;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filter-tools-row {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-mini-tool {
+  background: #e0ded4;
+  border: 1px solid #808080;
+  padding: 2px 6px;
+  font-size: 11px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-mini-tool:hover {
+  background: #316ac5;
+  color: #fff;
+}
+
+.lottery-scroll-container {
+  flex: 1;
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px inset #808080;
+  margin: 6px;
+}
+
+.lottery-item-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.lottery-item-row:hover {
+  background: #e6f0fa;
+}
+
+.lottery-item-row.selected {
+  background: #cfe2f3;
+  font-weight: bold;
+}
+
+.lottery-item-row input[type="checkbox"] {
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.lottery-name-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lottery-time-badge {
+  background: #e5e7eb;
+  padding: 1px 4px;
+  font-size: 10px;
+  font-weight: bold;
+  border-radius: 2px;
+  margin-left: 4px;
+}
+
+.lottery-5ta-badge {
+  background: #f59e0b;
+  color: #fff;
+  padding: 1px 4px;
+  font-size: 10px;
+  font-weight: 900;
+  border-radius: 2px;
+  margin-left: 4px;
+}
+
+/* ----------------------------------------------------------
+   PANEL 2 (CENTRAL): CAPTURA RÁPIDA Y COMANDOS
+   ---------------------------------------------------------- */
+.panel-capture-commands {
+  flex: 1;
+  background: var(--pos-bg-grey);
+  border: 2px solid;
+  border-color: #ffffff #808080 #808080 #ffffff;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.fast-entry-box {
+  background: #ffffff;
+  border: 2px inset #999;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.entry-row-grid {
+  display: grid;
+  grid-template-columns: 140px 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.field-label {
+  font-weight: 900;
+  font-size: 15px;
+  color: #0b3b60;
+  text-align: right;
+  padding-right: 8px;
+}
+
+.pos-hero-input {
+  background: var(--pos-lcd-bg);
+  color: var(--pos-lcd-text);
+  font-family: "Courier New", Consolas, monospace;
+  font-size: 26px;
+  font-weight: 900;
+  padding: 4px 10px;
+  border: 2px inset #444;
+  outline: none;
+  width: 100%;
+  letter-spacing: 2px;
+}
+
+.pos-hero-input:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+}
+
+.badge-live-animal {
+  background: #fef08a;
+  border: 1px solid #eab308;
+  padding: 4px 10px;
+  font-size: 14px;
+  font-weight: bold;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Contadores en Tiempo Real */
+.realtime-counters-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.counter-tile {
+  background: #1f2937;
+  color: #ffffff;
+  padding: 6px 10px;
+  border: 1px solid #4b5563;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.counter-title {
+  font-size: 11px;
+  font-weight: bold;
+  color: #9ca3af;
+  text-transform: uppercase;
+}
+
+.counter-num {
+  font-family: "Courier New", monospace;
+  font-size: 20px;
+  font-weight: 900;
+  color: #10b981;
+}
+
+/* Panel de Comandos y Atajos */
+.command-keyboard-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  background: #e2dfd5;
+  border: 1px solid #999;
+  padding: 8px;
+}
+
+.pos-key-btn {
+  background: #f2efe4;
+  border: 2px solid;
+  border-color: #ffffff #707070 #707070 #ffffff;
+  padding: 10px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  gap: 2px;
+}
+
+.pos-key-btn:active {
+  border-color: #707070 #ffffff #ffffff #707070;
+  transform: translateY(1px);
+}
+
+.key-code {
+  background: #0b3b60;
+  color: #ffffff;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 900;
+  border-radius: 2px;
+}
+
+.key-desc {
+  font-size: 11px;
+  font-weight: 700;
+  color: #222;
+  text-align: center;
+}
+
+.pos-key-btn.action-print {
+  background: #dcfce7;
+  border-color: #86efac #15803d #15803d #86efac;
+}
+
+.pos-key-btn.action-print .key-code {
+  background: #16a34a;
+}
+
+.pos-key-btn.action-clear {
+  background: #fee2e2;
+  border-color: #fca5a5 #b91c1c #b91c1c #fca5a5;
+}
+
+.pos-key-btn.action-clear .key-code {
+  background: #dc2626;
+}
+
+/* Barra inferior especial de animalitos */
+.animalitos-fast-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  background: #e8e5dc;
+  border: 1px solid #999;
+  padding: 6px;
+}
+
+.anm-action-btn {
+  background: #f7f5ed;
+  border: 2px solid;
+  border-color: #ffffff #707070 #707070 #ffffff;
+  padding: 8px 4px;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  text-align: center;
+}
+
+.anm-action-btn:hover {
+  background: #316ac5;
+  color: #fff;
+}
+
+/* ----------------------------------------------------------
+   PANEL 3 (DERECHO): PRE-VISUALIZACIÓN DEL TICKET EN VIVO
+   ---------------------------------------------------------- */
+.panel-ticket-preview {
+  width: 360px;
+  background: var(--pos-bg-grey);
+  border: 2px solid;
+  border-color: #ffffff #808080 #808080 #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-top-header {
+  background: #0b3b60;
+  color: #ffffff;
+  padding: 8px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.preview-ticket-badge {
+  font-weight: 900;
+  font-size: 14px;
+  color: #fef08a;
+  letter-spacing: 0.5px;
+}
+
+.pre-ticket-paper-roll {
+  flex: 1;
+  background: #ffffff;
+  margin: 6px;
+  border: 1px inset #808080;
+  overflow-y: auto;
+  padding: 6px;
+  font-family: "Courier New", Consolas, monospace;
+}
+
+.pre-ticket-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #9ca3af;
+  text-align: center;
+  padding: 20px;
+}
+
+.pre-ticket-empty .empty-icon {
+  font-size: 40px;
+  margin-bottom: 8px;
+}
+
+.pre-ticket-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px;
+  border-bottom: 1px dashed #e5e7eb;
+  font-size: 12px;
+}
+
+.pre-ticket-row:hover {
+  background: #f9fafb;
+}
+
+.row-lottery-name {
+  font-size: 10px;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
+.row-number-value strong {
+  font-size: 14px;
+  color: #0b3b60;
+}
+
+.tag-sign, .tag-animal, .tag-5ta, .tag-comb {
+  background: #e0e7ff;
+  color: #3730a3;
+  padding: 1px 4px;
+  font-size: 10px;
+  font-weight: bold;
+  border-radius: 2px;
+  margin-left: 4px;
+}
+
+.tag-5ta {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.row-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.row-monto {
+  font-weight: bold;
+  color: #111827;
+}
+
+.btn-del-play {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.preview-bottom-totalizer {
+  background: #111827;
+  color: #ffffff;
+  padding: 10px;
+  margin: 0 6px 6px 6px;
+  border: 2px inset #374151;
+}
+
+.totalizer-meta-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #9ca3af;
+  margin-bottom: 4px;
+}
+
+.totalizer-amount-display {
+  font-family: "Courier New", monospace;
+  font-size: 26px;
+  font-weight: 900;
+  color: #10b981;
+  text-align: right;
+}
+
+.preview-action-buttons {
+  display: flex;
+  gap: 6px;
+  padding: 0 6px 6px 6px;
+}
+
+.btn-big-action {
+  flex: 1;
+  padding: 10px 4px;
+  font-size: 12px;
+  font-weight: bold;
+  border: 2px solid;
+  cursor: pointer;
+}
+
+.btn-big-action.primary {
+  background: #15803d;
+  color: #ffffff;
+  border-color: #86efac #14532d #14532d #86efac;
+}
+
+.btn-big-action.secondary {
+  background: #e5e7eb;
+  border-color: #fff #6b7280 #6b7280 #fff;
+  color: #374151;
+}
+
+/* ==========================================================
+   MODALES Y DIÁLOGOS EMERGENTES
+   ========================================================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal-container {
+  background: var(--pos-bg-grey);
+  border: 2px solid;
+  border-color: #ffffff #404040 #404040 #ffffff;
+  box-shadow: 4px 4px 15px rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+
+.modal-header {
+  background: linear-gradient(to right, var(--pos-win-header-start), var(--pos-win-header-end));
+  color: #ffffff;
+  font-weight: bold;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-body {
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.modal-footer {
+  padding: 8px 12px;
+  background: #dcd7ca;
+  border-top: 1px solid #999;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Form Tables y Utilidades de Modales */
+.form-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.pos-table-clean {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  font-size: 12px;
+}
+
+.pos-table-clean th, .pos-table-clean td {
+  border: 1px solid #d1d5db;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.pos-table-clean th {
+  background: #f3f4f6;
+  font-weight: bold;
+}
+
+/* Calculadora Clásica Windows (F4) */
+.calc-window-body {
+  width: 240px;
+  padding: 8px;
+  background: #d4d0c8;
+}
+
+.calc-screen-input {
+  width: 100%;
+  background: #ffffff;
+  border: 2px inset #999;
+  padding: 6px 8px;
+  font-family: "Courier New", monospace;
+  font-size: 20px;
+  font-weight: bold;
+  text-align: right;
+  margin-bottom: 8px;
+  outline: none;
+}
+
+.calc-keys-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.calc-btn {
+  background: #ece9d8;
+  border: 2px solid;
+  border-color: #fff #707070 #707070 #fff;
+  padding: 8px 4px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.calc-btn:active {
+  border-color: #707070 #fff #fff #707070;
+}
+
+/* Ruleta Animalitos Grid */
+.animal-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.animal-picker-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  padding: 6px 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.animal-picker-btn:hover {
+  background: #e0f2fe;
+  border-color: #0284c7;
+}
+
+.ap-code {
+  font-weight: 900;
+  font-size: 13px;
+  color: #0b3b60;
+}
+
+.ap-emoji {
+  font-size: 18px;
+}
+
+.ap-name {
+  font-size: 10px;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+/* Cuadre de Caja Dashboard */
+.cuadre-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.cuadre-card-stat {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  padding: 8px 12px;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.stat-val {
+  font-size: 18px;
+  font-weight: 900;
+  color: #111827;
+  font-family: "Courier New", monospace;
+}
+
+/* Badges y Alertas */
+.ticket-badge-status {
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: bold;
+  border-radius: 2px;
+}
+
+.status-activo { background: #dbeafe; color: #1e40af; }
+.status-ganador { background: #dcfce7; color: #15803d; }
+.status-anulado { background: #fee2e2; color: #b91c1c; }
+.status-pagado { background: #fef3c7; color: #92400e; }
+
+.alert {
+  padding: 8px 12px;
+  border-radius: 3px;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.alert-error { background: #fee2e2; color: #b91c1c; border: 1px solid #f87171; }
+.alert-success { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+.alert-info { background: #e0f2fe; color: #0369a1; border: 1px solid #7dd3fc; }
+
+.text-success { color: #16a34a !important; }
+.text-danger { color: #dc2626 !important; }
+.font-bold { font-weight: bold !important; }
+.hidden { display: none !important; }
+
+/* ==========================================================
+   FORMATO DE RECIBO TÉRMICO (58mm / 80mm)
+   ========================================================== */
+.thermal-receipt {
+  font-family: "Courier New", Consolas, monospace;
+  color: #000000;
+  background: #ffffff;
+  padding: 6px 8px;
+  line-height: 1.25;
+  margin: 0 auto;
+}
+
+.thermal-receipt.paper-58mm {
+  width: 200px;
+  font-size: 11px;
+}
+
+.thermal-receipt.paper-80mm {
+  width: 280px;
+  font-size: 12px;
+}
+
+.ticket-center-block {
+  text-align: center;
+}
+
+.banca-title {
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+
+.banca-subtitle {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.banca-slogan {
+  font-size: 9px;
+  margin-top: 2px;
+}
+
+.ticket-line-separator {
+  overflow: hidden;
+  white-space: nowrap;
+  font-weight: bold;
+  margin: 4px 0;
+  text-align: center;
+}
+
+.ticket-meta-block {
+  font-size: 10px;
+}
+
+.serial-text {
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+.ticket-group-header {
+  font-weight: 900;
+  text-align: center;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.ticket-play-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 2px 0;
+}
+
+.play-num {
+  font-weight: 900;
+}
+
+.play-dot-leader {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0 4px;
+  color: #555;
+}
+
+.play-monto {
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.ticket-total-block {
+  margin: 6px 0;
+}
+
+.total-amount-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 900;
+  margin-top: 4px;
+}
+
+.ticket-barcode-block {
+  text-align: center;
+  margin: 8px 0;
+}
+
+.barcode-svg {
+  width: 100%;
+  max-height: 45px;
+}
+
+.barcode-number {
+  font-size: 10px;
+  letter-spacing: 2px;
+  font-weight: bold;
+}
+
+.ticket-footer-legal {
+  font-size: 9px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.ticket-blessing {
+  font-weight: 900;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.watermark-anulado {
+  color: #dc2626;
+  border: 2px solid #dc2626;
+  font-weight: 900;
+  font-size: 16px;
+  text-align: center;
+  padding: 4px;
+  margin-bottom: 6px;
+}
+
+.watermark-copia {
+  text-align: center;
+  font-weight: bold;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+/* ==========================================================
+   REGLAS EXCLUSIVAS DE IMPRESIÓN (@media print)
+   ========================================================== */
+#print-dedicated-area {
+  display: none;
+}
+
+@media print {
+  body {
+    background: transparent !important;
+    color: #000000 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Ocultar toda la interfaz del sistema en la impresora térmica */
+  .app-window-frame,
+  .modal-overlay,
+  .login-wallpaper-screen {
+    display: none !important;
+  }
+
+  /* Mostrar únicamente el área limpia de impresión */
+  #print-dedicated-area {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .thermal-receipt {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 2mm 0 !important;
+  }
+
+  @page {
+    margin: 0;
+  }
+}

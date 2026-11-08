@@ -1,0 +1,320 @@
+/* css/admin.css - Estilos Corporativos de Alta Densidad para BANCA FC FERNANDO CASTAÑO */
+
+:root {
+  --bg-dark-950: #020617;
+  --bg-dark-900: #0f172a;
+  --bg-dark-800: #1e293b;
+  --bg-dark-700: #334155;
+  --border-slate: #334155;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --accent-royal: #2563eb;
+  --accent-royal-hover: #1d4ed8;
+  --accent-emerald: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-red: #ef4444;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-dark-950);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-x: hidden;
+}
+
+/* Scrollbar ejecutiva */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Utilidades de Tabla de Alta Densidad */
+.fc-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.fc-data-table thead th {
+  background-color: #0b1120;
+  color: #94a3b8;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #334155;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.fc-data-table tbody tr {
+  border-bottom: 1px solid rgba(51, 65, 85, 0.55);
+  transition: background-color 0.15s ease;
+}
+
+.fc-data-table tbody tr:hover {
+  background-color: rgba(30, 41, 59, 0.75);
+}
+
+.fc-data-table tbody td {
+  padding: 9px 12px;
+  vertical-align: middle;
+}
+
+/* Tarjetas KPI */
+.kpi-card {
+  background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  border-color: #475569;
+}
+
+.kpi-card.kpi-profit-positive {
+  background: linear-gradient(145deg, #064e3b 0%, #0f172a 90%);
+  border-color: #10b981;
+}
+
+.kpi-card.kpi-profit-negative {
+  background: linear-gradient(145deg, #7f1d1d 0%, #0f172a 90%);
+  border-color: #ef4444;
+}
+
+/* Píldoras de estado */
+.badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.badge-activa {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.badge-suspendida {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.badge-ganador {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.5);
+}
+
+.badge-pagado {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.5);
+}
+
+.badge-anulado {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  text-decoration: line-through;
+}
+
+/* Pestañas de Navegación */
+.admin-nav-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #94a3b8;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.admin-nav-tab:hover {
+  color: #f8fafc;
+  background: rgba(30, 41, 59, 0.5);
+}
+
+.admin-nav-tab.active {
+  color: #60a5fa;
+  border-bottom-color: #3b82f6;
+  background: rgba(37, 99, 235, 0.12);
+}
+
+/* Recibo Térmico en Vista Previa del Panel Admin */
+.thermal-receipt {
+  background: #fffef8;
+  color: #000;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  line-height: 1.25;
+  padding: 14px 12px;
+  width: 280px;
+  margin: 0 auto;
+  border-radius: 3px;
+  position: relative;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.thermal-receipt .ticket-center-block {
+  text-align: center;
+}
+
+.thermal-receipt .banca-title {
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+.thermal-receipt .banca-subtitle {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.thermal-receipt .banca-slogan {
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.thermal-receipt .ticket-line-separator {
+  margin: 6px 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-weight: bold;
+}
+
+.thermal-receipt .ticket-group-header {
+  font-weight: 900;
+  text-align: center;
+  margin: 5px 0 3px 0;
+  background: #eee;
+  padding: 2px 0;
+}
+
+.thermal-receipt .ticket-play-row {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  margin: 2px 0;
+}
+
+.thermal-receipt .play-dot-leader {
+  color: #888;
+  overflow: hidden;
+  white-space: nowrap;
+  margin: 0 4px;
+  flex: 1;
+}
+
+.thermal-receipt .total-amount-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 900;
+  margin-top: 4px;
+}
+
+.thermal-receipt .ticket-barcode-block {
+  text-align: center;
+  margin: 8px 0;
+}
+
+.thermal-receipt .barcode-svg {
+  width: 100%;
+  max-width: 220px;
+  height: 42px;
+}
+
+.thermal-receipt .barcode-number {
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.thermal-receipt .ticket-footer-legal {
+  text-align: center;
+  font-size: 10px;
+  margin-top: 6px;
+}
+
+.thermal-receipt .watermark-anulado {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-28deg);
+  border: 3px solid #dc2626;
+  color: rgba(220, 38, 38, 0.85);
+  font-size: 26px;
+  font-weight: 900;
+  padding: 4px 12px;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* Animación pulso vivo */
+@keyframes pulse-emerald {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(1.15); }
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #10b981;
+  display: inline-block;
+  animation: pulse-emerald 1.8s infinite;
+}
+
+/* Impresión limpia desde Admin */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #admin-print-area, #admin-print-area * {
+    visibility: visible;
+  }
+  #admin-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}
