@@ -548,6 +548,13 @@ class StorageManager {
 
   getRemoteServerSyncUrl() {
     if (typeof window === 'undefined') return null;
+    // Si está alojado en GitHub Pages o conectado a Firebase, no usar /api/sync local
+    if (window.location && window.location.hostname && window.location.hostname.includes('github.io')) {
+      return null;
+    }
+    if (window.bancaFcCloud && typeof window.bancaFcCloud.isConfigured === 'function' && window.bancaFcCloud.isConfigured()) {
+      return null;
+    }
     const customHost = safeLocalStorage.getItem('banca_fc_server_host');
     if (customHost && customHost.trim()) {
       const clean = customHost.trim().replace(/\/+$/, '');

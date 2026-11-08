@@ -33,12 +33,18 @@ class BancaFcFirebaseSync {
     return Boolean(cfg && cfg.databaseURL);
   }
 
+  isValidFirebaseUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+    const clean = url.trim().toLowerCase();
+    return clean.startsWith('https://') && (clean.includes('.firebaseio.com') || clean.includes('.firebasedatabase.app'));
+  }
+
   init() {
     // 1. Verificar si vienen parámetros de Firebase por URL (?fb=https://tu-proyecto.firebaseio.com)
     if (typeof window !== 'undefined' && window.location && window.location.search) {
       const params = new URLSearchParams(window.location.search);
       const fbUrlParam = params.get('fb') || params.get('firebase');
-      if (fbUrlParam && (fbUrlParam.includes('firebaseio.com') || fbUrlParam.includes('firebasedatabase.app'))) {
+      if (this.isValidFirebaseUrl(fbUrlParam)) {
         const cleanUrl = fbUrlParam.trim().replace(/\/+$/, '');
         localStorage.setItem(FIREBASE_STORAGE_KEY, JSON.stringify({
           ...DEFAULT_FIREBASE_CONFIG,
@@ -49,7 +55,6 @@ class BancaFcFirebaseSync {
 
     const cfg = this.getFirebaseConfig();
     if (cfg && cfg.databaseURL) {
-      // Conectar automáticamente al cargar la página
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => this.connect(cfg));
       } else {
@@ -65,9 +70,17 @@ class BancaFcFirebaseSync {
       const saved = localStorage.getItem(FIREBASE_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && parsed.databaseURL) return parsed;
+        if (parsed && this.isValidFirebaseUrl(parsed.databaseURL)) {
+          parsed.databaseURL = parsed.databaseURL.trim().replace(/\/+$/, '').replace(/\/banca_fc_master\.json$/i, '');
+          return parsed;
+        } else {
+          // Limpiar URL inválida guardada previamente
+          localStorage.removeItem(FIREBASE_STORAGE_KEY);
+        }
       }
-    } catch (e) {}
+    } catch (e) {
+      localStorage.removeItem(FIREBASE_STORAGE_KEY);
+    }
     if (DEFAULT_FIREBASE_CONFIG.databaseURL) {
       return { ...DEFAULT_FIREBASE_CONFIG };
     }
@@ -87,7 +100,7 @@ class BancaFcFirebaseSync {
 
       if (dbUrlMatch) {
         cleanConfig.databaseURL = dbUrlMatch[1].replace(/\/+$/, '');
-      } else if (raw.startsWith('http')) {
+      } else if (this.isValidFirebaseUrl(raw)) {
         cleanConfig.databaseURL = raw.replace(/\/+$/, '').replace(/\/banca_fc_master\.json$/i, '');
       } else {
         cleanConfig.databaseURL = '';
@@ -107,7 +120,7 @@ class BancaFcFirebaseSync {
   // Método principal invocado por el botón "Guardar y Conectar con Firebase Ahora"
   async saveConfig(configInput) {
     const cleanConfig = this.parseFirebaseUrlInput(configInput);
-    if (!cleanConfig.databaseURL) {
+    if (!this.isValidFirebaseUrl(cleanConfig.databaseURL)) {
       return {
         ok: false,
         error: 'La URL ingresada no es válida. Debe comenzar con https:// y terminar en .firebaseio.com o .firebasedatabase.app'
@@ -121,7 +134,7 @@ class BancaFcFirebaseSync {
     }
     return {
       ok: false,
-      error: this.lastError || 'No se pudo leer ni escribir en Firebase. Verifique que Realtime Database tenga las Reglas en Modo de Prueba (.read: true, .write: true).'
+      error: this.lastError || 'No se pudo conectar con Firebase. Verifique su conexión a internet.'
     };
   }
 
@@ -167,17 +180,14 @@ class BancaFcFirebaseSync {
       return false;
     }
 
-    this.updateCloudStatusBadges('CONNECTING');
-
-    // 1. Hacer lectura/escritura inicial desde Firebase
-    const ok = await this.pullAndMergeFromFirebase(true);
-    if (ok) {
-      this.isConnected = true;
-      this.updateCloudStatusBadges('CONNECTED');
-    } else {
-      this.updateCloudStatusBadges('ERROR');
-      return false;
+    if (!this.isConnected) {
+      this.updateCloudStatusBadges('CONNECTING');
     }
+
+    // 1. Iniciar respaldo de sincronización continua cada 2.5 segundos
+    this.pollTimer = setInterval(() => {
+      this.pullAndMergeFromFirebase(false);
+    }, 2500);
 
     // 2. Suscripción en Tiempo Real Instantánea (Server-Sent Events nativos de Firebase Realtime DB)
     const endpoint = this.getDatabaseEndpoint('/banca_fc_master.json');
@@ -188,6 +198,8 @@ class BancaFcFirebaseSync {
           try {
             const payload = JSON.parse(e.data);
             if (payload && payload.data) {
+              this.isConnected = true;
+              this.updateCloudStatusBadges('CONNECTED');
               this.handleIncomingCloudData(payload.data);
             }
           } catch (err) {}
@@ -197,17 +209,20 @@ class BancaFcFirebaseSync {
           this.updateCloudStatusBadges('CONNECTED');
         };
         this.eventSource.onerror = () => {
-          // El polling cada 2.5s mantiene la sincronización activa si SSE se reinicia
+          // El polling cada 2.5s mantiene la sincronización activa
         };
       } catch (e) {}
     }
 
-    // 3. Respaldo de sincronización continua cada 2.5 segundos
-    this.pollTimer = setInterval(() => {
-      this.pullAndMergeFromFirebase(false);
-    }, 2500);
+    // 3. Hacer lectura/escritura inicial desde Firebase
+    const ok = await this.pullAndMergeFromFirebase(true);
+    if (ok) {
+      this.isConnected = true;
+      this.updateCloudStatusBadges('CONNECTED');
+      return true;
+    }
 
-    return true;
+    return this.isConnected;
   }
 
   async pullAndMergeFromCloud() {
@@ -217,18 +232,22 @@ class BancaFcFirebaseSync {
   // Descarga el estado de Firebase y lo fusiona inteligentemente con la laptop local
   async pullAndMergeFromFirebase(isInitialConnect = false) {
     const endpoint = this.getDatabaseEndpoint('/banca_fc_master.json');
-    if (!endpoint || this.isPushing) return false;
+    if (!endpoint) return false;
+
+    // Si hay una subida en curso en este exacto milisegundo, ya estamos conectados; no marcar falso error
+    if (this.isPushing) {
+      this.isConnected = true;
+      this.updateCloudStatusBadges('CONNECTED');
+      return true;
+    }
 
     try {
       const response = await fetch(endpoint, { cache: 'no-store' });
       if (!response.ok) {
-        let errDetail = `HTTP ${response.status}`;
-        try {
-          const errJson = await response.json();
-          if (errJson && errJson.error) errDetail = errJson.error;
-        } catch (e) {}
-        this.lastError = `Firebase respondió: ${errDetail}. En Firebase Console → Realtime Database → Reglas, asegúrese de tener ".read": true y ".write": true.`;
-        this.updateCloudStatusBadges('ERROR');
+        if (response.status === 401 || response.status === 403) {
+          this.lastError = `Permiso denegado en Firebase (HTTP ${response.status}). En Firebase Console → Realtime Database → Reglas, coloque ".read": true y ".write": true.`;
+          this.updateCloudStatusBadges('ERROR');
+        }
         return false;
       }
 
@@ -248,8 +267,10 @@ class BancaFcFirebaseSync {
       this.handleIncomingCloudData(cloudData, isInitialConnect);
       return true;
     } catch (err) {
-      this.lastError = err.message || 'Error de red al conectar con Firebase.';
-      this.updateCloudStatusBadges('ERROR');
+      this.lastError = err.message || 'Error temporal de red al conectar con Firebase.';
+      if (!this.isConnected && isInitialConnect) {
+        this.updateCloudStatusBadges('ERROR');
+      }
       return false;
     }
   }
@@ -384,17 +405,18 @@ class BancaFcFirebaseSync {
 
       if (putRes.ok) {
         this.isConnected = true;
+        this.lastError = null;
         this.updateCloudStatusBadges('CONNECTED');
         localStorage.setItem('banca_fc_data', JSON.stringify(dataToSave));
         if (this.storage) {
           this.storage.syncLegacyKeysFromMaster(dataToSave);
         }
         return true;
-      } else {
+      } else if (putRes.status === 401 || putRes.status === 403) {
         this.updateCloudStatusBadges('ERROR');
       }
     } catch (err) {
-      this.updateCloudStatusBadges('ERROR');
+      // No cambiar a rojo por un microcorte si ya estaba conectado
     } finally {
       this.isPushing = false;
     }
