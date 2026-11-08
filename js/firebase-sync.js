@@ -1,18 +1,12 @@
 // js/firebase-sync.js - Motor de Sincronización en Tiempo Real con Google Firebase
 // Sistema "Banca FC - Fernando Castaño (Seguro Te Paga)"
-// Soporta el SDK oficial de Firebase Realtime Database (WebSockets en vivo < 0.2s) y modo REST / EventSource directo con la URL de Firebase.
+// Conectado por defecto a: https://banca-fc-castano-default-rtdb.firebaseio.com
 
-// ============================================================================
-// CONFIGURACIÓN PREDEFINIDA DE FIREBASE (OPCIONAL PARA FIJAR EN GITHUB PAGES)
-// Si pegas aquí la URL de tu Firebase Realtime Database, ninguna laptop tendrá
-// que configurarla manualmente nunca más al abrir el link de GitHub.
-// Ejemplo: databaseURL: "https://banca-fc-default-rtdb.firebaseio.com"
-// ============================================================================
 const DEFAULT_FIREBASE_CONFIG = {
   apiKey: "",
-  authDomain: "",
-  databaseURL: "", // <-- Pega aquí tu URL de Firebase Realtime Database o configúrala desde el botón ☁️ Firebase en la pantalla
-  projectId: ""
+  authDomain: "banca-fc-castano.firebaseapp.com",
+  databaseURL: "https://banca-fc-castano-default-rtdb.firebaseio.com",
+  projectId: "banca-fc-castano"
 };
 
 const FIREBASE_STORAGE_KEY = 'banca_fc_firebase_config';
@@ -23,9 +17,20 @@ class BancaFcFirebaseSync {
     this.isConnected = false;
     this.isPushing = false;
     this.lastRemoteTimestamp = null;
+    this.lastError = null;
     this.eventSource = null;
     this.pollTimer = null;
     this.init();
+  }
+
+  get databaseURL() {
+    const cfg = this.getFirebaseConfig();
+    return (cfg && cfg.databaseURL) ? cfg.databaseURL : DEFAULT_FIREBASE_CONFIG.databaseURL;
+  }
+
+  isConfigured() {
+    const cfg = this.getFirebaseConfig();
+    return Boolean(cfg && cfg.databaseURL);
   }
 
   init() {
@@ -33,14 +38,23 @@ class BancaFcFirebaseSync {
     if (typeof window !== 'undefined' && window.location && window.location.search) {
       const params = new URLSearchParams(window.location.search);
       const fbUrlParam = params.get('fb') || params.get('firebase');
-      if (fbUrlParam && fbUrlParam.includes('firebaseio.com') || (fbUrlParam && fbUrlParam.includes('firebasedatabase.app'))) {
-        this.saveFirebaseConfig({ databaseURL: fbUrlParam.trim() });
+      if (fbUrlParam && (fbUrlParam.includes('firebaseio.com') || fbUrlParam.includes('firebasedatabase.app'))) {
+        const cleanUrl = fbUrlParam.trim().replace(/\/+$/, '');
+        localStorage.setItem(FIREBASE_STORAGE_KEY, JSON.stringify({
+          ...DEFAULT_FIREBASE_CONFIG,
+          databaseURL: cleanUrl
+        }));
       }
     }
 
     const cfg = this.getFirebaseConfig();
     if (cfg && cfg.databaseURL) {
-      this.connect(cfg);
+      // Conectar automáticamente al cargar la página
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => this.connect(cfg));
+      } else {
+        this.connect(cfg);
+      }
     } else {
       this.updateCloudStatusBadges('UNCONFIGURED');
     }
@@ -55,25 +69,28 @@ class BancaFcFirebaseSync {
       }
     } catch (e) {}
     if (DEFAULT_FIREBASE_CONFIG.databaseURL) {
-      return DEFAULT_FIREBASE_CONFIG;
+      return { ...DEFAULT_FIREBASE_CONFIG };
     }
     return null;
   }
 
-  saveFirebaseConfig(configInput) {
+  parseFirebaseUrlInput(configInput) {
     let cleanConfig = { ...DEFAULT_FIREBASE_CONFIG };
 
     if (typeof configInput === 'string') {
       const raw = configInput.trim();
-      // Detectar si el usuario pegó todo el bloque de código de Firebase (const firebaseConfig = { ... }) o un JSON
-      const dbUrlMatch = raw.match(/databaseURL\s*:\s*["']([^"']+)["']/i) || raw.match(/(https:\/\/[a-z0-9-]+\.(?:firebaseio\.com|[\w.-]+\.firebasedatabase\.app))/i);
+      const dbUrlMatch =
+        raw.match(/databaseURL\s*:\s*["']([^"']+)["']/i) ||
+        raw.match(/(https:\/\/[a-z0-9-]+\.(?:firebaseio\.com|[\w.-]+\.firebasedatabase\.app))/i);
       const apiKeyMatch = raw.match(/apiKey\s*:\s*["']([^"']+)["']/i);
       const projectIdMatch = raw.match(/projectId\s*:\s*["']([^"']+)["']/i);
 
       if (dbUrlMatch) {
         cleanConfig.databaseURL = dbUrlMatch[1].replace(/\/+$/, '');
       } else if (raw.startsWith('http')) {
-        cleanConfig.databaseURL = raw.replace(/\/+$/, '');
+        cleanConfig.databaseURL = raw.replace(/\/+$/, '').replace(/\/banca_fc_master\.json$/i, '');
+      } else {
+        cleanConfig.databaseURL = '';
       }
       if (apiKeyMatch) cleanConfig.apiKey = apiKeyMatch[1];
       if (projectIdMatch) cleanConfig.projectId = projectIdMatch[1];
@@ -84,16 +101,33 @@ class BancaFcFirebaseSync {
       }
     }
 
+    return cleanConfig;
+  }
+
+  // Método principal invocado por el botón "Guardar y Conectar con Firebase Ahora"
+  async saveConfig(configInput) {
+    const cleanConfig = this.parseFirebaseUrlInput(configInput);
     if (!cleanConfig.databaseURL) {
-      localStorage.removeItem(FIREBASE_STORAGE_KEY);
-      this.disconnect();
-      this.updateCloudStatusBadges('UNCONFIGURED');
-      return null;
+      return {
+        ok: false,
+        error: 'La URL ingresada no es válida. Debe comenzar con https:// y terminar en .firebaseio.com o .firebasedatabase.app'
+      };
     }
 
     localStorage.setItem(FIREBASE_STORAGE_KEY, JSON.stringify(cleanConfig));
-    this.connect(cleanConfig);
-    return cleanConfig;
+    const connected = await this.connect(cleanConfig);
+    if (connected) {
+      return { ok: true, databaseURL: cleanConfig.databaseURL };
+    }
+    return {
+      ok: false,
+      error: this.lastError || 'No se pudo leer ni escribir en Firebase. Verifique que Realtime Database tenga las Reglas en Modo de Prueba (.read: true, .write: true).'
+    };
+  }
+
+  saveFirebaseConfig(configInput) {
+    this.saveConfig(configInput);
+    return this.getFirebaseConfig();
   }
 
   disconnect() {
@@ -106,6 +140,7 @@ class BancaFcFirebaseSync {
       this.pollTimer = null;
     }
     this.isConnected = false;
+    this.updateCloudStatusBadges('UNCONFIGURED');
   }
 
   getDatabaseEndpoint(path = '/banca_fc_master.json') {
@@ -117,16 +152,31 @@ class BancaFcFirebaseSync {
 
   // Conecta en tiempo real con Firebase Realtime Database (Server-Sent Events + Fetch)
   async connect(cfg) {
-    this.disconnect();
-    if (!cfg || !cfg.databaseURL) return;
+    if (this.eventSource) {
+      this.eventSource.close();
+      this.eventSource = null;
+    }
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+
+    const activeCfg = cfg || this.getFirebaseConfig();
+    if (!activeCfg || !activeCfg.databaseURL) {
+      this.updateCloudStatusBadges('UNCONFIGURED');
+      return false;
+    }
 
     this.updateCloudStatusBadges('CONNECTING');
 
-    // 1. Hacer lectura inicial desde Firebase
+    // 1. Hacer lectura/escritura inicial desde Firebase
     const ok = await this.pullAndMergeFromFirebase(true);
     if (ok) {
       this.isConnected = true;
       this.updateCloudStatusBadges('CONNECTED');
+    } else {
+      this.updateCloudStatusBadges('ERROR');
+      return false;
     }
 
     // 2. Suscripción en Tiempo Real Instantánea (Server-Sent Events nativos de Firebase Realtime DB)
@@ -147,7 +197,7 @@ class BancaFcFirebaseSync {
           this.updateCloudStatusBadges('CONNECTED');
         };
         this.eventSource.onerror = () => {
-          // Si EventSource no es soportado por reglas o navegador, el polling de respaldo mantiene la sincronización
+          // El polling cada 2.5s mantiene la sincronización activa si SSE se reinicia
         };
       } catch (e) {}
     }
@@ -156,6 +206,12 @@ class BancaFcFirebaseSync {
     this.pollTimer = setInterval(() => {
       this.pullAndMergeFromFirebase(false);
     }, 2500);
+
+    return true;
+  }
+
+  async pullAndMergeFromCloud() {
+    return await this.pullAndMergeFromFirebase(true);
   }
 
   // Descarga el estado de Firebase y lo fusiona inteligentemente con la laptop local
@@ -166,15 +222,22 @@ class BancaFcFirebaseSync {
     try {
       const response = await fetch(endpoint, { cache: 'no-store' });
       if (!response.ok) {
+        let errDetail = `HTTP ${response.status}`;
+        try {
+          const errJson = await response.json();
+          if (errJson && errJson.error) errDetail = errJson.error;
+        } catch (e) {}
+        this.lastError = `Firebase respondió: ${errDetail}. En Firebase Console → Realtime Database → Reglas, asegúrese de tener ".read": true y ".write": true.`;
         this.updateCloudStatusBadges('ERROR');
         return false;
       }
 
       const cloudData = await response.json();
       this.isConnected = true;
+      this.lastError = null;
       this.updateCloudStatusBadges('CONNECTED');
 
-      // Si la base de datos en Firebase está vacía por primera vez, subir los datos actuales de esta laptop
+      // Si la base de datos en Firebase está en null (recién creada), subir los datos actuales de esta laptop
       if (!cloudData || (!cloudData.agencies && !cloudData.tickets)) {
         if (this.storage) {
           await this.pushMasterData(this.storage.getMasterData(), true);
@@ -185,6 +248,7 @@ class BancaFcFirebaseSync {
       this.handleIncomingCloudData(cloudData, isInitialConnect);
       return true;
     } catch (err) {
+      this.lastError = err.message || 'Error de red al conectar con Firebase.';
       this.updateCloudStatusBadges('ERROR');
       return false;
     }
@@ -216,7 +280,6 @@ class BancaFcFirebaseSync {
 
   // Fusiona los datos de Firebase y los locales respetando reinicios en cero y nuevos tickets
   mergeLocalAndCloud(localDb, cloudDb) {
-    // Si la nube tiene una orden explícita de reinicio más reciente que los datos locales, obedecer a la nube
     if (cloudDb.lastResetTimestamp && (!localDb.lastResetTimestamp || cloudDb.lastResetTimestamp > localDb.lastResetTimestamp)) {
       return {
         ...localDb,
@@ -230,7 +293,6 @@ class BancaFcFirebaseSync {
 
     const merged = { ...localDb, ...cloudDb };
 
-    // 1. Agencias (Priorizar la lista de la nube si fue actualizada más recientemente)
     const cloudNewer = !localDb.updatedAt || (cloudDb.updatedAt && cloudDb.updatedAt >= localDb.updatedAt);
     if (cloudNewer && Array.isArray(cloudDb.agencies)) {
       merged.agencies = cloudDb.agencies;
@@ -241,14 +303,12 @@ class BancaFcFirebaseSync {
       merged.agencies = Array.from(agMap.values());
     }
 
-    // 2. Cobradores
     if (cloudNewer && Array.isArray(cloudDb.collectors)) {
       merged.collectors = cloudDb.collectors;
     } else {
       merged.collectors = Array.from(new Set([...(localDb.collectors || []), ...(cloudDb.collectors || [])]));
     }
 
-    // 3. Tickets: unir los tickets emitidos en todas las laptops por su serial único
     const ticketMap = new Map();
     const getKey = (t) => `${t.serialSeguridad || t.ticketId}_${t.agencyCode || t.usuario || '1000'}`;
 
@@ -257,7 +317,6 @@ class BancaFcFirebaseSync {
       const key = getKey(t);
       const inCloud = ticketMap.get(key);
       if (!inCloud) {
-        // Si la nube no fue reiniciada después de este ticket, conservarlo
         if (!cloudDb.lastResetTimestamp) {
           ticketMap.set(key, t);
         }
@@ -271,14 +330,12 @@ class BancaFcFirebaseSync {
 
     merged.tickets = Array.from(ticketMap.values()).sort((a, b) => Number(b.ticketId || 0) - Number(a.ticketId || 0));
 
-    // 4. Resultados
     const mergedResults = { ...(localDb.results || {}) };
     for (const [dateKey, resObj] of Object.entries(cloudDb.results || {})) {
       mergedResults[dateKey] = { ...(mergedResults[dateKey] || {}), ...resObj };
     }
     merged.results = mergedResults;
 
-    // 5. Correlativo siguiente
     const maxNext = Math.max(
       Number(localDb.config?.nextTicketNumber || 1),
       Number(cloudDb.config?.nextTicketNumber || 1)
@@ -301,14 +358,12 @@ class BancaFcFirebaseSync {
       if (forceOverwriteCloud) {
         dataToSave.lastResetTimestamp = new Date().toISOString();
       } else {
-        // Leer primero de Firebase para no pisar un ticket que otra taquilla haya emitido en el mismo segundo
         try {
           const getRes = await fetch(endpoint, { cache: 'no-store' });
           if (getRes.ok) {
             const currentCloud = await getRes.json();
             if (currentCloud && Array.isArray(currentCloud.tickets)) {
               dataToSave = this.mergeLocalAndCloud(localMasterData, currentCloud);
-              // Asegurar que prevalezcan las agencias/cobradores locales recién editados
               dataToSave.agencies = localMasterData.agencies;
               dataToSave.collectors = localMasterData.collectors;
               dataToSave.results = localMasterData.results;
@@ -346,32 +401,37 @@ class BancaFcFirebaseSync {
     return false;
   }
 
-  // Genera un enlace directo que ya lleva la conexión de Firebase incrustada para abrirlo en cualquier otra laptop
-  getShareablePosLink() {
+  getShareablePosUrl() {
     const cfg = this.getFirebaseConfig();
-    const baseUrl = window.location.href.split('?')[0].replace(/admin\.html$/i, 'index.html');
+    let baseUrl = window.location.href.split('?')[0];
+    baseUrl = baseUrl.replace(/\/admin(\.html)?$/i, '/index.html');
     if (cfg && cfg.databaseURL) {
       return `${baseUrl}?fb=${encodeURIComponent(cfg.databaseURL)}`;
     }
     return baseUrl;
   }
 
+  getShareablePosLink() {
+    return this.getShareablePosUrl();
+  }
+
   updateCloudStatusBadges(status) {
     const adminBadge = document.getElementById('header-firebase-status-badge');
     const posBadge = document.getElementById('pos-firebase-status-badge');
-    const modalBadge = document.getElementById('net-server-status-badge');
+    const modalBadge = document.getElementById('fb-modal-status-badge');
 
     let text = '☁️ Configurar Firebase';
-    let adminClass = 'px-2.5 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition';
+    let adminClass = 'badge-pill badge-ganador cursor-pointer';
 
     if (status === 'CONNECTED') {
-      text = '☁️ Firebase Conectado En Vivo';
-      adminClass = 'px-2.5 py-1 rounded bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition';
+      text = '🟢 Firebase Conectado En Vivo';
+      adminClass = 'badge-pill badge-activa cursor-pointer';
     } else if (status === 'CONNECTING') {
-      text = '☁️ Conectando a Firebase...';
+      text = '⏳ Conectando Firebase...';
+      adminClass = 'badge-pill badge-ganador cursor-pointer';
     } else if (status === 'ERROR') {
-      text = '⚠️ Error Firebase (Revisar URL/Reglas)';
-      adminClass = 'px-2.5 py-1 rounded bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-600 text-xs font-bold transition';
+      text = '🔴 Error Firebase (Ver Reglas)';
+      adminClass = 'badge-pill badge-suspendida cursor-pointer';
     }
 
     if (adminBadge) {
@@ -379,7 +439,7 @@ class BancaFcFirebaseSync {
       adminBadge.className = adminClass;
     }
     if (posBadge) {
-      posBadge.textContent = status === 'CONNECTED' ? '☁️ NUBE FIREBASE ACTIVA' : '☁️ CONFIGURAR NUBE';
+      posBadge.textContent = status === 'CONNECTED' ? '🟢 NUBE FIREBASE ACTIVA' : (status === 'CONNECTING' ? '⏳ CONECTANDO NUBE...' : '☁️ CONFIGURAR NUBE');
       posBadge.style.color = status === 'CONNECTED' ? '#15803d' : '#b45309';
     }
     if (modalBadge) {
@@ -388,10 +448,13 @@ class BancaFcFirebaseSync {
         modalBadge.textContent = '🟢 FIREBASE CONECTADO EN VIVO';
       } else if (status === 'ERROR') {
         modalBadge.className = 'badge-pill badge-suspendida';
-        modalBadge.textContent = '🔴 ERROR DE CONEXIÓN FIREBASE';
-      } else {
+        modalBadge.textContent = '🔴 ERROR DE CONEXIÓN';
+      } else if (status === 'CONNECTING') {
         modalBadge.className = 'badge-pill badge-ganador';
-        modalBadge.textContent = 'PENDIENTE PEGAR URL FIREBASE';
+        modalBadge.textContent = '⏳ CONECTANDO...';
+      } else {
+        modalBadge.className = 'badge-pill badge-suspendida';
+        modalBadge.textContent = 'Sin configurar';
       }
     }
   }
