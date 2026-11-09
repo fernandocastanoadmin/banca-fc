@@ -317,6 +317,7 @@ class ModalManager {
       btnPagar.disabled = !isWinner || isPaid || isAnulado;
       btnPagar.dataset.ticketId = ticket.ticketId;
       btnPagar.dataset.prize = evalRes.totalPrize;
+      btnPagar.dataset.currency = ticket.moneda || 'COP';
 
       let winningRows = '';
       if (evalRes.winningPlays && evalRes.winningPlays.length > 0) {
@@ -343,14 +344,15 @@ class ModalManager {
           <div class="info-row"><span>Ticket:</span> <strong>#${ticket.ticketId}</strong></div>
           <div class="info-row"><span>Serial:</span> <strong>${ticket.serialSeguridad}</strong></div>
           <div class="info-row"><span>Fecha:</span> <strong>${ticket.fechaHora}</strong></div>
+          <div class="info-row"><span>Caja / Moneda del Ticket:</span> <strong>${ticket.moneda || 'COP'}</strong></div>
           <div class="info-row"><span>Apostado:</span> <strong>${this.printer.formatCurrency(ticket.total, ticket.moneda)}</strong></div>
           <div class="info-row highlight-prize">
-            <span>PREMIO TOTAL A PAGAR:</span>
+            <span>PREMIO TOTAL A PAGAR (${ticket.moneda || 'COP'}):</span>
             <strong class="text-xl text-success">${this.printer.formatCurrency(evalRes.totalPrize, ticket.moneda)}</strong>
           </div>
           ${winningRows ? `<div class="winning-plays-container"><h4>Aciertos Registrados:</h4>${winningRows}</div>` : ''}
           ${!isWinner && !isAnulado ? '<div class="alert alert-info">Este ticket no tiene aciertos registrados en los sorteos evaluados.</div>' : ''}
-          ${isPaid ? `<div class="alert alert-success">Ticket PAGADO el ${ticket.fechaPago || 'previamente'}.</div>` : ''}
+          ${isPaid ? `<div class="alert alert-success">Ticket PAGADO el ${ticket.fechaPago || 'previamente'} en Caja ${ticket.moneda || 'COP'}.</div>` : ''}
         </div>
       `;
     };
@@ -366,15 +368,16 @@ class ModalManager {
       btnPagar.addEventListener('click', () => {
         const tId = btnPagar.dataset.ticketId;
         const prize = Number(btnPagar.dataset.prize);
+        const ticketCur = btnPagar.dataset.currency || 'COP';
         if (!tId) return;
 
-        if (confirm(`¿Confirma el pago del premio por ${this.printer.formatCurrency(prize, 'COP')} al cliente?`)) {
+        if (confirm(`¿Confirma el pago del premio por ${this.printer.formatCurrency(prize, ticketCur)} (Caja ${ticketCur}) al cliente?`)) {
           const updated = this.storage.updateTicketStatus(tId, 'PAGADO', {
             fechaPago: new Date().toLocaleString(),
             premioPagado: prize
           });
           if (updated) {
-            alert(`¡PREMIO PAGADO EXITOSAMENTE PARA EL TICKET #${tId}!`);
+            alert(`¡PREMIO PAGADO EXITOSAMENTE PARA EL TICKET #${tId} EN CAJA ${ticketCur}!`);
             this.pos.playBeep('success');
             doVerify();
           }
@@ -406,120 +409,202 @@ class ModalManager {
     selectEl.disabled = allowed.length <= 1;
   }
 
-  // 5. MODAL RELACIÓN FINAL (CUADRE DE CAJA)
+  // 5. MODAL RELACIÓN FINAL (CUADRE DE CAJA - 3 CAJAS INDEPENDIENTES SIN CONVERSIÓN)
   setupCuadreCajaModal() {
     const dateInput = document.getElementById('input-cuadre-fecha');
     const curSelect = document.getElementById('select-cuadre-moneda');
     const btnFiltrar = document.getElementById('btn-filtrar-cuadre');
     const btnPrintCuadre = document.getElementById('btn-imprimir-cuadre');
     const btnExportCsv = document.getElementById('btn-exportar-cuadre-csv');
+    const threeBoxesGrid = document.getElementById('cuadre-three-boxes-grid');
 
     const today = new Date();
     const todayFormatted = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
     if (dateInput) dateInput.value = todayFormatted;
 
+    const boxMeta = {
+      COP: { title: '🇨🇴 CAJA PESOS (COP $)', headerBg: '#1e3a8a', accent: '#1d4ed8' },
+      USD: { title: '🇺🇸 CAJA DÓLARES (USD $)', headerBg: '#065f46', accent: '#047857' },
+      VES: { title: '🇻🇪 CAJA BOLÍVARES (VES Bs.)', headerBg: '#7c2d12', accent: '#b45309' }
+    };
+
     const calculateAndRenderCuadre = () => {
       const cfg = this.storage.getConfig();
-      const allowedCurrencies = cfg.allowedCurrencies || ['COP'];
-
-      // Asegurar que el selector del cuadre solo muestre las monedas autorizadas a esta agencia
-      const selectedBefore = curSelect?.value || cfg.currency || 'COP';
-      this.populateAllowedCurrencySelect(curSelect, allowedCurrencies, selectedBefore);
-
-      const targetDate = dateInput?.value || todayFormatted;
-      const targetCurrency = curSelect?.value || allowedCurrencies[0];
+      const comisionPct = Number(cfg.agencyCommissionPct ?? 15);
+      const targetDate = (dateInput?.value || todayFormatted).trim();
+      const targetCurrency = (curSelect?.value || cfg.currency || 'COP').toUpperCase();
       const tickets = this.storage.getTickets();
       const activeAgencyCode = String(cfg.agencyCode || '1000').trim();
 
-      // Filtrar por agencia activa, fecha y moneda autorizada
-      const dayTickets = tickets.filter(t => {
+      // 1. Filtrar los tickets de esta agencia en la fecha consultada (sin mezclar monedas)
+      const agencyDateTickets = tickets.filter(t => {
         const tAgency = String(this.storage.extractAgencyCodeFromTicket(t)).trim();
         const tDate = (t.fechaHora || '').split(' ')[0];
-        const matchAgency = tAgency === activeAgencyCode;
-        const matchDate = tDate === targetDate;
-        const matchCur = (t.moneda || 'COP') === targetCurrency;
-        return matchAgency && matchDate && matchCur;
+        return tAgency === activeAgencyCode && tDate === targetDate;
       });
 
-      let ventasBrutas = 0;
-      let anuladosTotal = 0;
-      let premiosPagados = 0;
-      let ticketsEmitidos = dayTickets.length;
-      let ticketsAnuladosCount = 0;
-      let ticketsPagadosCount = 0;
+      // 2. Calcular simultáneamente las 3 Cajas Independientes (COP, USD, VES) con CERO conversión
+      const boxes = this.storage.calculateThreeCurrencyBoxes(agencyDateTickets, comisionPct);
 
-      dayTickets.forEach(t => {
-        if (t.estado === 'ANULADO') {
-          anuladosTotal += t.total;
-          ticketsAnuladosCount++;
-        } else {
-          ventasBrutas += t.total;
-          if (t.estado === 'PAGADO') {
-            premiosPagados += (t.premioPagado || t.premioCalculado || 0);
-            ticketsPagadosCount++;
-          }
-        }
-      });
+      // 3. Renderizar las 3 columnas de Cajas Independientes
+      if (threeBoxesGrid) {
+        threeBoxesGrid.innerHTML = ['COP', 'USD', 'VES'].map(curKey => {
+          const b = boxes[curKey];
+          const meta = boxMeta[curKey];
+          const isSelected = curKey === targetCurrency;
+          const borderStyle = isSelected ? `2px solid ${meta.accent}` : '1px solid #9ca3af';
+          const shadowStyle = isSelected ? '0 0 0 2px rgba(37,99,235,0.25)' : 'none';
+          const utilColor = b.bancaUtility >= 0 ? '#15803d' : '#b91c1c';
 
-      const ventasNetas = ventasBrutas; // Las ventas brutas ya excluyen los anulados en el loop
-      const comisionPct = Number(cfg.agencyCommissionPct ?? 15);
-      const comisionMonto = (ventasNetas * comisionPct) / 100;
-      const balanceBanca = ventasNetas - premiosPagados - comisionMonto;
+          return `
+            <div class="cuadre-independent-box" data-currency="${curKey}" style="background: #ffffff; border: ${borderStyle}; box-shadow: ${shadowStyle}; border-radius: 4px; overflow: hidden; cursor: pointer;">
+              <div style="background: ${meta.headerBg}; color: #fff; padding: 6px 8px; font-weight: bold; font-size: 11px; display: flex; justify-content: space-between; align-items: center;">
+                <span>${meta.title}</span>
+                ${isSelected ? '<span style="background: #fbbf24; color: #111827; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 900;">FILTRO ACTIVO</span>' : ''}
+              </div>
+              <div style="padding: 8px; font-size: 11px; line-height: 1.55; font-family: Tahoma, sans-serif;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #e5e7eb; padding-bottom: 2px;">
+                  <span style="color: #4b5563;">Tickets (Act / Anul):</span>
+                  <strong style="font-family: monospace;">${b.activeCount} act / ${b.voidCount} anul</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span style="color: #4b5563;">Ventas Brutas:</span>
+                  <strong style="font-family: monospace;">${this.printer.formatCurrency(b.gross, curKey)}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; color: #b91c1c;">
+                  <span>Tickets Anulados (-):</span>
+                  <strong style="font-family: monospace;">-${this.printer.formatCurrency(b.voided, curKey)}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; color: #0369a1; border-top: 1px solid #e5e7eb; padding-top: 2px;">
+                  <span style="font-weight: bold;">Ventas Netas:</span>
+                  <strong style="font-family: monospace;">${this.printer.formatCurrency(b.net, curKey)}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; color: #4338ca;">
+                  <span>Comisión (${comisionPct}%) (-):</span>
+                  <strong style="font-family: monospace;">-${this.printer.formatCurrency(b.commission, curKey)}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; color: #b45309;">
+                  <span>Premios (-):</span>
+                  <strong style="font-family: monospace;">-${this.printer.formatCurrency(b.totalPrizes, curKey)}</strong>
+                </div>
+                <div style="margin-top: 5px; padding: 5px 6px; background: #111827; color: #fff; border-radius: 3px; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 10px; font-weight: bold;">SALDO BANCA:</span>
+                  <strong style="font-family: 'Courier New', monospace; font-size: 13px; color: ${b.bancaUtility >= 0 ? '#4ade80' : '#f87171'};">
+                    ${this.printer.formatCurrency(b.bancaUtility, curKey)}
+                  </strong>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
 
-      // Actualizar DOM
-      document.getElementById('cuadre-val-tickets')?.replaceChildren(document.createTextNode(String(ticketsEmitidos)));
-      document.getElementById('cuadre-val-brutas')?.replaceChildren(document.createTextNode(this.printer.formatCurrency(ventasBrutas + anuladosTotal, targetCurrency)));
-      document.getElementById('cuadre-val-anulados')?.replaceChildren(document.createTextNode(this.printer.formatCurrency(anuladosTotal, targetCurrency)));
-      document.getElementById('cuadre-val-netas')?.replaceChildren(document.createTextNode(this.printer.formatCurrency(ventasNetas, targetCurrency)));
-      document.getElementById('cuadre-val-premios')?.replaceChildren(document.createTextNode(this.printer.formatCurrency(premiosPagados, targetCurrency)));
-      document.getElementById('cuadre-val-comision')?.replaceChildren(document.createTextNode(`${this.printer.formatCurrency(comisionMonto, targetCurrency)} (${comisionPct}%)`));
-      
+        threeBoxesGrid.querySelectorAll('.cuadre-independent-box').forEach(boxEl => {
+          boxEl.addEventListener('click', () => {
+            const clickedCur = boxEl.dataset.currency;
+            if (curSelect && clickedCur) {
+              curSelect.value = clickedCur;
+              calculateAndRenderCuadre();
+            }
+          });
+        });
+      }
+
+      // 4. Actualizar las tarjetas enfocadas exclusivamente con la moneda seleccionada (CERO conversión)
+      const activeBox = boxes[targetCurrency] || boxes.COP;
+      const focusedTitle = document.getElementById('cuadre-focused-box-title');
+      if (focusedTitle) {
+        focusedTitle.textContent = `📌 Detalle de Caja Seleccionada: ${boxMeta[targetCurrency]?.title || targetCurrency} (${activeBox.totalTicketsCount} tickets emitidos en ${targetCurrency})`;
+      }
+
+      document.getElementById('cuadre-val-tickets')?.replaceChildren(
+        document.createTextNode(`${activeBox.activeCount} Activos / ${activeBox.voidCount} Anulados (Total: ${activeBox.totalTicketsCount})`)
+      );
+      document.getElementById('cuadre-val-brutas')?.replaceChildren(
+        document.createTextNode(this.printer.formatCurrency(activeBox.gross, targetCurrency))
+      );
+      document.getElementById('cuadre-val-anulados')?.replaceChildren(
+        document.createTextNode(this.printer.formatCurrency(activeBox.voided, targetCurrency))
+      );
+      document.getElementById('cuadre-val-netas')?.replaceChildren(
+        document.createTextNode(this.printer.formatCurrency(activeBox.net, targetCurrency))
+      );
+      document.getElementById('cuadre-val-premios')?.replaceChildren(
+        document.createTextNode(this.printer.formatCurrency(activeBox.totalPrizes, targetCurrency))
+      );
+      document.getElementById('cuadre-val-comision')?.replaceChildren(
+        document.createTextNode(`${this.printer.formatCurrency(activeBox.commission, targetCurrency)} (${comisionPct}%)`)
+      );
+
+      const balanceLabelEl = document.getElementById('cuadre-balance-label');
+      if (balanceLabelEl) {
+        balanceLabelEl.textContent = `SALDO NETO A ENTREGAR A LA BANCA (CAJA ${targetCurrency}):`;
+      }
+
       const balanceEl = document.getElementById('cuadre-val-balance');
       if (balanceEl) {
-        balanceEl.textContent = this.printer.formatCurrency(balanceBanca, targetCurrency);
-        balanceEl.className = balanceBanca >= 0 ? 'text-xl text-success font-bold' : 'text-xl text-danger font-bold';
+        balanceEl.textContent = this.printer.formatCurrency(activeBox.bancaUtility, targetCurrency);
+        balanceEl.className = activeBox.bancaUtility >= 0 ? 'text-xl text-success font-bold' : 'text-xl text-danger font-bold';
       }
 
       this.currentCuadreData = {
         date: targetDate,
         currency: targetCurrency,
-        ticketsEmitidos,
-        ventasBrutas: ventasBrutas + anuladosTotal,
-        anuladosTotal,
-        ventasNetas,
-        premiosPagados,
         comisionPct,
-        comisionMonto,
-        balanceBanca
+        boxes,
+        ticketsEmitidos: activeBox.totalTicketsCount,
+        activeCount: activeBox.activeCount,
+        voidCount: activeBox.voidCount,
+        ventasBrutas: activeBox.gross,
+        anuladosTotal: activeBox.voided,
+        ventasNetas: activeBox.net,
+        premiosPagados: activeBox.totalPrizes,
+        comisionMonto: activeBox.commission,
+        balanceBanca: activeBox.bancaUtility
       };
     };
 
     if (btnFiltrar) btnFiltrar.addEventListener('click', calculateAndRenderCuadre);
+    if (curSelect) curSelect.addEventListener('change', calculateAndRenderCuadre);
+    if (dateInput) {
+      dateInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          calculateAndRenderCuadre();
+        }
+      });
+    }
 
     if (btnPrintCuadre) {
       btnPrintCuadre.addEventListener('click', () => {
         const d = this.currentCuadreData;
         if (!d) return;
         const cfg = this.storage.getConfig();
-        const text = `
---------------------------------
-RELACIÓN FINAL - CUADRE DE CAJA
-BANCA FC - FERNANDO CASTAÑO
-AGENCIA: ${cfg.agencyCode || '1000'} - ${cfg.agencyName || 'FERNANDO CASTAÑO'}
-FECHA: ${d.date} | MONEDA: ${d.currency}
---------------------------------
-TICKETS EMITIDOS: ${d.ticketsEmitidos}
-VENTAS BRUTAS:    ${this.printer.formatCurrency(d.ventasBrutas, d.currency)}
-ANULACIONES:     -${this.printer.formatCurrency(d.anuladosTotal, d.currency)}
---------------------------------
-VENTAS NETAS:     ${this.printer.formatCurrency(d.ventasNetas, d.currency)}
-PREMIOS PAGADOS: -${this.printer.formatCurrency(d.premiosPagados, d.currency)}
-COMISIÓN (${d.comisionPct}%):  -${this.printer.formatCurrency(d.comisionMonto, d.currency)}
---------------------------------
-SALDO A LA BANCA: ${this.printer.formatCurrency(d.balanceBanca, d.currency)}
---------------------------------
-Firma Taquillero: ______________
-        `;
+        const sections = ['COP', 'USD', 'VES'].map(curKey => {
+          const b = d.boxes[curKey];
+          return [
+            `=== CAJA INDEPENDIENTE ${curKey} ===`,
+            `TICKETS (ACT/ANUL): ${b.activeCount} / ${b.voidCount}`,
+            `VENTAS BRUTAS:      ${this.printer.formatCurrency(b.gross, curKey)}`,
+            `ANULADOS (-):      -${this.printer.formatCurrency(b.voided, curKey)}`,
+            `VENTAS NETAS:       ${this.printer.formatCurrency(b.net, curKey)}`,
+            `COMISION (${d.comisionPct}%) (-): -${this.printer.formatCurrency(b.commission, curKey)}`,
+            `PREMIOS (-):       -${this.printer.formatCurrency(b.totalPrizes, curKey)}`,
+            `SALDO BANCA ${curKey}:   ${this.printer.formatCurrency(b.bancaUtility, curKey)}`,
+            `--------------------------------`
+          ].join('\n');
+        }).join('\n');
+
+        const text = [
+          `--------------------------------`,
+          `RELACION FINAL - CUADRE DE CAJA`,
+          `BANCA FC - FERNANDO CASTANO`,
+          `AGENCIA: ${cfg.agencyCode || '1000'} - ${cfg.agencyName || 'FERNANDO CASTANO'}`,
+          `FECHA: ${d.date}`,
+          `--------------------------------`,
+          sections,
+          `Firma Taquillero: ______________`
+        ].join('\n');
+
         const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const w = window.open(url, '_blank');
@@ -531,21 +616,17 @@ Firma Taquillero: ______________
       btnExportCsv.addEventListener('click', () => {
         const d = this.currentCuadreData;
         if (!d) return;
-        const csvContent = "data:text/csv;charset=utf-8," +
-          "Concepto,Monto,Moneda\n" +
-          `Fecha,${d.date},${d.currency}\n` +
-          `Tickets Emitidos,${d.ticketsEmitidos},\n` +
-          `Ventas Brutas,${d.ventasBrutas},${d.currency}\n` +
-          `Anulaciones,${d.anuladosTotal},${d.currency}\n` +
-          `Ventas Netas,${d.ventasNetas},${d.currency}\n` +
-          `Premios Pagados,${d.premiosPagados},${d.currency}\n` +
-          `Comision Agencia,${d.comisionMonto},${d.currency}\n` +
-          `Saldo Entregar Banca,${d.balanceBanca},${d.currency}\n`;
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "Fecha,Caja Moneda,Tickets Activos,Tickets Anulados,Ventas Brutas,Anulaciones,Ventas Netas,Comision Agencia,Premios,Saldo Entregar Banca\n";
+        ['COP', 'USD', 'VES'].forEach(curKey => {
+          const b = d.boxes[curKey];
+          csvContent += `${d.date},${curKey},${b.activeCount},${b.voidCount},${b.gross},${b.voided},${b.net},${b.commission},${b.totalPrizes},${b.bancaUtility}\n`;
+        });
 
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `Cuadre_Caja_${d.date.replace(/\//g, '-')}.csv`);
+        link.setAttribute("download", `Cuadre_3_Cajas_${d.date.replace(/\//g, '-')}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -555,20 +636,26 @@ Firma Taquillero: ______________
     this.calculateAndRenderCuadre = calculateAndRenderCuadre;
   }
 
-  // 6. MODAL REPORTE POR NÚMEROS (RIESGO / TOPES)
+  // 6. MODAL REPORTE POR NÚMEROS (RIESGO / TOPES - SEPARADO POR MONEDA NATIVA)
   setupReporteNumerosModal() {
     const listBody = document.getElementById('tabla-reporte-numeros');
     const renderNums = () => {
       if (!listBody) return;
-      const tickets = this.storage.getTickets().filter(t => t.estado !== 'ANULADO');
-      const numMap = {};
       const cfg = this.storage.getConfig();
+      const activeAgencyCode = String(cfg.agencyCode || '1000').trim();
+      const tickets = this.storage.getTickets().filter(t => {
+        const tAgency = String(this.storage.extractAgencyCodeFromTicket(t)).trim();
+        return t.estado !== 'ANULADO' && tAgency === activeAgencyCode;
+      });
+      const numMap = {};
 
       tickets.forEach(t => {
-        t.items.forEach(p => {
-          const key = `${p.number}${p.sign ? '-' + p.sign : ''}${p.animalName ? ' (' + p.animalName + ')' : ''}`;
+        const cur = (t.moneda || 'COP').toUpperCase();
+        (t.items || []).forEach(p => {
+          const numLabel = `${p.number}${p.sign ? '-' + p.sign : ''}${p.animalName ? ' (' + p.animalName + ')' : ''}`;
+          const key = `${numLabel}__${cur}`;
           if (!numMap[key]) {
-            numMap[key] = { number: key, type: p.type, totalAmount: 0, count: 0 };
+            numMap[key] = { number: numLabel, currency: cur, type: p.type, totalAmount: 0, count: 0 };
           }
           numMap[key].totalAmount += p.amount;
           numMap[key].count++;
@@ -577,7 +664,7 @@ Firma Taquillero: ______________
 
       const sorted = Object.values(numMap).sort((a, b) => b.totalAmount - a.totalAmount);
       if (sorted.length === 0) {
-        listBody.innerHTML = '<tr><td colspan="4" class="text-center p-3">No hay ventas activas registradas.</td></tr>';
+        listBody.innerHTML = '<tr><td colspan="4" class="text-center p-3">No hay ventas activas registradas en esta agencia.</td></tr>';
         return;
       }
 
@@ -585,10 +672,10 @@ Firma Taquillero: ______________
       sorted.forEach(item => {
         rows += `
           <tr>
-            <td><strong>${item.number}</strong></td>
+            <td><strong>${item.number}</strong> <span style="font-size: 10px; color: #0369a1; font-weight: bold;">[${item.currency}]</span></td>
             <td><span class="badge badge-secondary">${item.type.toUpperCase()}</span></td>
             <td>${item.count} apuestas</td>
-            <td><strong>${this.printer.formatCurrency(item.totalAmount, cfg.currency)}</strong></td>
+            <td><strong>${this.printer.formatCurrency(item.totalAmount, item.currency)}</strong></td>
           </tr>
         `;
       });

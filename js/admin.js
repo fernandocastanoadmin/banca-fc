@@ -158,141 +158,46 @@ class BancaFcAdminController {
     return allTickets.filter(t => this.isTicketInDateFilter(t));
   }
 
-  // Calcula el resumen financiero exacto de una agencia en su moneda nativa y en la moneda de consolidación
+  // Calcula las 3 Cajas Independientes (COP, USD, VES) de una agencia con CERO conversión de tasas
   calculateAgencyFinancials(agency, periodTickets) {
     const agencyTickets = periodTickets.filter(t => {
       const code = this.storage.extractAgencyCodeFromTicket(t);
       return String(code) === String(agency.code);
     });
 
-    const nativeCur = agency.currency || 'COP';
-    const globalCur = this.storage.getConsolidationCurrency();
+    const nativeCur = (agency.currency || 'COP').toUpperCase();
+    const selectedCur = this.storage.getConsolidationCurrency();
     const commissionPct = Number(agency.commissionPct ?? 15);
 
-    let activeCount = 0;
-    let voidCount = 0;
-    let grossNative = 0;
-    let voidNative = 0;
-    let paidPrizesNative = 0;
-    let pendingPrizesNative = 0;
-
-    let grossGlobal = 0;
-    let voidGlobal = 0;
-    let paidPrizesGlobal = 0;
-    let pendingPrizesGlobal = 0;
-
-    const categoryBreakdown = {
-      sin_signo: { amount: 0, count: 0 },
-      con_signo: { amount: 0, count: 0 },
-      cuatro_cifras: { amount: 0, count: 0 },
-      animalitos: { amount: 0, count: 0 }
-    };
-
-    agencyTickets.forEach(t => {
-      const tCur = t.moneda || nativeCur;
-      const amountInNative = this.storage.convertAmount(t.total, tCur, nativeCur);
-      const amountInGlobal = this.storage.convertAmount(t.total, tCur, globalCur);
-
-      grossNative += amountInNative;
-      grossGlobal += amountInGlobal;
-
-      if (t.estado === 'ANULADO') {
-        voidCount++;
-        voidNative += amountInNative;
-        voidGlobal += amountInGlobal;
-      } else {
-        activeCount++;
-        const prizeRaw = Number(t.premioPagado || t.premioCalculado || 0);
-        const prizeNative = this.storage.convertAmount(prizeRaw, tCur, nativeCur);
-        const prizeGlobal = this.storage.convertAmount(prizeRaw, tCur, globalCur);
-
-        if (t.estado === 'PAGADO') {
-          paidPrizesNative += prizeNative;
-          paidPrizesGlobal += prizeGlobal;
-        } else if (t.estado === 'GANADOR' || prizeRaw > 0) {
-          pendingPrizesNative += prizeNative;
-          pendingPrizesGlobal += prizeGlobal;
-        }
-
-        // Desglose por categoría de cada jugada activa
-        (t.items || []).forEach(play => {
-          const pAmtNative = this.storage.convertAmount(play.amount, tCur, nativeCur);
-          if (play.type === 'animalito') {
-            categoryBreakdown.animalitos.amount += pAmtNative;
-            categoryBreakdown.animalitos.count++;
-          } else if (play.type === 'zodiac' || play.type === 'astro') {
-            categoryBreakdown.con_signo.amount += pAmtNative;
-            categoryBreakdown.con_signo.count++;
-          } else if (play.type === 'cuatro_cifras') {
-            categoryBreakdown.cuatro_cifras.amount += pAmtNative;
-            categoryBreakdown.cuatro_cifras.count++;
-          } else {
-            categoryBreakdown.sin_signo.amount += pAmtNative;
-            categoryBreakdown.sin_signo.count++;
-          }
-        });
-      }
-    });
-
-    const netNative = grossNative - voidNative;
-    const commissionNative = (netNative * commissionPct) / 100;
-    const totalPrizesNative = paidPrizesNative + pendingPrizesNative;
-    const netProfitBancaNative = netNative - commissionNative - totalPrizesNative;
-
-    const netGlobal = grossGlobal - voidGlobal;
-    const commissionGlobal = (netGlobal * commissionPct) / 100;
-    const totalPrizesGlobal = paidPrizesGlobal + pendingPrizesGlobal;
-    const netProfitBancaGlobal = netGlobal - commissionGlobal - totalPrizesGlobal;
+    // Calcular las 3 cajas independientes sin mezclar ni convertir monedas
+    const boxes = this.storage.calculateThreeCurrencyBoxes(agencyTickets, commissionPct);
+    const nativeBox = boxes[nativeCur] || boxes.COP;
+    const selectedBox = boxes[selectedCur] || boxes.COP;
 
     return {
       agency,
       tickets: agencyTickets,
-      activeCount,
-      voidCount,
-      totalTicketsCount: activeCount + voidCount,
+      boxes,
+      activeCount: selectedBox.activeCount,
+      voidCount: selectedBox.voidCount,
+      totalTicketsCount: selectedBox.totalTicketsCount,
       nativeCurrency: nativeCur,
+      selectedCurrency: selectedCur,
       commissionPct,
-      native: {
-        gross: grossNative,
-        voided: voidNative,
-        net: netNative,
-        commission: commissionNative,
-        paidPrizes: paidPrizesNative,
-        pendingPrizes: pendingPrizesNative,
-        totalPrizes: totalPrizesNative,
-        bancaUtility: netProfitBancaNative
-      },
-      global: {
-        gross: grossGlobal,
-        voided: voidGlobal,
-        net: netGlobal,
-        commission: commissionGlobal,
-        paidPrizes: paidPrizesGlobal,
-        pendingPrizes: pendingPrizesGlobal,
-        totalPrizes: totalPrizesGlobal,
-        bancaUtility: netProfitBancaGlobal
-      },
-      categoryBreakdown
+      native: nativeBox,
+      global: selectedBox,
+      categoryBreakdown: selectedBox.categoryBreakdown
     };
   }
 
   // =========================================================================
-  // 1. CONTROLES DE CABECERA GLOBAL (MONEDA, TASAS Y FECHAS)
+  // 1. CONTROLES DE CABECERA GLOBAL (FILTRO DE CAJA/MONEDA Y FECHAS)
   // =========================================================================
   loadHeaderControls() {
     const curSelector = document.getElementById('global-currency-selector');
     if (curSelector) {
       curSelector.value = this.storage.getConsolidationCurrency();
     }
-
-    const rates = this.storage.getRates();
-    const inCopVes = document.getElementById('rate-cop-ves');
-    const inUsdCop = document.getElementById('rate-usd-cop');
-    const inUsdVes = document.getElementById('rate-usd-ves');
-
-    if (inCopVes) inCopVes.value = rates.copPerVes || 93.33;
-    if (inUsdCop) inUsdCop.value = rates.copPerUsd || 4200;
-    if (inUsdVes) inUsdVes.value = rates.vesPerUsd || 45;
 
     const todayIso = new Date().toISOString().split('T')[0];
     const fromInput = document.getElementById('filter-date-from');
@@ -306,24 +211,8 @@ class BancaFcAdminController {
     curSelector?.addEventListener('change', (e) => {
       this.storage.setConsolidationCurrency(e.target.value);
       this.refreshAllViews();
-      this.showToast(`Moneda de consolidación cambiada a ${e.target.value}`, '💱');
+      this.showToast(`Filtro de Caja cambiado a ${e.target.value} (Contabilidad independiente sin conversión)`, '🏦');
     });
-
-    // Sincronización automática entre inputs de tasas
-    const inCopVes = document.getElementById('rate-cop-ves');
-    const inUsdCop = document.getElementById('rate-usd-cop');
-    const inUsdVes = document.getElementById('rate-usd-ves');
-
-    const updateRatesAction = () => {
-      const copPerVes = parseFloat(inCopVes?.value) || 93.33;
-      const copPerUsd = parseFloat(inUsdCop?.value) || 4200;
-      const vesPerUsd = parseFloat(inUsdVes?.value) || 45;
-      this.storage.updateRates({ copPerUsd, vesPerUsd, copPerVes });
-      this.refreshAllViews();
-      this.showToast(`Tasas actualizadas: 1 VES = ${copPerVes} COP | 1 USD = ${copPerUsd} COP`, '💱');
-    };
-
-    document.getElementById('btn-save-rates')?.addEventListener('click', updateRatesAction);
 
     // Filtro de fecha
     const dateFilter = document.getElementById('global-date-filter');
@@ -582,75 +471,144 @@ class BancaFcAdminController {
   }
 
   renderGlobalKpis(agencyMetricsList) {
-    const globalCur = this.storage.getConsolidationCurrency();
+    const selectedCur = this.storage.getConsolidationCurrency();
 
-    let totalGross = 0;
-    let totalVoid = 0;
-    let totalNet = 0;
-    let totalCommission = 0;
-    let totalPaidPrizes = 0;
-    let totalPendingPrizes = 0;
-    let totalPrizes = 0;
-    let totalUtility = 0;
-
-    let countTotalTickets = 0;
-    let countVoidTickets = 0;
-    let countActiveTickets = 0;
+    // 1. Sumar de forma independiente cada una de las 3 Cajas (COP, USD, VES) con CERO conversión
+    const globalBoxes = {
+      COP: { gross: 0, voided: 0, net: 0, commission: 0, paidPrizes: 0, pendingPrizes: 0, totalPrizes: 0, bancaUtility: 0, activeCount: 0, voidCount: 0, totalTicketsCount: 0 },
+      USD: { gross: 0, voided: 0, net: 0, commission: 0, paidPrizes: 0, pendingPrizes: 0, totalPrizes: 0, bancaUtility: 0, activeCount: 0, voidCount: 0, totalTicketsCount: 0 },
+      VES: { gross: 0, voided: 0, net: 0, commission: 0, paidPrizes: 0, pendingPrizes: 0, totalPrizes: 0, bancaUtility: 0, activeCount: 0, voidCount: 0, totalTicketsCount: 0 }
+    };
 
     agencyMetricsList.forEach(m => {
-      totalGross += m.global.gross;
-      totalVoid += m.global.voided;
-      totalNet += m.global.net;
-      totalCommission += m.global.commission;
-      totalPaidPrizes += m.global.paidPrizes;
-      totalPendingPrizes += m.global.pendingPrizes;
-      totalPrizes += m.global.totalPrizes;
-      totalUtility += m.global.bancaUtility;
-
-      countTotalTickets += m.totalTicketsCount;
-      countVoidTickets += m.voidCount;
-      countActiveTickets += m.activeCount;
+      ['COP', 'USD', 'VES'].forEach(curKey => {
+        const b = m.boxes[curKey];
+        if (!b) return;
+        globalBoxes[curKey].gross += b.gross;
+        globalBoxes[curKey].voided += b.voided;
+        globalBoxes[curKey].net += b.net;
+        globalBoxes[curKey].commission += b.commission;
+        globalBoxes[curKey].paidPrizes += b.paidPrizes;
+        globalBoxes[curKey].pendingPrizes += b.pendingPrizes;
+        globalBoxes[curKey].totalPrizes += b.totalPrizes;
+        globalBoxes[curKey].bancaUtility += b.bancaUtility;
+        globalBoxes[curKey].activeCount += b.activeCount;
+        globalBoxes[curKey].voidCount += b.voidCount;
+        globalBoxes[curKey].totalTicketsCount += b.totalTicketsCount;
+      });
     });
 
-    const avgCommPct = totalNet > 0 ? ((totalCommission / totalNet) * 100).toFixed(1) : '15.0';
-    const marginPct = totalNet > 0 ? ((totalUtility / totalNet) * 100).toFixed(1) : '0.0';
+    // 2. Renderizar las 3 Cajas Simultáneas Independientes en #admin-three-boxes-grid
+    const threeBoxesContainer = document.getElementById('admin-three-boxes-grid');
+    if (threeBoxesContainer) {
+      const boxStyles = {
+        COP: { title: '🇨🇴 CAJA PESOS (COP $)', borderActive: 'border-amber-400 ring-2 ring-amber-400/30', headerBg: 'from-blue-900/90 to-slate-900' },
+        USD: { title: '🇺🇸 CAJA DÓLARES (USD $)', borderActive: 'border-emerald-400 ring-2 ring-emerald-400/30', headerBg: 'from-emerald-900/90 to-slate-900' },
+        VES: { title: '🇻🇪 CAJA BOLÍVARES (VES Bs.)', borderActive: 'border-sky-400 ring-2 ring-sky-400/30', headerBg: 'from-amber-900/90 to-slate-900' }
+      };
 
-    document.getElementById('kpi-ventas-brutas').textContent = this.formatMoney(totalGross, globalCur);
-    document.getElementById('kpi-sub-tickets-total').textContent = `${countTotalTickets} tickets emitidos`;
-    document.getElementById('kpi-badge-currency-1').textContent = globalCur;
+      threeBoxesContainer.innerHTML = ['COP', 'USD', 'VES'].map(curKey => {
+        const b = globalBoxes[curKey];
+        const st = boxStyles[curKey];
+        const isSelected = curKey === selectedCur;
+        const utilPositive = b.bancaUtility >= 0;
 
-    document.getElementById('kpi-tickets-anulados').textContent = this.formatMoney(totalVoid, globalCur);
-    document.getElementById('kpi-sub-anulados-count').textContent = `${countVoidTickets} tickets anulados`;
+        return `
+          <div class="admin-currency-box cursor-pointer rounded-xl bg-slate-900/95 border ${isSelected ? st.borderActive : 'border-slate-800 hover:border-slate-700'} overflow-hidden shadow-lg transition" data-currency="${curKey}">
+            <div class="bg-gradient-to-r ${st.headerBg} px-3.5 py-2 border-b border-slate-800 flex items-center justify-between">
+              <span class="text-xs font-black uppercase tracking-wide text-white">${st.title}</span>
+              ${isSelected
+                ? '<span class="px-2 py-0.5 rounded bg-amber-400 text-slate-950 font-black text-[10px]">FILTRO ACTIVO</span>'
+                : '<span class="text-[10px] text-slate-400 font-semibold">Clic para filtrar</span>'}
+            </div>
+            <div class="p-3 space-y-1 text-xs font-mono">
+              <div class="flex justify-between text-slate-300 border-b border-slate-800/80 pb-1">
+                <span class="font-sans text-slate-400">Tickets (Activos / Anulados):</span>
+                <strong><span class="text-emerald-400">${b.activeCount} act</span> / <span class="text-rose-400">${b.voidCount} anul</span></strong>
+              </div>
+              <div class="flex justify-between">
+                <span class="font-sans text-slate-400">Ventas Brutas:</span>
+                <strong class="text-white">${this.formatMoney(b.gross, curKey)}</strong>
+              </div>
+              <div class="flex justify-between text-rose-400">
+                <span class="font-sans">Tickets Anulados (-):</span>
+                <strong>-${this.formatMoney(b.voided, curKey)}</strong>
+              </div>
+              <div class="flex justify-between text-sky-300 border-t border-slate-800/80 pt-1">
+                <span class="font-sans font-bold">Ventas Netas:</span>
+                <strong>${this.formatMoney(b.net, curKey)}</strong>
+              </div>
+              <div class="flex justify-between text-indigo-300">
+                <span class="font-sans">Comisión Agencias (-):</span>
+                <strong>-${this.formatMoney(b.commission, curKey)}</strong>
+              </div>
+              <div class="flex justify-between text-amber-400">
+                <span class="font-sans">Premios Ganadores / Pagados (-):</span>
+                <strong>-${this.formatMoney(b.totalPrizes, curKey)}</strong>
+              </div>
+              <div class="mt-2 pt-2 border-t border-slate-800 flex items-center justify-between bg-slate-950/90 px-2.5 py-1.5 rounded-lg">
+                <span class="font-sans text-[11px] font-black uppercase ${utilPositive ? 'text-emerald-400' : 'text-rose-400'}">Utilidad / Saldo Banca:</span>
+                <strong class="text-sm font-black ${utilPositive ? 'text-emerald-400' : 'text-rose-400'}">${this.formatMoney(b.bancaUtility, curKey)}</strong>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
 
-    document.getElementById('kpi-ventas-netas').textContent = this.formatMoney(totalNet, globalCur);
-    document.getElementById('kpi-sub-activos-count').textContent = `${countActiveTickets} tickets activos`;
+      threeBoxesContainer.querySelectorAll('.admin-currency-box').forEach(cardEl => {
+        cardEl.addEventListener('click', () => {
+          const clickedCur = cardEl.dataset.currency;
+          if (clickedCur) {
+            this.storage.setConsolidationCurrency(clickedCur);
+            const curSelector = document.getElementById('global-currency-selector');
+            if (curSelector) curSelector.value = clickedCur;
+            this.refreshAllViews();
+          }
+        });
+      });
+    }
 
-    document.getElementById('kpi-comision-agencias').textContent = this.formatMoney(totalCommission, globalCur);
+    // 3. Actualizar los 6 KPIs superiores exclusivamente con la Caja Seleccionada (CERO conversión)
+    const activeBox = globalBoxes[selectedCur] || globalBoxes.COP;
+    const avgCommPct = activeBox.net > 0 ? ((activeBox.commission / activeBox.net) * 100).toFixed(1) : '15.0';
+    const marginPct = activeBox.net > 0 ? ((activeBox.bancaUtility / activeBox.net) * 100).toFixed(1) : '0.0';
+
+    document.getElementById('kpi-ventas-brutas').textContent = this.formatMoney(activeBox.gross, selectedCur);
+    document.getElementById('kpi-sub-tickets-total').textContent = `${activeBox.totalTicketsCount} tickets en ${selectedCur}`;
+    document.getElementById('kpi-badge-currency-1').textContent = `CAJA ${selectedCur}`;
+
+    document.getElementById('kpi-tickets-anulados').textContent = this.formatMoney(activeBox.voided, selectedCur);
+    document.getElementById('kpi-sub-anulados-count').textContent = `${activeBox.voidCount} anulados (${selectedCur})`;
+
+    document.getElementById('kpi-ventas-netas').textContent = this.formatMoney(activeBox.net, selectedCur);
+    document.getElementById('kpi-sub-activos-count').textContent = `${activeBox.activeCount} activos (${selectedCur})`;
+
+    document.getElementById('kpi-comision-agencias').textContent = this.formatMoney(activeBox.commission, selectedCur);
     document.getElementById('kpi-sub-comision-promedio').textContent = `Prom: ${avgCommPct}%`;
 
-    document.getElementById('kpi-total-premios').textContent = this.formatMoney(totalPrizes, globalCur);
-    document.getElementById('kpi-sub-premios-pagados').textContent = `Pagados: ${this.formatMoney(totalPaidPrizes, globalCur)}`;
-    document.getElementById('kpi-sub-premios-pendientes').textContent = `Pend: ${this.formatMoney(totalPendingPrizes, globalCur)}`;
+    document.getElementById('kpi-total-premios').textContent = this.formatMoney(activeBox.totalPrizes, selectedCur);
+    document.getElementById('kpi-sub-premios-pagados').textContent = `Pagados: ${this.formatMoney(activeBox.paidPrizes, selectedCur)}`;
+    document.getElementById('kpi-sub-premios-pendientes').textContent = `Pend: ${this.formatMoney(activeBox.pendingPrizes, selectedCur)}`;
 
     const utilityEl = document.getElementById('kpi-utilidad-neta');
     const utilityCard = document.getElementById('kpi-card-utilidad');
     const utilityBadge = document.getElementById('kpi-utilidad-badge');
     const marginEl = document.getElementById('kpi-sub-margen-pct');
 
-    if (utilityEl) utilityEl.textContent = this.formatMoney(totalUtility, globalCur);
-    if (marginEl) marginEl.textContent = `Margen Rentabilidad: ${marginPct}%`;
+    if (utilityEl) utilityEl.textContent = this.formatMoney(activeBox.bancaUtility, selectedCur);
+    if (marginEl) marginEl.textContent = `Margen Rentabilidad (${selectedCur}): ${marginPct}%`;
 
     if (utilityCard && utilityBadge) {
-      if (totalUtility >= 0) {
+      if (activeBox.bancaUtility >= 0) {
         utilityCard.classList.remove('kpi-profit-negative');
         utilityCard.classList.add('kpi-profit-positive');
         utilityBadge.className = 'badge-pill badge-activa';
-        utilityBadge.textContent = 'SALDO A FAVOR BANCA';
+        utilityBadge.textContent = `A FAVOR BANCA (${selectedCur})`;
       } else {
         utilityCard.classList.remove('kpi-profit-positive');
         utilityCard.classList.add('kpi-profit-negative');
         utilityBadge.className = 'badge-pill badge-suspendida';
-        utilityBadge.textContent = 'SALDO EN CONTRA';
+        utilityBadge.textContent = `SALDO EN CONTRA (${selectedCur})`;
       }
     }
   }
@@ -842,8 +800,11 @@ class BancaFcAdminController {
     const tfoot = document.getElementById('agencies-master-tfoot');
     if (!tbody) return;
 
-    const convertRowsToGlobal = document.getElementById('chk-convert-table-amounts')?.checked || false;
-    const globalCur = this.storage.getConsolidationCurrency();
+    const selectedCur = this.storage.getConsolidationCurrency();
+    const boxBadgeEl = document.getElementById('agency-table-active-box-badge');
+    if (boxBadgeEl) {
+      boxBadgeEl.textContent = `🔒 Filtro de Caja Activo: CAJA ${selectedCur} (Cero Conversión)`;
+    }
 
     if (agencyMetricsList.length === 0) {
       tbody.innerHTML = `
@@ -858,26 +819,25 @@ class BancaFcAdminController {
     }
 
     let rowsHtml = '';
-    let sumGrossGlobal = 0;
-    let sumNetGlobal = 0;
-    let sumCommGlobal = 0;
-    let sumPrizesGlobal = 0;
-    let sumUtilityGlobal = 0;
+    let sumGross = 0;
+    let sumNet = 0;
+    let sumComm = 0;
+    let sumPrizes = 0;
+    let sumUtility = 0;
     let sumActiveTickets = 0;
     let sumVoidTickets = 0;
 
     agencyMetricsList.forEach(m => {
       const ag = m.agency;
-      const useCur = convertRowsToGlobal ? globalCur : m.nativeCurrency;
-      const vals = convertRowsToGlobal ? m.global : m.native;
+      const vals = m.boxes[selectedCur] || m.global;
 
-      sumGrossGlobal += m.global.gross;
-      sumNetGlobal += m.global.net;
-      sumCommGlobal += m.global.commission;
-      sumPrizesGlobal += m.global.totalPrizes;
-      sumUtilityGlobal += m.global.bancaUtility;
-      sumActiveTickets += m.activeCount;
-      sumVoidTickets += m.voidCount;
+      sumGross += vals.gross;
+      sumNet += vals.net;
+      sumComm += vals.commission;
+      sumPrizes += vals.totalPrizes;
+      sumUtility += vals.bancaUtility;
+      sumActiveTickets += vals.activeCount;
+      sumVoidTickets += vals.voidCount;
 
       const isActiva = ag.status === 'ACTIVA';
       const statusBadge = isActiva
@@ -886,7 +846,15 @@ class BancaFcAdminController {
 
       const utilityPositive = vals.bancaUtility >= 0;
       const utilityColorClass = utilityPositive ? 'text-emerald-400' : 'text-rose-400';
-      const utilitySubTag = utilityPositive ? 'A favor Banca' : 'Caída Premios';
+      const utilitySubTag = vals.totalTicketsCount === 0
+        ? `Sin mov. en ${selectedCur}`
+        : (utilityPositive ? `A favor Banca (${selectedCur})` : `Caída Premios (${selectedCur})`);
+
+      // Mostrar indicador compacto si la agencia tiene movimientos en otras cajas distintas a la filtrada
+      const otherBoxesBadges = ['COP', 'USD', 'VES']
+        .filter(c => c !== selectedCur && m.boxes[c] && m.boxes[c].totalTicketsCount > 0)
+        .map(c => `<span class="inline-block px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-[9px] text-sky-300 font-mono" title="Movimiento en Caja ${c}">${c}: ${this.formatMoney(m.boxes[c].net, c)} (${m.boxes[c].activeCount}t)</span>`)
+        .join(' ');
 
       rowsHtml += `
         <tr>
@@ -906,30 +874,31 @@ class BancaFcAdminController {
           <td>${statusBadge}</td>
           <td>
             <span class="px-2 py-0.5 rounded bg-slate-800 text-amber-300 font-mono font-bold text-xs" title="Monedas Autorizadas en Taquilla">${this.storage.getAllowedCurrenciesForAgency(ag.code).join(' / ')}</span>
-            <div class="text-[10px] text-slate-400 mt-0.5">Com: ${ag.commissionPct}%</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Com: ${ag.commissionPct}% • Caja: <strong>${selectedCur}</strong></div>
+            ${otherBoxesBadges ? `<div class="mt-1 flex flex-wrap gap-1">${otherBoxesBadges}</div>` : ''}
           </td>
           <td class="text-center font-mono">
-            <span class="text-emerald-400 font-bold" title="Tickets Activos">${m.activeCount}</span>
+            <span class="text-emerald-400 font-bold" title="Tickets Activos en ${selectedCur}">${vals.activeCount}</span>
             <span class="text-slate-600 mx-1">/</span>
-            <span class="text-rose-400 font-bold" title="Tickets Anulados">${m.voidCount}</span>
+            <span class="text-rose-400 font-bold" title="Tickets Anulados en ${selectedCur}">${vals.voidCount}</span>
           </td>
-          <td class="text-right font-mono font-semibold text-slate-200">${this.formatMoney(vals.gross, useCur)}</td>
-          <td class="text-right font-mono font-bold text-sky-300">${this.formatMoney(vals.net, useCur)}</td>
+          <td class="text-right font-mono font-semibold text-slate-200">${this.formatMoney(vals.gross, selectedCur)}</td>
+          <td class="text-right font-mono font-bold text-sky-300">${this.formatMoney(vals.net, selectedCur)}</td>
           <td class="text-right font-mono text-indigo-300">
-            ${this.formatMoney(vals.commission, useCur)}
+            ${this.formatMoney(vals.commission, selectedCur)}
             <div class="text-[10px] text-slate-400">(${ag.commissionPct}%)</div>
           </td>
           <td class="text-right font-mono font-bold ${vals.totalPrizes > 0 ? 'text-amber-400' : 'text-slate-500'}">
-            ${this.formatMoney(vals.totalPrizes, useCur)}
-            ${vals.pendingPrizes > 0 ? `<div class="text-[10px] text-amber-300">Pend: ${this.formatMoney(vals.pendingPrizes, useCur)}</div>` : ''}
+            ${this.formatMoney(vals.totalPrizes, selectedCur)}
+            ${vals.pendingPrizes > 0 ? `<div class="text-[10px] text-amber-300">Pend: ${this.formatMoney(vals.pendingPrizes, selectedCur)}</div>` : ''}
           </td>
           <td class="text-right font-mono">
-            <div class="font-black text-sm ${utilityColorClass}">${this.formatMoney(vals.bancaUtility, useCur)}</div>
+            <div class="font-black text-sm ${utilityColorClass}">${this.formatMoney(vals.bancaUtility, selectedCur)}</div>
             <div class="text-[10px] ${utilityPositive ? 'text-emerald-500' : 'text-rose-400'} font-semibold">${utilitySubTag}</div>
           </td>
           <td class="text-center">
             <div class="inline-flex items-center gap-1">
-              <button type="button" class="btn-audit-ag px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] transition" data-code="${ag.code}" title="Auditar Expediente y Tickets de la Taquilla">
+              <button type="button" class="btn-audit-ag px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] transition" data-code="${ag.code}" title="Auditar las 3 Cajas y Tickets de la Taquilla">
                 🔍 Auditar
               </button>
               <button type="button" class="btn-edit-ag px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] transition" data-code="${ag.code}" title="Editar Parámetros de la Agencia">
@@ -956,21 +925,21 @@ class BancaFcAdminController {
     tbody.innerHTML = rowsHtml;
 
     if (tfoot) {
-      const totalPositive = sumUtilityGlobal >= 0;
+      const totalPositive = sumUtility >= 0;
       tfoot.innerHTML = `
         <tr>
           <td colspan="4" class="py-3 px-3 text-right uppercase text-xs text-slate-300">
-            TOTAL CONSOLIDADO (${agencyMetricsList.length} Agencias en ${globalCur}):
+            TOTAL CAJA ${selectedCur} (${agencyMetricsList.length} Agencias - Cero Conversión):
           </td>
           <td class="text-center font-mono text-xs">
             <span class="text-emerald-400">${sumActiveTickets}</span> / <span class="text-rose-400">${sumVoidTickets}</span>
           </td>
-          <td class="text-right font-mono text-white">${this.formatMoney(sumGrossGlobal, globalCur)}</td>
-          <td class="text-right font-mono text-sky-300">${this.formatMoney(sumNetGlobal, globalCur)}</td>
-          <td class="text-right font-mono text-indigo-300">${this.formatMoney(sumCommGlobal, globalCur)}</td>
-          <td class="text-right font-mono text-amber-400">${this.formatMoney(sumPrizesGlobal, globalCur)}</td>
+          <td class="text-right font-mono text-white">${this.formatMoney(sumGross, selectedCur)}</td>
+          <td class="text-right font-mono text-sky-300">${this.formatMoney(sumNet, selectedCur)}</td>
+          <td class="text-right font-mono text-indigo-300">${this.formatMoney(sumComm, selectedCur)}</td>
+          <td class="text-right font-mono text-amber-400">${this.formatMoney(sumPrizes, selectedCur)}</td>
           <td class="text-right font-mono text-sm ${totalPositive ? 'text-emerald-400' : 'text-rose-400'}">
-            ${this.formatMoney(sumUtilityGlobal, globalCur)}
+            ${this.formatMoney(sumUtility, selectedCur)}
           </td>
           <td></td>
         </tr>
@@ -1045,72 +1014,118 @@ class BancaFcAdminController {
     });
   }
 
-  openAuditAgencyModal(agencyCode) {
+  openAuditAgencyModal(agencyCode, forcedCurrency = null) {
     const ag = this.storage.getAgencyByCode(agencyCode);
     if (!ag) return;
     this.currentAuditedAgencyCode = ag.code;
 
     const periodTickets = this.getFilteredTicketsByDate();
     const m = this.calculateAgencyFinancials(ag, periodTickets);
-    const cur = m.nativeCurrency;
+    const allowed = this.storage.getAllowedCurrenciesForAgency(ag.code);
+    const cur = forcedCurrency || this.currentAuditedCurrency || (m.boxes[this.storage.getConsolidationCurrency()]?.totalTicketsCount > 0 ? this.storage.getConsolidationCurrency() : (ag.currency || allowed[0] || 'COP'));
+    this.currentAuditedCurrency = cur;
+    const activeBox = m.boxes[cur] || m.boxes.COP;
 
     document.getElementById('audit-ag-code').textContent = ag.code;
-    document.getElementById('audit-ag-name').textContent = ag.name;
+    document.getElementById('audit-ag-name').textContent = `${ag.name} (Caja ${cur})`;
     const statusBadge = document.getElementById('audit-ag-status-badge');
     if (statusBadge) {
       statusBadge.className = ag.status === 'ACTIVA' ? 'badge-pill badge-activa' : 'badge-pill badge-suspendida';
       statusBadge.textContent = ag.status;
     }
     document.getElementById('audit-ag-meta').textContent =
-      `Serial Terminal: ${ag.terminalSerial} • Zona: ${ag.zone} • Encargado: ${ag.manager} (${ag.whatsapp || 'Sin WA'}) • Cobrador: ${ag.collector}`;
+      `Serial Terminal: ${ag.terminalSerial} • Monedas Autorizadas: ${allowed.join(' / ')} • Zona: ${ag.zone} • Encargado: ${ag.manager} • Cobrador: ${ag.collector}`;
 
-    // Resumen Financiero Individual
-    document.getElementById('audit-kpi-brutas').textContent = this.formatMoney(m.native.gross, cur);
-    document.getElementById('audit-kpi-anulados').textContent = this.formatMoney(m.native.voided, cur);
-    document.getElementById('audit-kpi-netas').textContent = this.formatMoney(m.native.net, cur);
-    document.getElementById('audit-kpi-comision').textContent = `${this.formatMoney(m.native.commission, cur)} (${ag.commissionPct}%)`;
-    document.getElementById('audit-kpi-pagados').textContent = this.formatMoney(m.native.paidPrizes, cur);
-    document.getElementById('audit-kpi-pendientes').textContent = this.formatMoney(m.native.pendingPrizes, cur);
+    // Renderizar las 3 Cajas Independientes de la Agencia en #audit-three-boxes-grid
+    const auditThreeBoxesEl = document.getElementById('audit-three-boxes-grid');
+    if (auditThreeBoxesEl) {
+      const boxMeta = {
+        COP: { title: '🇨🇴 CAJA PESOS (COP $)', border: 'border-amber-400', headerBg: 'bg-blue-950/80' },
+        USD: { title: '🇺🇸 CAJA DÓLARES (USD $)', border: 'border-emerald-400', headerBg: 'bg-emerald-950/80' },
+        VES: { title: '🇻🇪 CAJA BOLÍVARES (VES Bs.)', border: 'border-sky-400', headerBg: 'bg-amber-950/80' }
+      };
+      auditThreeBoxesEl.innerHTML = ['COP', 'USD', 'VES'].map(curKey => {
+        const b = m.boxes[curKey];
+        const meta = boxMeta[curKey];
+        const isSel = curKey === cur;
+        return `
+          <div class="audit-currency-box cursor-pointer rounded-xl bg-slate-950 p-3 border ${isSel ? meta.border + ' ring-2 ring-amber-400/20' : 'border-slate-800 hover:border-slate-700'} transition" data-currency="${curKey}">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-2">
+              <span class="text-xs font-black text-white">${meta.title}</span>
+              ${isSel ? '<span class="px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 font-black text-[9px]">ACTIVA</span>' : `<span class="text-[10px] text-slate-400">${b.totalTicketsCount} tickets</span>`}
+            </div>
+            <div class="space-y-1 text-[11px] font-mono">
+              <div class="flex justify-between"><span class="text-slate-400 font-sans">Tickets (Act/Anul):</span><strong class="text-white">${b.activeCount} / ${b.voidCount}</strong></div>
+              <div class="flex justify-between"><span class="text-slate-400 font-sans">Ventas Brutas:</span><strong class="text-white">${this.formatMoney(b.gross, curKey)}</strong></div>
+              <div class="flex justify-between text-rose-400"><span class="font-sans">Anulados (-):</span><strong>-${this.formatMoney(b.voided, curKey)}</strong></div>
+              <div class="flex justify-between text-sky-300"><span class="font-sans font-bold">Ventas Netas:</span><strong>${this.formatMoney(b.net, curKey)}</strong></div>
+              <div class="flex justify-between text-indigo-300"><span class="font-sans">Comisión (${ag.commissionPct}%) (-):</span><strong>-${this.formatMoney(b.commission, curKey)}</strong></div>
+              <div class="flex justify-between text-amber-400"><span class="font-sans">Premios (-):</span><strong>-${this.formatMoney(b.totalPrizes, curKey)}</strong></div>
+              <div class="flex justify-between pt-1 border-t border-slate-800 ${b.bancaUtility >= 0 ? 'text-emerald-400' : 'text-rose-400'} font-black">
+                <span class="font-sans uppercase">Saldo Banca:</span>
+                <strong>${this.formatMoney(b.bancaUtility, curKey)}</strong>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      auditThreeBoxesEl.querySelectorAll('.audit-currency-box').forEach(el => {
+        el.addEventListener('click', () => {
+          this.openAuditAgencyModal(ag.code, el.dataset.currency);
+        });
+      });
+    }
+
+    // Resumen Financiero Individual de la Caja Seleccionada (CERO conversión)
+    document.getElementById('audit-kpi-brutas').textContent = this.formatMoney(activeBox.gross, cur);
+    document.getElementById('audit-kpi-anulados').textContent = this.formatMoney(activeBox.voided, cur);
+    document.getElementById('audit-kpi-netas').textContent = this.formatMoney(activeBox.net, cur);
+    document.getElementById('audit-kpi-comision').textContent = `${this.formatMoney(activeBox.commission, cur)} (${ag.commissionPct}%)`;
+    document.getElementById('audit-kpi-pagados').textContent = this.formatMoney(activeBox.paidPrizes, cur);
+    document.getElementById('audit-kpi-pendientes').textContent = this.formatMoney(activeBox.pendingPrizes, cur);
 
     const balanceBox = document.getElementById('audit-kpi-balance-box');
     const balanceLabel = document.getElementById('audit-kpi-balance-label');
     const balanceVal = document.getElementById('audit-kpi-balance');
-    if (balanceVal) balanceVal.textContent = this.formatMoney(m.native.bancaUtility, cur);
+    if (balanceVal) balanceVal.textContent = this.formatMoney(activeBox.bancaUtility, cur);
 
     if (balanceBox && balanceLabel) {
-      if (m.native.bancaUtility >= 0) {
+      if (activeBox.bancaUtility >= 0) {
         balanceBox.className = 'bg-emerald-950/70 p-3 rounded-xl border border-emerald-500/60';
         balanceLabel.className = 'text-[10px] uppercase font-black text-emerald-300';
-        balanceLabel.textContent = 'Saldo a Entregar al Cobrador';
+        balanceLabel.textContent = `Saldo a Entregar (${cur})`;
       } else {
         balanceBox.className = 'bg-rose-950/70 p-3 rounded-xl border border-rose-500/60';
         balanceLabel.className = 'text-[10px] uppercase font-black text-rose-300';
-        balanceLabel.textContent = 'Saldo a Pagar a la Agencia';
+        balanceLabel.textContent = `Saldo a Pagar Agencia (${cur})`;
       }
     }
 
-    // Desglose por Categorías
-    document.getElementById('audit-cat-sinsigno').textContent = this.formatMoney(m.categoryBreakdown.sin_signo.amount, cur);
-    document.getElementById('audit-cat-sinsigno-cnt').textContent = `${m.categoryBreakdown.sin_signo.count} jugadas`;
+    // Desglose por Categorías en la Caja Seleccionada
+    document.getElementById('audit-cat-sinsigno').textContent = this.formatMoney(activeBox.categoryBreakdown.sin_signo.amount, cur);
+    document.getElementById('audit-cat-sinsigno-cnt').textContent = `${activeBox.categoryBreakdown.sin_signo.count} jugadas (${cur})`;
 
-    document.getElementById('audit-cat-consigno').textContent = this.formatMoney(m.categoryBreakdown.con_signo.amount, cur);
-    document.getElementById('audit-cat-consigno-cnt').textContent = `${m.categoryBreakdown.con_signo.count} jugadas`;
+    document.getElementById('audit-cat-consigno').textContent = this.formatMoney(activeBox.categoryBreakdown.con_signo.amount, cur);
+    document.getElementById('audit-cat-consigno-cnt').textContent = `${activeBox.categoryBreakdown.con_signo.count} jugadas (${cur})`;
 
-    document.getElementById('audit-cat-4cifras').textContent = this.formatMoney(m.categoryBreakdown.cuatro_cifras.amount, cur);
-    document.getElementById('audit-cat-4cifras-cnt').textContent = `${m.categoryBreakdown.cuatro_cifras.count} jugadas`;
+    document.getElementById('audit-cat-4cifras').textContent = this.formatMoney(activeBox.categoryBreakdown.cuatro_cifras.amount, cur);
+    document.getElementById('audit-cat-4cifras-cnt').textContent = `${activeBox.categoryBreakdown.cuatro_cifras.count} jugadas (${cur})`;
 
-    document.getElementById('audit-cat-animalitos').textContent = this.formatMoney(m.categoryBreakdown.animalitos.amount, cur);
-    document.getElementById('audit-cat-animalitos-cnt').textContent = `${m.categoryBreakdown.animalitos.count} jugadas`;
+    document.getElementById('audit-cat-animalitos').textContent = this.formatMoney(activeBox.categoryBreakdown.animalitos.amount, cur);
+    document.getElementById('audit-cat-animalitos-cnt').textContent = `${activeBox.categoryBreakdown.animalitos.count} jugadas (${cur})`;
 
-    // Listado de Tickets de esta Agencia
-    document.getElementById('audit-tickets-count').textContent = `${m.tickets.length} tickets registrados en el periodo`;
+    // Listado de Tickets de esta Agencia en la Caja Seleccionada
+    const boxTickets = activeBox.tickets || [];
+    document.getElementById('audit-tickets-count').textContent = `${boxTickets.length} tickets registrados en Caja ${cur} (Total agencia: ${m.tickets.length})`;
     const tbody = document.getElementById('audit-agency-tickets-tbody');
 
-    if (m.tickets.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-slate-400">Esta agencia no tiene tickets registrados en el rango de fechas seleccionado.</td></tr>`;
+    if (boxTickets.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-slate-400">Esta agencia no tiene tickets vendidos en <strong>${cur}</strong> para el rango de fechas seleccionado.</td></tr>`;
     } else {
       let rows = '';
-      m.tickets.forEach(t => {
+      boxTickets.forEach(t => {
+        const tCur = (t.moneda || cur).toUpperCase();
         const prizeVal = Number(t.premioPagado || t.premioCalculado || 0);
         const playsSummary = (t.items || []).map(p => {
           let label = `${p.lotteryName}: <strong>${p.number}</strong>`;
@@ -1126,8 +1141,8 @@ class BancaFcAdminController {
             <td class="font-mono text-xs text-slate-300">${t.serialSeguridad}</td>
             <td class="text-xs text-slate-400">${t.fechaHora}</td>
             <td class="text-xs text-slate-200">${playsSummary}</td>
-            <td class="text-right font-mono font-bold text-white">${this.formatMoney(t.total, t.moneda || cur)}</td>
-            <td class="text-right font-mono font-bold ${prizeVal > 0 ? 'text-amber-400' : 'text-slate-500'}">${this.formatMoney(prizeVal, t.moneda || cur)}</td>
+            <td class="text-right font-mono font-bold text-white">${this.formatMoney(t.total, tCur)}</td>
+            <td class="text-right font-mono font-bold ${prizeVal > 0 ? 'text-amber-400' : 'text-slate-500'}">${this.formatMoney(prizeVal, tCur)}</td>
             <td class="text-center">${this.renderTicketStatusBadge(t.estado)}</td>
             <td class="text-center">
               <div class="inline-flex items-center gap-1">
@@ -1168,7 +1183,8 @@ class BancaFcAdminController {
 
     if (amountVal <= 0) return;
 
-    const cfg = this.storage.getConfig();
+    const targetCur = this.currentAuditedCurrency || ag.currency || 'COP';
+    const agMult = this.storage.getEffectiveMultipliersForAgency(ag.code);
     const ticketId = this.storage.getNextTicketNumber();
     const serial = this.storage.generateSecuritySerial();
     const now = new Date();
@@ -1183,26 +1199,26 @@ class BancaFcAdminController {
     let lotteryName = 'Chance A 1:00 PM';
     let animalName = null;
     let sign = null;
-    let multiplier = cfg.multipliers.triple || 500;
+    let multiplier = agMult.triple || 500;
 
     if (catType === 'terminal') {
       lotteryId = 'NAPA_GANA_1300';
       lotteryName = 'Ñapa Gana 1:00 PM';
-      multiplier = cfg.multipliers.terminal || 60;
+      multiplier = agMult.terminal || 60;
     } else if (catType === 'animalito') {
       lotteryId = 'LOTTO_ACTIVO_1300';
       lotteryName = 'Lotto Activo 1:00 PM';
       animalName = (ANIMALITOS_DICT[numVal] || { name: 'León' }).name;
-      multiplier = cfg.multipliers.animalito || 30;
+      multiplier = agMult.animalito || 30;
     } else if (catType === 'zodiac') {
       lotteryId = 'TACHIRA_ZODIACAL_1645';
       lotteryName = 'Táchira Zodiacal 4:45 PM';
       sign = 'LEO';
-      multiplier = cfg.multipliers.triple || 500;
+      multiplier = agMult.triple || 500;
     } else if (catType === 'cuatro_cifras') {
       lotteryId = 'DORADO_NOCHE';
       lotteryName = 'Dorado Noche 10:05 PM';
-      multiplier = cfg.multipliers.cuatroCifrasDirecto || 4500;
+      multiplier = agMult.cuatroCifrasDirecto || 4500;
     }
 
     const playItem = {
@@ -1224,7 +1240,7 @@ class BancaFcAdminController {
       agencyCode: ag.code,
       agencia: `${ag.code} - ${ag.name}`,
       usuario: ag.code,
-      moneda: ag.currency,
+      moneda: targetCur,
       items: [playItem],
       total: amountVal,
       estado: isWinningTicket ? 'GANADOR' : 'ACTIVO',
@@ -1242,8 +1258,8 @@ class BancaFcAdminController {
     this.refreshAllViews();
     this.showToast(
       isWinningTicket
-        ? `Ticket Premiado #${ticketId} inyectado en ${ag.name} (Premio: ${this.formatMoney(prizeAmount, ag.currency)})`
-        : `Ticket de Venta #${ticketId} inyectado en ${ag.name} (${this.formatMoney(amountVal, ag.currency)})`,
+        ? `Ticket Premiado #${ticketId} inyectado en Caja ${targetCur} de ${ag.name} (Premio: ${this.formatMoney(prizeAmount, targetCur)})`
+        : `Ticket de Venta #${ticketId} inyectado en Caja ${targetCur} de ${ag.name} (${this.formatMoney(amountVal, targetCur)})`,
       isWinningTicket ? '🏆' : '⚡'
     );
   }
@@ -1253,32 +1269,37 @@ class BancaFcAdminController {
     if (!ag) return;
     const periodTickets = this.getFilteredTicketsByDate();
     const m = this.calculateAgencyFinancials(ag, periodTickets);
-    const cur = m.nativeCurrency;
+    const allowed = this.storage.getAllowedCurrenciesForAgency(ag.code);
+    const currenciesToReport = Array.from(new Set([...allowed, ...['COP', 'USD', 'VES'].filter(c => m.boxes[c].totalTicketsCount > 0)]));
 
-    const balanceTag = m.native.bancaUtility >= 0
-      ? `✅ *SALDO NETO A ENTREGAR AL COBRADOR:* ${this.formatMoney(m.native.bancaUtility, cur)}`
-      : `🔴 *SALDO A PAGAR A LA AGENCIA (CAÍDA PREMIOS):* ${this.formatMoney(Math.abs(m.native.bancaUtility), cur)}`;
+    const boxSections = currenciesToReport.map(cur => {
+      const b = m.boxes[cur];
+      const balanceTag = b.bancaUtility >= 0
+        ? `✅ *SALDO BANCA (${cur}):* ${this.formatMoney(b.bancaUtility, cur)}`
+        : `🔴 *SALDO A PAGAR AGENCIA (${cur}):* ${this.formatMoney(Math.abs(b.bancaUtility), cur)}`;
+
+      return [
+        `🏦 *CAJA INDEPENDIENTE ${cur}*`,
+        `🎟️ *Tickets Activos:* ${b.activeCount} | *Anulados:* ${b.voidCount}`,
+        `💰 *Ventas Brutas:* ${this.formatMoney(b.gross, cur)}`,
+        `🚫 *Anulados:* -${this.formatMoney(b.voided, cur)}`,
+        `📈 *VENTA NETA:* ${this.formatMoney(b.net, cur)}`,
+        `🏪 *Comisión (${ag.commissionPct}%):* -${this.formatMoney(b.commission, cur)}`,
+        `🏆 *Premios Totales:* -${this.formatMoney(b.totalPrizes, cur)}`,
+        balanceTag
+      ].join('\n');
+    }).join('\n----------------------------------\n');
 
     const text = [
       `🏦 *BANCA FC FERNANDO CASTAÑO*`,
-      `📋 *CORTE Y RELACIÓN DE TAQUILLA*`,
+      `📋 *CORTE Y RELACIÓN DE TAQUILLA (CAJAS INDEPENDIENTES)*`,
       `----------------------------------`,
       `🏪 *Agencia:* ${ag.code} - ${ag.name}`,
       `👤 *Responsable:* ${ag.manager}`,
       `🛵 *Cobrador:* ${ag.collector}`,
       `📍 *Zona:* ${ag.zone}`,
-      `💱 *Moneda:* ${cur}`,
       `----------------------------------`,
-      `🎟️ *Tickets Activos:* ${m.activeCount} | *Anulados:* ${m.voidCount}`,
-      `💰 *Ventas Brutas:* ${this.formatMoney(m.native.gross, cur)}`,
-      `🚫 *Anulados:* -${this.formatMoney(m.native.voided, cur)}`,
-      `📈 *VENTA NETA:* ${this.formatMoney(m.native.net, cur)}`,
-      `🏪 *Comisión Agencia (${ag.commissionPct}%):* -${this.formatMoney(m.native.commission, cur)}`,
-      `🏆 *Premios Totales:* -${this.formatMoney(m.native.totalPrizes, cur)}`,
-      `   • Pagados: ${this.formatMoney(m.native.paidPrizes, cur)}`,
-      `   • Pendientes: ${this.formatMoney(m.native.pendingPrizes, cur)}`,
-      `----------------------------------`,
-      balanceTag,
+      boxSections,
       `----------------------------------`,
       `🕒 *Generado:* ${new Date().toLocaleString('es-VE')}`
     ].join('\n');
@@ -1470,46 +1491,44 @@ class BancaFcAdminController {
     document.getElementById('modal-admin-ticket-preview')?.classList.remove('hidden');
   }
 
-  // Semáforo de Riesgo y Topes por Número y Animalito
+  // Semáforo de Riesgo y Topes por Número y Animalito (Estrictamente en la Caja Seleccionada - Cero Conversión)
   renderRiskSemaphoreTable(periodTickets) {
     const tbody = document.getElementById('risk-semaphore-tbody');
     if (!tbody) return;
 
     const cfg = this.storage.getConfig();
-    const globalCur = this.storage.getConsolidationCurrency();
+    const selectedCur = this.storage.getConsolidationCurrency();
     const catFilter = document.getElementById('risk-category-filter')?.value || 'ALL';
 
-    const activeTickets = periodTickets.filter(t => t.estado !== 'ANULADO');
+    const activeTickets = periodTickets.filter(t => t.estado !== 'ANULADO' && (t.moneda || 'COP').toUpperCase() === selectedCur);
     const exposureMap = {};
 
     activeTickets.forEach(t => {
-      const tCur = t.moneda || 'COP';
+      const tCur = (t.moneda || selectedCur).toUpperCase();
       (t.items || []).forEach(p => {
         if (catFilter !== 'ALL') {
           if (catFilter === 'zodiac' && p.type !== 'zodiac' && p.type !== 'astro') return;
           if (catFilter !== 'zodiac' && p.type !== catFilter) return;
         }
 
-        const key = `${p.lotteryId}__${p.number}__${p.sign || ''}__${p.type}`;
+        const key = `${p.lotteryId}__${p.number}__${p.sign || ''}__${p.type}__${tCur}`;
         if (!exposureMap[key]) {
           let mult = cfg.multipliers.triple || 500;
-          let maxTopeCop = cfg.topes?.triple || 20000;
+          let maxTope = cfg.topes?.triple || 20000;
 
           if (p.type === 'terminal') {
             mult = cfg.multipliers.terminal || 60;
-            maxTopeCop = cfg.topes?.terminal || 50000;
+            maxTope = cfg.topes?.terminal || 50000;
           } else if (p.type === 'animalito') {
             mult = cfg.multipliers.animalito || 30;
-            maxTopeCop = cfg.topes?.animalito || 30000;
+            maxTope = cfg.topes?.animalito || 30000;
           } else if (p.type === 'astro') {
             mult = cfg.multipliers.astro4 || 40000;
-            maxTopeCop = 15000;
+            maxTope = 15000;
           } else if (p.type === 'cuatro_cifras') {
             mult = p.is5ta ? (cfg.multipliers.la5ta || 25000) : (cfg.multipliers.cuatroCifrasDirecto || 4500);
-            maxTopeCop = 20000;
+            maxTope = 20000;
           }
-
-          const topeInGlobal = this.storage.convertAmount(maxTopeCop, 'COP', globalCur);
 
           let displayNum = p.number;
           if (p.sign) displayNum += ` - ${p.sign}`;
@@ -1523,17 +1542,18 @@ class BancaFcAdminController {
             lotteryName: p.lotteryName,
             displayNum,
             type: p.type,
+            currency: tCur,
             multiplier: mult,
             totalBetGlobal: 0,
             potentialPrizeGlobal: 0,
-            topeGlobal: topeInGlobal,
+            topeGlobal: maxTope,
             betsCount: 0
           };
         }
 
-        const betGlobal = this.storage.convertAmount(p.amount, tCur, globalCur);
-        exposureMap[key].totalBetGlobal += betGlobal;
-        exposureMap[key].potentialPrizeGlobal += betGlobal * exposureMap[key].multiplier;
+        const betNative = Number(p.amount) || 0;
+        exposureMap[key].totalBetGlobal += betNative;
+        exposureMap[key].potentialPrizeGlobal += betNative * exposureMap[key].multiplier;
         exposureMap[key].betsCount++;
       });
     });
@@ -1541,7 +1561,7 @@ class BancaFcAdminController {
     const sorted = Object.values(exposureMap).sort((a, b) => b.totalBetGlobal - a.totalBetGlobal);
 
     if (sorted.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400">Sin exposición activa para los filtros actuales.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400">Sin exposición activa en Caja <strong>${selectedCur}</strong> para los filtros actuales.</td></tr>`;
       return;
     }
 
@@ -1568,7 +1588,7 @@ class BancaFcAdminController {
         <tr>
           <td>
             <div class="font-bold text-white text-xs">${item.lotteryName}</div>
-            <div class="text-[10px] text-slate-400 uppercase">${item.type} (${item.multiplier}x)</div>
+            <div class="text-[10px] text-slate-400 uppercase">${item.type} (${item.multiplier}x) • Caja ${item.currency}</div>
           </td>
           <td>
             <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono font-black text-amber-300 text-xs">
@@ -1576,11 +1596,11 @@ class BancaFcAdminController {
             </span>
           </td>
           <td class="text-right font-mono font-bold text-white">
-            ${this.formatMoney(item.totalBetGlobal, globalCur)}
+            ${this.formatMoney(item.totalBetGlobal, item.currency)}
             <div class="text-[10px] text-slate-400">${item.betsCount} jugadas</div>
           </td>
           <td class="text-right font-mono font-black text-amber-400">
-            ${this.formatMoney(item.potentialPrizeGlobal, globalCur)}
+            ${this.formatMoney(item.potentialPrizeGlobal, item.currency)}
           </td>
           <td>
             <div class="flex items-center justify-between text-[10px] font-bold mb-1">
@@ -1753,18 +1773,24 @@ class BancaFcAdminController {
           if (r.animalName) detail += ` (${r.animalName})`;
           if (r.ball5) detail += ` [5ta: ${r.ball5}]`;
 
-          // Contar cuántos tickets ganaron en este sorteo
+          // Contar cuántos tickets ganaron en este sorteo por cada moneda nativa (CERO conversión)
           let hitCount = 0;
-          let hitPrizeGlobal = 0;
+          const prizeByCur = { COP: 0, USD: 0, VES: 0 };
           allTickets.forEach(t => {
             if (t.estado === 'ANULADO') return;
+            const tCur = (t.moneda || 'COP').toUpperCase();
             (t.winningPlays || []).forEach(wp => {
               if (wp.lotteryId === lotId) {
                 hitCount++;
-                hitPrizeGlobal += this.storage.convertAmount(wp.prize, t.moneda || 'COP', globalCur);
+                prizeByCur[tCur] = (prizeByCur[tCur] || 0) + (Number(wp.prize) || 0);
               }
             });
           });
+
+          const prizeSummaryHtml = ['COP', 'USD', 'VES']
+            .filter(c => prizeByCur[c] > 0)
+            .map(c => `<div>${this.formatMoney(prizeByCur[c], c)}</div>`)
+            .join('') || this.formatMoney(0, globalCur);
 
           const lotObj = typeof findLotteryById === 'function' ? findLotteryById(lotId) : null;
           const lotDisplayName = lotObj ? lotObj.name : lotId;
@@ -1775,7 +1801,7 @@ class BancaFcAdminController {
               <td><span class="px-2.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 font-mono font-black text-xs">${detail}</span></td>
               <td class="text-xs text-slate-400">${r.timestamp || 'Oficial'}</td>
               <td class="text-center font-mono font-bold ${hitCount > 0 ? 'text-amber-400' : 'text-slate-500'}">${hitCount} aciertos</td>
-              <td class="text-right font-mono font-bold ${hitPrizeGlobal > 0 ? 'text-amber-400' : 'text-slate-500'}">${this.formatMoney(hitPrizeGlobal, globalCur)}</td>
+              <td class="text-right font-mono font-bold ${hitCount > 0 ? 'text-amber-400' : 'text-slate-500'}">${prizeSummaryHtml}</td>
               <td class="text-center">
                 <button type="button" class="btn-del-official-res px-2 py-1 rounded bg-rose-950/80 hover:bg-rose-900 text-rose-300 text-[11px] font-bold" data-lot="${lotId}">
                   Eliminar
@@ -1932,35 +1958,49 @@ class BancaFcAdminController {
     if (!tbody) return;
 
     const collectors = this.storage.getCollectors();
-    const globalCur = this.storage.getConsolidationCurrency();
+    const selectedCur = this.storage.getConsolidationCurrency();
 
     let html = '';
     collectors.forEach(colName => {
       const assignedAgencies = agencies.filter(a => a.collector === colName);
-      let netRoute = 0;
-      let commRoute = 0;
-      let prizesRoute = 0;
-      let utilityRoute = 0;
+      const routeBoxes = {
+        COP: { net: 0, commission: 0, prizes: 0, utility: 0 },
+        USD: { net: 0, commission: 0, prizes: 0, utility: 0 },
+        VES: { net: 0, commission: 0, prizes: 0, utility: 0 }
+      };
 
       assignedAgencies.forEach(ag => {
         const m = this.calculateAgencyFinancials(ag, periodTickets);
-        netRoute += m.global.net;
-        commRoute += m.global.commission;
-        prizesRoute += m.global.totalPrizes;
-        utilityRoute += m.global.bancaUtility;
+        ['COP', 'USD', 'VES'].forEach(curKey => {
+          const b = m.boxes[curKey];
+          if (!b) return;
+          routeBoxes[curKey].net += b.net;
+          routeBoxes[curKey].commission += b.commission;
+          routeBoxes[curKey].prizes += b.totalPrizes;
+          routeBoxes[curKey].utility += b.bancaUtility;
+        });
       });
 
-      const isPositive = utilityRoute >= 0;
+      const activeRoute = routeBoxes[selectedCur] || routeBoxes.COP;
+      const isPositive = activeRoute.utility >= 0;
+
+      const multiCurBadges = ['COP', 'USD', 'VES']
+        .map(c => `<span class="inline-block px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono ${routeBoxes[c].utility >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${c}: ${this.formatMoney(routeBoxes[c].utility, c)}</span>`)
+        .join(' ');
 
       html += `
         <tr>
-          <td class="font-bold text-white">🛵 ${colName}</td>
+          <td>
+            <div class="font-bold text-white">🛵 ${colName}</div>
+            <div class="mt-1 flex flex-wrap gap-1">${multiCurBadges}</div>
+          </td>
           <td class="text-center font-mono text-sky-400 font-bold">${assignedAgencies.length} taquillas</td>
-          <td class="text-right font-mono text-slate-200">${this.formatMoney(netRoute, globalCur)}</td>
-          <td class="text-right font-mono text-indigo-300">${this.formatMoney(commRoute, globalCur)}</td>
-          <td class="text-right font-mono text-amber-400">${this.formatMoney(prizesRoute, globalCur)}</td>
+          <td class="text-right font-mono text-slate-200">${this.formatMoney(activeRoute.net, selectedCur)}</td>
+          <td class="text-right font-mono text-indigo-300">${this.formatMoney(activeRoute.commission, selectedCur)}</td>
+          <td class="text-right font-mono text-amber-400">${this.formatMoney(activeRoute.prizes, selectedCur)}</td>
           <td class="text-right font-mono font-black ${isPositive ? 'text-emerald-400' : 'text-rose-400'}">
-            ${this.formatMoney(utilityRoute, globalCur)}
+            ${this.formatMoney(activeRoute.utility, selectedCur)}
+            <div class="text-[10px] text-slate-400">Caja ${selectedCur}</div>
           </td>
           <td class="text-center">
             <div class="inline-flex items-center gap-1.5">
@@ -1988,22 +2028,29 @@ class BancaFcAdminController {
       btn.addEventListener('click', () => {
         const colName = btn.dataset.collector;
         const assigned = agencies.filter(a => a.collector === colName);
-        let totalCollect = 0;
+        const routeTotals = { COP: 0, USD: 0, VES: 0 };
         const lines = [
           `🏦 *BANCA FC FERNANDO CASTAÑO*`,
-          `🛵 *HOJA DE RUTA DE COBRADOR:* ${colName}`,
-          `💱 *Consolidado en:* ${globalCur}`,
+          `🛵 *HOJA DE RUTA DE COBRADOR (CAJAS SEPARADAS):* ${colName}`,
           `----------------------------------`
         ];
 
         assigned.forEach(ag => {
           const m = this.calculateAgencyFinancials(ag, periodTickets);
-          totalCollect += m.global.bancaUtility;
-          lines.push(`• *${ag.code} ${ag.name}:* ${this.formatMoney(m.native.bancaUtility, m.nativeCurrency)}`);
+          const agParts = [];
+          ['COP', 'USD', 'VES'].forEach(c => {
+            if (m.boxes[c].totalTicketsCount > 0 || (ag.allowedCurrencies || []).includes(c)) {
+              routeTotals[c] += m.boxes[c].bancaUtility;
+              agParts.push(`${c}: ${this.formatMoney(m.boxes[c].bancaUtility, c)}`);
+            }
+          });
+          lines.push(`• *${ag.code} ${ag.name}:* ${agParts.join(' | ')}`);
         });
 
         lines.push(`----------------------------------`);
-        lines.push(`💰 *TOTAL CONSOLIDADO RUTA:* ${this.formatMoney(totalCollect, globalCur)}`);
+        lines.push(`💰 *TOTAL CAJA PESOS (COP):* ${this.formatMoney(routeTotals.COP, 'COP')}`);
+        lines.push(`💵 *TOTAL CAJA DÓLARES (USD):* ${this.formatMoney(routeTotals.USD, 'USD')}`);
+        lines.push(`🇻🇪 *TOTAL CAJA BOLÍVARES (VES):* ${this.formatMoney(routeTotals.VES, 'VES')}`);
 
         const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(lines.join('\n'))}`;
         window.open(url, '_blank');
@@ -2069,32 +2116,36 @@ class BancaFcAdminController {
   exportGlobalReportCsv() {
     const periodTickets = this.getFilteredTicketsByDate();
     const agencies = this.storage.getAgencies();
-    const globalCur = this.storage.getConsolidationCurrency();
 
     let csv = '\uFEFF'; // BOM para Excel UTF-8
-    csv += 'REPORTE CONSOLIDADO - BANCA FC FERNANDO CASTANO\n';
-    csv += `Fecha Generacion,${new Date().toLocaleString('es-VE')},Moneda Consolidacion,${globalCur}\n\n`;
-    csv += 'Codigo,Agencia,Zona,Cobrador,Estado,Moneda Nativa,Comision %,Tickets Activos,Tickets Anulados,Venta Bruta (Nativa),Venta Neta (Nativa),Comision (Nativa),Premios (Nativa),Utilidad Banca FC (Nativa),Utilidad Consolidada (' + globalCur + ')\n';
+    csv += 'REPORTE MULTIMONEDA POR CAJAS INDEPENDIENTES - BANCA FC FERNANDO CASTANO\n';
+    csv += `Fecha Generacion,${new Date().toLocaleString('es-VE')},Contabilidad,3 Cajas Separadas (Sin Conversion)\n\n`;
+    csv += 'Codigo,Agencia,Zona,Cobrador,Estado,Comision %,Caja Moneda,Tickets Activos,Tickets Anulados,Venta Bruta,Anulados,Venta Neta,Comision Agencia,Premios,Utilidad Banca FC\n';
 
     agencies.forEach(ag => {
       const m = this.calculateAgencyFinancials(ag, periodTickets);
-      csv += [
-        ag.code,
-        `"${ag.name}"`,
-        `"${ag.zone}"`,
-        `"${ag.collector}"`,
-        ag.status,
-        ag.currency,
-        ag.commissionPct,
-        m.activeCount,
-        m.voidCount,
-        m.native.gross.toFixed(2),
-        m.native.net.toFixed(2),
-        m.native.commission.toFixed(2),
-        m.native.totalPrizes.toFixed(2),
-        m.native.bancaUtility.toFixed(2),
-        m.global.bancaUtility.toFixed(2)
-      ].join(',') + '\n';
+      ['COP', 'USD', 'VES'].forEach(curKey => {
+        const b = m.boxes[curKey];
+        if (b.totalTicketsCount > 0 || (ag.allowedCurrencies || [ag.currency]).includes(curKey)) {
+          csv += [
+            ag.code,
+            `"${ag.name}"`,
+            `"${ag.zone}"`,
+            `"${ag.collector}"`,
+            ag.status,
+            ag.commissionPct,
+            curKey,
+            b.activeCount,
+            b.voidCount,
+            b.gross.toFixed(2),
+            b.voided.toFixed(2),
+            b.net.toFixed(2),
+            b.commission.toFixed(2),
+            b.totalPrizes.toFixed(2),
+            b.bancaUtility.toFixed(2)
+          ].join(',') + '\n';
+        }
+      });
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

@@ -46,11 +46,6 @@ const DEFAULT_CONFIG = {
     triple: 20000,
     animalito: 30000,
     cuatroCifras: 10000
-  },
-  rates: {
-    copPerUsd: 4200,
-    vesPerUsd: 45,
-    copPerVes: 93.33
   }
 };
 
@@ -476,7 +471,6 @@ class StorageManager {
       bancaName: 'BANCA FC FERNANDO CASTAÑO',
       updatedAt: new Date().toISOString(),
       consolidationCurrency: 'COP',
-      rates: { ...DEFAULT_CONFIG.rates },
       collectors: [...DEFAULT_COLLECTORS],
       config: config,
       agencies: getDefaultAgencies(),
@@ -501,7 +495,6 @@ class StorageManager {
       return {
         bancaName: 'BANCA FC FERNANDO CASTAÑO',
         consolidationCurrency: 'COP',
-        rates: { ...DEFAULT_CONFIG.rates },
         collectors: [...DEFAULT_COLLECTORS],
         config: { ...DEFAULT_CONFIG },
         agencies: getDefaultAgencies(),
@@ -924,60 +917,131 @@ class StorageManager {
   }
 
   // ==========================================
-  // TASAS DE CAMBIO Y CONVERSIÓN MULTIMONEDA
+  // CONTABILIDAD MULTIMONEDA INDEPENDIENTE (CERO CONVERSIÓN DE TASAS)
   // ==========================================
-  getRates() {
-    const master = this.getMasterData();
-    return master.rates || { ...DEFAULT_CONFIG.rates };
-  }
-
-  updateRates(newRates) {
-    const master = this.getMasterData();
-    const copPerUsd = Number(newRates.copPerUsd) || 4200;
-    const vesPerUsd = Number(newRates.vesPerUsd) || 45;
-    const copPerVes = Number(newRates.copPerVes) || Number((copPerUsd / vesPerUsd).toFixed(2));
-    master.rates = { copPerUsd, vesPerUsd, copPerVes };
-    if (master.config) {
-      master.config.rates = master.rates;
-    }
-    this.saveMasterData(master);
-    return master.rates;
-  }
-
   getConsolidationCurrency() {
     const master = this.getMasterData();
-    return master.consolidationCurrency || 'COP';
+    const cur = (master.consolidationCurrency || 'COP').toUpperCase();
+    return ['COP', 'USD', 'VES'].includes(cur) ? cur : 'COP';
   }
 
   setConsolidationCurrency(currency) {
     const master = this.getMasterData();
-    master.consolidationCurrency = currency;
+    const cur = String(currency || 'COP').toUpperCase();
+    master.consolidationCurrency = ['COP', 'USD', 'VES'].includes(cur) ? cur : 'COP';
     this.saveMasterData(master);
   }
 
+  // Prohibida cualquier conversión entre divisas: solo retorna el monto si es la misma moneda nativa
   convertAmount(amount, fromCurrency, toCurrency) {
     const val = Number(amount) || 0;
     const from = (fromCurrency || 'COP').toUpperCase();
     const to = (toCurrency || 'COP').toUpperCase();
-    if (from === to || val === 0) return val;
+    return from === to ? val : 0;
+  }
 
-    const rates = this.getRates();
-    const copPerUsd = Number(rates.copPerUsd) || 4200;
-    const vesPerUsd = Number(rates.vesPerUsd) || 45;
-    const copPerVes = Number(rates.copPerVes) || (copPerUsd / vesPerUsd);
+  // Calcula la Caja Independiente para una moneda específica ('COP', 'USD' o 'VES') sin mezclar ni convertir divisas
+  calculateCurrencyBoxMetrics(tickets, currencyCode, defaultCommissionPct = 15) {
+    const targetCur = String(currencyCode || 'COP').toUpperCase();
+    const list = Array.isArray(tickets) ? tickets : [];
 
-    // Convertir primero a COP como moneda pivote o USD
-    let amountInCop = val;
-    if (from === 'VES') {
-      amountInCop = val * copPerVes;
-    } else if (from === 'USD') {
-      amountInCop = val * copPerUsd;
-    }
+    // Filtrar estrictamente por la moneda en que fue vendido el ticket
+    const currencyTickets = list.filter(t => (t.moneda || 'COP').toUpperCase() === targetCur);
 
-    if (to === 'COP') return amountInCop;
-    if (to === 'VES') return amountInCop / copPerVes;
-    if (to === 'USD') return amountInCop / copPerUsd;
-    return val;
+    let activeCount = 0;
+    let voidCount = 0;
+    let paidCount = 0;
+    let winnerPendingCount = 0;
+
+    let gross = 0;
+    let voided = 0;
+    let net = 0;
+    let commission = 0;
+    let paidPrizes = 0;
+    let pendingPrizes = 0;
+
+    const categoryBreakdown = {
+      sin_signo: { amount: 0, count: 0 },
+      con_signo: { amount: 0, count: 0 },
+      cuatro_cifras: { amount: 0, count: 0 },
+      animalitos: { amount: 0, count: 0 }
+    };
+
+    currencyTickets.forEach(t => {
+      const ticketTotal = Number(t.total) || 0;
+      const agCode = this.extractAgencyCodeFromTicket(t);
+      const commPct = this.getEffectiveCommissionForAgency(agCode) ?? Number(defaultCommissionPct ?? 15);
+
+      gross += ticketTotal;
+
+      if (t.estado === 'ANULADO') {
+        voidCount++;
+        voided += ticketTotal;
+      } else {
+        activeCount++;
+        net += ticketTotal;
+        commission += (ticketTotal * commPct) / 100;
+
+        const prizeVal = Number(t.premioPagado || t.premioCalculado || 0);
+        if (t.estado === 'PAGADO') {
+          paidCount++;
+          paidPrizes += prizeVal;
+        } else if (t.estado === 'GANADOR' || prizeVal > 0) {
+          winnerPendingCount++;
+          pendingPrizes += prizeVal;
+        }
+
+        (t.items || []).forEach(play => {
+          const pAmt = Number(play.amount) || 0;
+          if (play.type === 'animalito') {
+            categoryBreakdown.animalitos.amount += pAmt;
+            categoryBreakdown.animalitos.count++;
+          } else if (play.type === 'zodiac' || play.type === 'astro') {
+            categoryBreakdown.con_signo.amount += pAmt;
+            categoryBreakdown.con_signo.count++;
+          } else if (play.type === 'cuatro_cifras') {
+            categoryBreakdown.cuatro_cifras.amount += pAmt;
+            categoryBreakdown.cuatro_cifras.count++;
+          } else {
+            categoryBreakdown.sin_signo.amount += pAmt;
+            categoryBreakdown.sin_signo.count++;
+          }
+        });
+      }
+    });
+
+    const totalPrizes = paidPrizes + pendingPrizes;
+    const bancaUtility = net - commission - totalPrizes;
+    const effectiveCommPct = net > 0 ? Number(((commission / net) * 100).toFixed(1)) : Number(defaultCommissionPct ?? 15);
+
+    return {
+      currency: targetCur,
+      tickets: currencyTickets,
+      totalTicketsCount: activeCount + voidCount,
+      activeCount,
+      voidCount,
+      paidCount,
+      winnerPendingCount,
+      gross,
+      voided,
+      net,
+      commissionPct: effectiveCommPct,
+      commission,
+      paidPrizes,
+      pendingPrizes,
+      totalPrizes,
+      bancaUtility,
+      categoryBreakdown
+    };
+  }
+
+  // Calcula simultáneamente las 3 Cajas Independientes (COP, USD y VES)
+  calculateThreeCurrencyBoxes(tickets, defaultCommissionPct = 15) {
+    return {
+      COP: this.calculateCurrencyBoxMetrics(tickets, 'COP', defaultCommissionPct),
+      USD: this.calculateCurrencyBoxMetrics(tickets, 'USD', defaultCommissionPct),
+      VES: this.calculateCurrencyBoxMetrics(tickets, 'VES', defaultCommissionPct)
+    };
   }
 
   // ==========================================
