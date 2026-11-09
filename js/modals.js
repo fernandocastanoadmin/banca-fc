@@ -383,6 +383,29 @@ class ModalManager {
     }
   }
 
+  // Sincroniza los selectores de moneda de la taquilla (Configuración, Cuadre y Cabecera)
+  // exclusivamente con las monedas autorizadas por el Programa Administrativo para esta agencia
+  populateAllowedCurrencySelect(selectEl, allowedCurrencies, currentCurrency) {
+    if (!selectEl) return;
+    const labels = {
+      COP: 'COP ($ Pesos Colombianos)',
+      USD: 'USD ($ Dólares)',
+      VES: 'VES (Bs. Bolívares)'
+    };
+    const allowed = Array.isArray(allowedCurrencies) && allowedCurrencies.length > 0
+      ? allowedCurrencies
+      : ['COP'];
+    selectEl.innerHTML = '';
+    allowed.forEach(cur => {
+      const opt = document.createElement('option');
+      opt.value = cur;
+      opt.textContent = labels[cur] || cur;
+      selectEl.appendChild(opt);
+    });
+    selectEl.value = allowed.includes(currentCurrency) ? currentCurrency : allowed[0];
+    selectEl.disabled = allowed.length <= 1;
+  }
+
   // 5. MODAL RELACIÓN FINAL (CUADRE DE CAJA)
   setupCuadreCajaModal() {
     const dateInput = document.getElementById('input-cuadre-fecha');
@@ -396,17 +419,26 @@ class ModalManager {
     if (dateInput) dateInput.value = todayFormatted;
 
     const calculateAndRenderCuadre = () => {
-      const targetDate = dateInput?.value || todayFormatted;
-      const targetCurrency = curSelect?.value || 'COP';
-      const tickets = this.storage.getTickets();
       const cfg = this.storage.getConfig();
+      const allowedCurrencies = cfg.allowedCurrencies || ['COP'];
 
-      // Filtrar por fecha y moneda
+      // Asegurar que el selector del cuadre solo muestre las monedas autorizadas a esta agencia
+      const selectedBefore = curSelect?.value || cfg.currency || 'COP';
+      this.populateAllowedCurrencySelect(curSelect, allowedCurrencies, selectedBefore);
+
+      const targetDate = dateInput?.value || todayFormatted;
+      const targetCurrency = curSelect?.value || allowedCurrencies[0];
+      const tickets = this.storage.getTickets();
+      const activeAgencyCode = String(cfg.agencyCode || '1000').trim();
+
+      // Filtrar por agencia activa, fecha y moneda autorizada
       const dayTickets = tickets.filter(t => {
-        const tDate = t.fechaHora.split(' ')[0];
+        const tAgency = String(this.storage.extractAgencyCodeFromTicket(t)).trim();
+        const tDate = (t.fechaHora || '').split(' ')[0];
+        const matchAgency = tAgency === activeAgencyCode;
         const matchDate = tDate === targetDate;
         const matchCur = (t.moneda || 'COP') === targetCurrency;
-        return matchDate && matchCur;
+        return matchAgency && matchDate && matchCur;
       });
 
       let ventasBrutas = 0;
@@ -430,7 +462,7 @@ class ModalManager {
       });
 
       const ventasNetas = ventasBrutas; // Las ventas brutas ya excluyen los anulados en el loop
-      const comisionPct = cfg.agencyCommissionPct || 10;
+      const comisionPct = Number(cfg.agencyCommissionPct ?? 15);
       const comisionMonto = (ventasNetas * comisionPct) / 100;
       const balanceBanca = ventasNetas - premiosPagados - comisionMonto;
 
@@ -565,66 +597,53 @@ Firma Taquillero: ______________
     this.renderReporteNumeros = renderNums;
   }
 
-  // 7. MODAL CONFIGURACIÓN Y PARÁMETROS
+  // 7A. MODAL DATOS DE LA AGENCIA (BLINDADO ANTIFRAUDE - CONTROLADO POR ADMIN CENTRAL)
   setupConfigModal() {
     const form = document.getElementById('form-parametros');
     if (!form) return;
 
     const loadFormValues = () => {
       const cfg = this.storage.getConfig();
-      document.getElementById('cfg-agency-code').value = cfg.agencyCode || '1000';
-      document.getElementById('cfg-agency-name').value = cfg.agencyName || 'FERNANDO CASTAÑO';
-      document.getElementById('cfg-user-id').value = cfg.terminalId || '1000';
-      document.getElementById('cfg-currency').value = cfg.currency || 'COP';
-      document.getElementById('cfg-paper-width').value = cfg.paperWidth || '58mm';
-      document.getElementById('cfg-commission').value = cfg.agencyCommissionPct || 10;
+      const allowedCurrencies = cfg.allowedCurrencies || ['COP'];
 
-      // Multiplicadores
-      document.getElementById('cfg-mult-triple').value = cfg.multipliers.triple || 500;
-      document.getElementById('cfg-mult-terminal').value = cfg.multipliers.terminal || 60;
-      document.getElementById('cfg-mult-aprox').value = cfg.multipliers.aproximacion || 5;
-      document.getElementById('cfg-mult-animalito').value = cfg.multipliers.animalito || 30;
-      document.getElementById('cfg-mult-4cifras').value = cfg.multipliers.cuatroCifrasDirecto || 4500;
-      document.getElementById('cfg-mult-la5ta').value = cfg.multipliers.la5ta || 25000;
-      document.getElementById('cfg-mult-astro').value = cfg.multipliers.astro4 || 40000;
+      const codeEl = document.getElementById('cfg-agency-code');
+      const nameEl = document.getElementById('cfg-agency-name');
+      const userEl = document.getElementById('cfg-user-id');
+      const curSelect = document.getElementById('cfg-currency');
+      const summaryBox = document.getElementById('cfg-readonly-summary');
+
+      if (codeEl) codeEl.value = cfg.agencyCode || '1000';
+      if (nameEl) nameEl.value = cfg.agencyName || 'FERNANDO CASTAÑO';
+      if (userEl) userEl.value = cfg.terminalId || '1000';
+
+      this.populateAllowedCurrencySelect(curSelect, allowedCurrencies, cfg.currency || allowedCurrencies[0]);
+
+      if (summaryBox) {
+        const m = cfg.multipliers || {};
+        summaryBox.innerHTML = `
+          <div>• <strong>Monedas Autorizadas en esta Taquilla:</strong> ${allowedCurrencies.join(' / ')}</div>
+          <div>• <strong>Porcentaje de Ganancia / Comisión Asignada:</strong> ${cfg.agencyCommissionPct ?? 15}%</div>
+          <div>• <strong>Multiplicadores Oficiales de Pago:</strong> Triple <strong>${m.triple || 500}x</strong> | Terminal <strong>${m.terminal || 60}x</strong> | Aprox. <strong>${m.aproximacion || 5}x</strong> | Animalitos/Frutas <strong>${m.animalito || 30}x</strong> | 4 Cifras <strong>${m.cuatroCifrasDirecto || 4500}x</strong> | La 5ta <strong>${m.la5ta || 25000}x</strong> | Astro <strong>${m.astro4 || 40000}x</strong></div>
+        `;
+      }
     };
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      const newConfig = {
-        agencyCode: document.getElementById('cfg-agency-code').value.trim(),
-        agencyName: document.getElementById('cfg-agency-name').value.trim(),
-        terminalId: document.getElementById('cfg-user-id').value.trim(),
-        currency: document.getElementById('cfg-currency').value,
-        paperWidth: document.getElementById('cfg-paper-width').value,
-        agencyCommissionPct: Number(document.getElementById('cfg-commission').value),
-        multipliers: {
-          triple: Number(document.getElementById('cfg-mult-triple').value),
-          terminal: Number(document.getElementById('cfg-mult-terminal').value),
-          aproximacion: Number(document.getElementById('cfg-mult-aprox').value),
-          animalito: Number(document.getElementById('cfg-mult-animalito').value),
-          cuatroCifrasDirecto: Number(document.getElementById('cfg-mult-4cifras').value),
-          la5ta: Number(document.getElementById('cfg-mult-la5ta').value),
-          astro4: Number(document.getElementById('cfg-mult-astro').value)
-        }
-      };
+      const cfg = this.storage.getConfig();
+      const allowedCurrencies = cfg.allowedCurrencies || ['COP'];
+      const requestedCur = document.getElementById('cfg-currency')?.value || allowedCurrencies[0];
+      const validCurrency = allowedCurrencies.includes(requestedCur) ? requestedCur : allowedCurrencies[0];
 
-      this.storage.updateConfig(newConfig);
-      alert('Configuración actualizada exitosamente.');
+      this.storage.updateConfig({
+        currency: validCurrency
+      });
+
       this.closeModal('modal-configuracion');
 
-      // Actualizar cabecera de la ventana
-      const headerTitle = document.getElementById('window-title-bar-text');
-      if (headerTitle) {
-        headerTitle.textContent = `Agencia ${newConfig.agencyCode}: AG ${newConfig.agencyName} | Usuario: ${newConfig.terminalId} - [Ventas]`;
-      }
-      const headerAgency = document.getElementById('header-agency-label');
-      if (headerAgency) {
-        headerAgency.textContent = `AGENCIA: ${newConfig.agencyCode} - ${newConfig.agencyName}`;
-      }
       const headerCur = document.getElementById('header-active-currency');
       if (headerCur) {
-        headerCur.textContent = newConfig.currency;
+        headerCur.textContent = validCurrency;
       }
 
       if (this.pos) {
@@ -633,6 +652,157 @@ Firma Taquillero: ______________
     });
 
     this.loadConfigValues = loadFormValues;
+  }
+
+  // 7B. MODAL PARÁMETROS DEL SISTEMA - CONFIGURACIÓN DE IMPRESORA DEL EQUIPO
+  setupPrinterParamsModal() {
+    const form = document.getElementById('form-parametros-impresora');
+    const selectEl = document.getElementById('printer-device-select');
+    const customInput = document.getElementById('printer-custom-name');
+    const addBtn = document.getElementById('btn-add-custom-printer');
+    const detectUsbBtn = document.getElementById('btn-detect-usb-printer');
+    const paperSelect = document.getElementById('cfg-paper-width');
+    const modeSelect = document.getElementById('cfg-print-mode');
+    const autoPrintChk = document.getElementById('cfg-auto-print-dialog');
+    const testBtn = document.getElementById('btn-test-printer');
+
+    if (!form) return;
+
+    const renderPrintersSelect = (printersList, selectedName) => {
+      if (!selectEl) return;
+      const defaultPrinters = [
+        'Generic / Text Only',
+        'BASIC 230',
+        'POS-58',
+        'POS-80',
+        'XP-58',
+        'XP-80C',
+        'EPSON TM-T20II',
+        'BIXOLON SRP-350',
+        'Microsoft Print to PDF'
+      ];
+      const merged = Array.from(new Set([...(printersList || []), ...defaultPrinters]));
+      if (selectedName && !merged.includes(selectedName)) {
+        merged.unshift(selectedName);
+      }
+
+      selectEl.innerHTML = merged
+        .map(name => `<option value="${name}">${name}</option>`)
+        .join('');
+      selectEl.value = selectedName || 'Generic / Text Only';
+    };
+
+    const loadPrinterValues = () => {
+      const cfg = this.storage.getConfig();
+      renderPrintersSelect(cfg.installedPrinters, cfg.printerName || 'Generic / Text Only');
+      if (paperSelect) paperSelect.value = cfg.paperWidth || '58mm';
+      if (modeSelect) modeSelect.value = cfg.printMode || 'TEXT_ONLY';
+      if (autoPrintChk) autoPrintChk.checked = cfg.autoPrintDialog !== false;
+      if (customInput) customInput.value = '';
+    };
+
+    // Si el usuario selecciona Generic / Text Only o BASIC 230, ajustar automáticamente a TEXT_ONLY
+    selectEl?.addEventListener('change', () => {
+      const val = (selectEl.value || '').toUpperCase();
+      if (val.includes('GENERIC') || val.includes('TEXT ONLY') || val.includes('BASIC 230')) {
+        if (modeSelect) modeSelect.value = 'TEXT_ONLY';
+      }
+    });
+
+    // Agregar nombre exacto de impresora del Panel de Control de Windows
+    addBtn?.addEventListener('click', () => {
+      const customName = (customInput?.value || '').trim();
+      if (!customName) {
+        alert('Escriba el nombre exacto de la impresora tal como aparece en su Panel de Control de Windows (Ej: Generic / Text Only o BASIC 230).');
+        customInput?.focus();
+        return;
+      }
+      const cfg = this.storage.getConfig();
+      const updatedList = Array.from(new Set([customName, ...(cfg.installedPrinters || [])]));
+      const isTextDriver = customName.toUpperCase().includes('GENERIC') || customName.toUpperCase().includes('TEXT ONLY') || customName.toUpperCase().includes('BASIC');
+      const nextMode = isTextDriver ? 'TEXT_ONLY' : (modeSelect?.value || 'TEXT_ONLY');
+
+      this.storage.updateConfig({
+        printerName: customName,
+        installedPrinters: updatedList,
+        printMode: nextMode
+      });
+
+      renderPrintersSelect(updatedList, customName);
+      if (modeSelect) modeSelect.value = nextMode;
+      if (customInput) customInput.value = '';
+      if (this.pos) this.pos.playBeep('success');
+    });
+
+    // Detectar impresora USB / Serial conectada al equipo (WebUSB / WebSerial API)
+    detectUsbBtn?.addEventListener('click', async () => {
+      try {
+        if (navigator.usb && navigator.usb.requestDevice) {
+          const device = await navigator.usb.requestDevice({ filters: [] });
+          if (device) {
+            const devName = (device.productName || device.manufacturerName || 'Impresora USB POS').trim();
+            const cfg = this.storage.getConfig();
+            const updatedList = Array.from(new Set([devName, ...(cfg.installedPrinters || [])]));
+            this.storage.updateConfig({
+              printerName: devName,
+              installedPrinters: updatedList
+            });
+            renderPrintersSelect(updatedList, devName);
+            alert(`✅ Impresora detectada y seleccionada: ${devName}`);
+            return;
+          }
+        }
+        alert(
+          'ℹ️ Sus impresoras de Windows ("Generic / Text Only" y "BASIC 230") ya están cargadas en la lista desplegable.\n\n' +
+          'Si instaló otra impresora en "Bluetooth y dispositivos -> Impresoras y escáneres", puede seleccionarla en la lista o escribir su nombre exacto en el recuadro de abajo.'
+        );
+      } catch (err) {
+        // Usuario canceló el diálogo USB o navegador sin WebUSB
+      }
+    });
+
+    // Botón Imprimir Prueba
+    testBtn?.addEventListener('click', () => {
+      const selectedPrinter = selectEl?.value || 'Generic / Text Only';
+      const selectedPaper = paperSelect?.value || '58mm';
+      const selectedMode = modeSelect?.value || 'TEXT_ONLY';
+      const autoDialog = autoPrintChk ? autoPrintChk.checked : true;
+
+      this.storage.updateConfig({
+        printerName: selectedPrinter,
+        paperWidth: selectedPaper,
+        printMode: selectedMode,
+        autoPrintDialog: autoDialog
+      });
+
+      this.closeModal('modal-parametros-impresora');
+      this.printer.printTestPage();
+    });
+
+    // Guardar configuración de impresora
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const selectedPrinter = selectEl?.value || 'Generic / Text Only';
+      const selectedPaper = paperSelect?.value || '58mm';
+      const selectedMode = modeSelect?.value || 'TEXT_ONLY';
+      const autoDialog = autoPrintChk ? autoPrintChk.checked : true;
+
+      const cfg = this.storage.getConfig();
+      const updatedList = Array.from(new Set([selectedPrinter, ...(cfg.installedPrinters || [])]));
+
+      this.storage.updateConfig({
+        printerName: selectedPrinter,
+        installedPrinters: updatedList,
+        paperWidth: selectedPaper,
+        printMode: selectedMode,
+        autoPrintDialog: autoDialog
+      });
+
+      this.closeModal('modal-parametros-impresora');
+      if (this.pos) this.pos.playBeep('success');
+    });
+
+    this.loadPrinterParamsValues = loadPrinterValues;
   }
 
   // 8. CALCULADORA WINDOWS POS (F4)

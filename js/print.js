@@ -109,11 +109,13 @@ class ThermalPrinter {
       playsHtml += `</div>`;
     }
 
-    const barcodeSvg = this.generateSvgBarcode(ticket.serialSeguridad || ticket.ticketId);
+    const printMode = options.printMode || cfg.printMode || 'TEXT_ONLY';
+    const printerName = cfg.printerName || 'Generic / Text Only';
+    const barcodeSvg = printMode === 'TEXT_ONLY' ? '' : this.generateSvgBarcode(ticket.serialSeguridad || ticket.ticketId);
     const agenciaDisplay = ticket.agencia || `${cfg.agencyCode || '1000'} - ${cfg.agencyName || 'FERNANDO CASTAÑO'}`;
 
     return `
-      <div class="thermal-receipt paper-${paperWidth} ${ticket.estado === 'ANULADO' ? 'is-anulado' : ''}">
+      <div class="thermal-receipt paper-${paperWidth} ${ticket.estado === 'ANULADO' ? 'is-anulado' : ''}" data-printer="${printerName}">
         ${ticket.estado === 'ANULADO' ? '<div class="watermark-anulado">ANULADO</div>' : ''}
         ${isCopy ? '<div class="watermark-copia">*** COPIA DE TICKET ***</div>' : ''}
         
@@ -169,7 +171,7 @@ class ThermalPrinter {
     `;
   }
 
-  // Muestra modal con vista previa térmica y dispara impresión
+  // Muestra modal con vista previa térmica y dispara impresión en la impresora configurada
   previewAndPrint(ticket, autoPrint = false) {
     const modalEl = document.getElementById('modal-print-preview');
     const containerEl = document.getElementById('print-receipt-container');
@@ -179,7 +181,15 @@ class ThermalPrinter {
     }
 
     const cfg = this.storage.getConfig();
-    const receiptHtml = this.generateReceiptHtml(ticket, { paperWidth: cfg.paperWidth });
+    const headerSpan = modalEl.querySelector('.modal-header span');
+    if (headerSpan) {
+      headerSpan.textContent = `Vista Previa — 🖨️ ${cfg.printerName || 'Generic / Text Only'} (${cfg.paperWidth || '58mm'})`;
+    }
+
+    const receiptHtml = this.generateReceiptHtml(ticket, {
+      paperWidth: cfg.paperWidth,
+      printMode: cfg.printMode
+    });
     containerEl.innerHTML = receiptHtml;
 
     // Actualizar también el área exclusiva de impresión para @media print
@@ -190,11 +200,48 @@ class ThermalPrinter {
 
     modalEl.classList.remove('hidden');
 
-    if (autoPrint) {
+    const shouldTriggerPrint = autoPrint && (cfg.autoPrintDialog !== false);
+    if (shouldTriggerPrint) {
       setTimeout(() => {
         window.print();
-      }, 350);
+      }, 300);
     }
+  }
+
+  // Imprime un ticket de prueba con la impresora seleccionada en Parámetros del Sistema
+  printTestPage() {
+    const cfg = this.storage.getConfig();
+    const now = new Date();
+    let hr = now.getHours();
+    const min = String(now.getMinutes()).padStart(2, '0');
+    const sec = String(now.getSeconds()).padStart(2, '0');
+    const ampm = hr >= 12 ? 'PM' : 'AM';
+    hr = hr % 12 || 12;
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+
+    const dummyTicket = {
+      ticketId: '00000000',
+      serialSeguridad: 'TEST-PRNT-0001',
+      fechaHora: `${dd}/${mm}/${yyyy} ${hr}:${min}:${sec} ${ampm}`,
+      agencia: `${cfg.agencyCode || '1000'} - ${cfg.agencyName || 'FERNANDO CASTAÑO'}`,
+      usuario: cfg.terminalId || '1000',
+      moneda: cfg.currency || 'COP',
+      estado: 'PRUEBA IMPRESORA',
+      total: 1000,
+      items: [
+        {
+          lotteryId: 'TEST',
+          lotteryName: `IMPRESORA: ${cfg.printerName || 'Generic / Text Only'}`,
+          number: '777',
+          type: 'triple',
+          amount: 1000
+        }
+      ]
+    };
+
+    this.previewAndPrint(dummyTicket, true);
   }
 
   // Genera texto plano optimizado para compartir en WhatsApp o enviar por Telegram

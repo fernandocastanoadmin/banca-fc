@@ -693,9 +693,30 @@ class BancaFcAdminController {
       }
     });
 
+    // Sincronizar selector de Moneda Predeterminada con las casillas de Monedas Autorizadas
+    const curSelectForm = document.getElementById('ag-currency');
+    curSelectForm?.addEventListener('change', () => {
+      const val = curSelectForm.value;
+      if (val === 'COP') document.getElementById('ag-allow-cop').checked = true;
+      if (val === 'USD') document.getElementById('ag-allow-usd').checked = true;
+      if (val === 'VES') document.getElementById('ag-allow-ves').checked = true;
+    });
+
     const form = document.getElementById('form-agency-crud');
     form?.addEventListener('submit', (e) => {
       e.preventDefault();
+      const allowedCurrencies = [];
+      if (document.getElementById('ag-allow-cop')?.checked) allowedCurrencies.push('COP');
+      if (document.getElementById('ag-allow-usd')?.checked) allowedCurrencies.push('USD');
+      if (document.getElementById('ag-allow-ves')?.checked) allowedCurrencies.push('VES');
+
+      let primaryCurrency = document.getElementById('ag-currency').value || 'COP';
+      if (allowedCurrencies.length === 0) {
+        allowedCurrencies.push(primaryCurrency);
+      } else if (!allowedCurrencies.includes(primaryCurrency)) {
+        primaryCurrency = allowedCurrencies[0];
+      }
+
       const agencyData = {
         code: document.getElementById('ag-code').value.trim(),
         terminalSerial: document.getElementById('ag-serial').value.trim(),
@@ -704,8 +725,19 @@ class BancaFcAdminController {
         manager: document.getElementById('ag-manager').value.trim(),
         whatsapp: document.getElementById('ag-whatsapp').value.trim(),
         collector: document.getElementById('ag-collector').value,
-        currency: document.getElementById('ag-currency').value,
+        currency: primaryCurrency,
+        allowedCurrencies: allowedCurrencies,
         commissionPct: Number(document.getElementById('ag-commission').value),
+        multipliers: {
+          triple: Number(document.getElementById('ag-mult-triple')?.value) || 500,
+          terminal: Number(document.getElementById('ag-mult-terminal')?.value) || 60,
+          aproximacion: Number(document.getElementById('ag-mult-aprox')?.value) || 5,
+          animalito: Number(document.getElementById('ag-mult-animalito')?.value) || 30,
+          cuatroCifrasDirecto: Number(document.getElementById('ag-mult-4cifras')?.value) || 4500,
+          cuatroCifrasCombinado: Number(document.getElementById('ag-mult-4comb')?.value) || 208,
+          la5ta: Number(document.getElementById('ag-mult-la5ta')?.value) || 25000,
+          astro4: Number(document.getElementById('ag-mult-astro4')?.value) || 40000
+        },
         maxBetLimit: Number(document.getElementById('ag-max-bet').value),
         creditLimit: Number(document.getElementById('ag-credit-limit').value),
         password: document.getElementById('ag-password').value.trim(),
@@ -713,9 +745,13 @@ class BancaFcAdminController {
       };
 
       const saved = this.storage.saveAgency(agencyData);
+      this.storage.recalculateAllTicketWinnings();
       document.getElementById('modal-agency-form')?.classList.add('hidden');
       this.refreshAllViews();
-      this.showToast(`Agencia ${saved.code} - ${saved.name} guardada exitosamente.`, '🏢');
+      this.showToast(
+        `Agencia ${saved.code} (${saved.allowedCurrencies.join('/')}) • Com: ${saved.commissionPct}% guardada y sincronizada.`,
+        '🏢'
+      );
     });
   }
 
@@ -725,9 +761,14 @@ class BancaFcAdminController {
     const title = document.getElementById('modal-agency-title');
     if (!modal) return;
 
+    const globalMult = this.storage.getConfig().multipliers || {};
+
     if (agencyCode) {
       const ag = this.storage.getAgencyByCode(agencyCode);
       if (!ag) return;
+      const allowed = this.storage.getAllowedCurrenciesForAgency(ag.code);
+      const agMult = this.storage.getEffectiveMultipliersForAgency(ag.code);
+
       title.textContent = `✏️ Editar Agencia ${ag.code} - ${ag.name}`;
       document.getElementById('ag-code').value = ag.code;
       document.getElementById('ag-serial').value = ag.terminalSerial || this.storage.generateTerminalSerial();
@@ -736,8 +777,22 @@ class BancaFcAdminController {
       document.getElementById('ag-manager').value = ag.manager || '';
       document.getElementById('ag-whatsapp').value = ag.whatsapp || '';
       document.getElementById('ag-collector').value = ag.collector || 'Raúl Zambrano';
-      document.getElementById('ag-currency').value = ag.currency || 'COP';
+      document.getElementById('ag-currency').value = ag.currency || allowed[0] || 'COP';
       document.getElementById('ag-commission').value = ag.commissionPct ?? 15;
+
+      if (document.getElementById('ag-allow-cop')) document.getElementById('ag-allow-cop').checked = allowed.includes('COP');
+      if (document.getElementById('ag-allow-usd')) document.getElementById('ag-allow-usd').checked = allowed.includes('USD');
+      if (document.getElementById('ag-allow-ves')) document.getElementById('ag-allow-ves').checked = allowed.includes('VES');
+
+      if (document.getElementById('ag-mult-triple')) document.getElementById('ag-mult-triple').value = agMult.triple || 500;
+      if (document.getElementById('ag-mult-terminal')) document.getElementById('ag-mult-terminal').value = agMult.terminal || 60;
+      if (document.getElementById('ag-mult-aprox')) document.getElementById('ag-mult-aprox').value = agMult.aproximacion || 5;
+      if (document.getElementById('ag-mult-animalito')) document.getElementById('ag-mult-animalito').value = agMult.animalito || 30;
+      if (document.getElementById('ag-mult-4cifras')) document.getElementById('ag-mult-4cifras').value = agMult.cuatroCifrasDirecto || 4500;
+      if (document.getElementById('ag-mult-4comb')) document.getElementById('ag-mult-4comb').value = agMult.cuatroCifrasCombinado || 208;
+      if (document.getElementById('ag-mult-la5ta')) document.getElementById('ag-mult-la5ta').value = agMult.la5ta || 25000;
+      if (document.getElementById('ag-mult-astro4')) document.getElementById('ag-mult-astro4').value = agMult.astro4 || 40000;
+
       document.getElementById('ag-max-bet').value = ag.maxBetLimit ?? 50000;
       document.getElementById('ag-credit-limit').value = ag.creditLimit ?? 2500000;
       document.getElementById('ag-password').value = ag.password || ag.code;
@@ -759,6 +814,20 @@ class BancaFcAdminController {
       document.getElementById('ag-whatsapp').value = '+58414';
       document.getElementById('ag-currency').value = 'COP';
       document.getElementById('ag-commission').value = 15;
+
+      if (document.getElementById('ag-allow-cop')) document.getElementById('ag-allow-cop').checked = true;
+      if (document.getElementById('ag-allow-usd')) document.getElementById('ag-allow-usd').checked = false;
+      if (document.getElementById('ag-allow-ves')) document.getElementById('ag-allow-ves').checked = false;
+
+      if (document.getElementById('ag-mult-triple')) document.getElementById('ag-mult-triple').value = globalMult.triple || 500;
+      if (document.getElementById('ag-mult-terminal')) document.getElementById('ag-mult-terminal').value = globalMult.terminal || 60;
+      if (document.getElementById('ag-mult-aprox')) document.getElementById('ag-mult-aprox').value = globalMult.aproximacion || 5;
+      if (document.getElementById('ag-mult-animalito')) document.getElementById('ag-mult-animalito').value = globalMult.animalito || 30;
+      if (document.getElementById('ag-mult-4cifras')) document.getElementById('ag-mult-4cifras').value = globalMult.cuatroCifrasDirecto || 4500;
+      if (document.getElementById('ag-mult-4comb')) document.getElementById('ag-mult-4comb').value = globalMult.cuatroCifrasCombinado || 208;
+      if (document.getElementById('ag-mult-la5ta')) document.getElementById('ag-mult-la5ta').value = globalMult.la5ta || 25000;
+      if (document.getElementById('ag-mult-astro4')) document.getElementById('ag-mult-astro4').value = globalMult.astro4 || 40000;
+
       document.getElementById('ag-max-bet').value = 50000;
       document.getElementById('ag-credit-limit').value = 2500000;
       document.getElementById('ag-password').value = nextCode;
@@ -836,7 +905,7 @@ class BancaFcAdminController {
           </td>
           <td>${statusBadge}</td>
           <td>
-            <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-200 font-mono font-bold text-xs">${ag.currency}</span>
+            <span class="px-2 py-0.5 rounded bg-slate-800 text-amber-300 font-mono font-bold text-xs" title="Monedas Autorizadas en Taquilla">${this.storage.getAllowedCurrenciesForAgency(ag.code).join(' / ')}</span>
             <div class="text-[10px] text-slate-400 mt-0.5">Com: ${ag.commissionPct}%</div>
           </td>
           <td class="text-center font-mono">
@@ -1836,6 +1905,15 @@ class BancaFcAdminController {
         animalito: Number(document.getElementById('param-tope-animalito').value) || 30000
       };
       const newResetPass = (document.getElementById('param-admin-reset-pass')?.value || '').trim() || 'osrovzlo2026';
+
+      // Propagar también como base a las agencias registradas cuando se guarda desde Parámetros Globales
+      const master = this.storage.getMasterData();
+      if (Array.isArray(master.agencies)) {
+        master.agencies.forEach(ag => {
+          ag.multipliers = { ...(ag.multipliers || {}), ...newMultipliers };
+        });
+        this.storage.saveMasterData(master, false);
+      }
 
       this.storage.updateConfig({
         multipliers: newMultipliers,

@@ -303,10 +303,43 @@ document.addEventListener('DOMContentLoaded', () => {
       modals.openModal('modal-cuadre-caja');
     });
 
-    // Menú Configuración
-    document.getElementById('menu-item-parametros')?.addEventListener('click', () => {
+    // Menú Configuración: Datos de la Agencia vs Parámetros del Sistema (Impresora)
+    document.getElementById('menu-item-datos-agencia')?.addEventListener('click', () => {
       modals.loadConfigValues();
       modals.openModal('modal-configuracion');
+    });
+    document.getElementById('menu-item-parametros')?.addEventListener('click', () => {
+      if (modals.loadPrinterParamsValues) modals.loadPrinterParamsValues();
+      modals.openModal('modal-parametros-impresora');
+    });
+
+    // Selector rápido de Moneda en la Cinta Superior (restringido a las monedas autorizadas por el Admin)
+    const headerCurBadge = document.getElementById('header-active-currency');
+    const refreshHeaderCurrencyBadge = () => {
+      if (!headerCurBadge) return;
+      const curCfg = storageInstance.getConfig();
+      const allowed = curCfg.allowedCurrencies || ['COP'];
+      headerCurBadge.textContent = curCfg.currency || allowed[0];
+      headerCurBadge.style.cursor = allowed.length > 1 ? 'pointer' : 'default';
+      headerCurBadge.title = allowed.length > 1
+        ? `Monedas autorizadas: ${allowed.join(' / ')} (Clic para alternar)`
+        : `Moneda única autorizada por Administración: ${allowed[0]}`;
+    };
+    refreshHeaderCurrencyBadge();
+
+    headerCurBadge?.addEventListener('click', () => {
+      const curCfg = storageInstance.getConfig();
+      const allowed = curCfg.allowedCurrencies || ['COP'];
+      if (allowed.length <= 1) {
+        alert(`🔒 Esta taquilla (Agencia ${curCfg.agencyCode}) está configurada por el Programa Administrativo para vender únicamente en ${allowed[0]}.`);
+        return;
+      }
+      const idx = allowed.indexOf(curCfg.currency);
+      const nextCur = allowed[(idx + 1) % allowed.length];
+      storageInstance.updateConfig({ currency: nextCur });
+      refreshHeaderCurrencyBadge();
+      pos.renderPreTicket();
+      pos.playBeep('blip');
     });
 
     // Menú Mensajes
@@ -367,9 +400,16 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('menu-item-config-red-server')?.addEventListener('click', promptConfigureFirebasePos);
     document.getElementById('pos-firebase-status-badge')?.addEventListener('click', promptConfigureFirebasePos);
 
-    // Actualizar contadores de la taquilla cuando entran cambios en vivo desde Firebase
+    // Actualizar contadores y parámetros de la taquilla cuando entran cambios en vivo desde Firebase (Admin)
     window.addEventListener('banca_fc_data_updated', () => {
+      refreshHeaderCurrencyBadge();
+      const curCfg = storageInstance.getConfig();
+      const headerAgencyLabel = document.getElementById('header-agency-label');
+      if (headerAgencyLabel) {
+        headerAgencyLabel.textContent = `AGENCIA: ${curCfg.agencyCode || '1000'} - ${curCfg.agencyName || 'FERNANDO CASTAÑO'}`;
+      }
       pos.updateCounters();
+      pos.renderPreTicket();
     });
 
     const downloadPosJsonPackage = () => {
@@ -403,6 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
   modals.setupCuadreCajaModal();
   modals.setupReporteNumerosModal();
   modals.setupConfigModal();
+  modals.setupPrinterParamsModal();
   modals.setupCalculadora();
   modals.setupMensajesModal();
 

@@ -720,6 +720,34 @@ class StorageManager {
     const code = String(agencyObj.code).trim();
     const idx = master.agencies.findIndex(a => String(a.code) === code);
 
+    const globalMult = (master.config && master.config.multipliers)
+      ? { ...DEFAULT_CONFIG.multipliers, ...master.config.multipliers }
+      : { ...DEFAULT_CONFIG.multipliers };
+
+    // Normalizar monedas autorizadas por agencia (ej: ['COP'], ['COP','USD'], ['COP','USD','VES'])
+    let allowedCurrencies = Array.isArray(agencyObj.allowedCurrencies)
+      ? agencyObj.allowedCurrencies.filter(c => ['COP', 'USD', 'VES'].includes(c))
+      : [];
+    const defaultCur = ['COP', 'USD', 'VES'].includes(agencyObj.currency) ? agencyObj.currency : 'COP';
+    if (allowedCurrencies.length === 0) {
+      allowedCurrencies = [defaultCur];
+    }
+    const primaryCurrency = allowedCurrencies.includes(defaultCur) ? defaultCur : allowedCurrencies[0];
+
+    const customMultipliers = agencyObj.multipliers && typeof agencyObj.multipliers === 'object'
+      ? {
+          triple: Number(agencyObj.multipliers.triple) || globalMult.triple,
+          terminal: Number(agencyObj.multipliers.terminal) || globalMult.terminal,
+          aproximacion: Number(agencyObj.multipliers.aproximacion) || globalMult.aproximacion,
+          animalito: Number(agencyObj.multipliers.animalito) || globalMult.animalito,
+          cuatroCifrasDirecto: Number(agencyObj.multipliers.cuatroCifrasDirecto) || globalMult.cuatroCifrasDirecto,
+          cuatroCifrasCombinado: Number(agencyObj.multipliers.cuatroCifrasCombinado) || globalMult.cuatroCifrasCombinado,
+          la5ta: Number(agencyObj.multipliers.la5ta) || globalMult.la5ta,
+          astro4: Number(agencyObj.multipliers.astro4) || globalMult.astro4,
+          astro3: Number(agencyObj.multipliers.astro3) || globalMult.astro3
+        }
+      : (idx !== -1 && master.agencies[idx].multipliers ? master.agencies[idx].multipliers : { ...globalMult });
+
     const record = {
       code: code,
       terminalSerial: agencyObj.terminalSerial || this.generateTerminalSerial(),
@@ -728,8 +756,10 @@ class StorageManager {
       whatsapp: agencyObj.whatsapp || '',
       zone: agencyObj.zone || 'San Cristóbal',
       collector: agencyObj.collector || 'Raúl Zambrano',
-      currency: agencyObj.currency || 'COP',
+      currency: primaryCurrency,
+      allowedCurrencies: allowedCurrencies,
       commissionPct: Number(agencyObj.commissionPct ?? 15),
+      multipliers: customMultipliers,
       maxBetLimit: Number(agencyObj.maxBetLimit ?? 50000),
       creditLimit: Number(agencyObj.creditLimit ?? 2000000),
       password: agencyObj.password || code,
@@ -746,13 +776,51 @@ class StorageManager {
     if (master.config && String(master.config.agencyCode) === code) {
       master.config.agencyName = record.name;
       master.config.agentName = record.manager;
-      master.config.currency = record.currency;
+      if (!allowedCurrencies.includes(master.config.currency)) {
+        master.config.currency = primaryCurrency;
+      }
+      master.config.allowedCurrencies = allowedCurrencies;
       master.config.agencyCommissionPct = record.commissionPct;
       master.config.terminalSerial = record.terminalSerial;
     }
 
     this.saveMasterData(master);
     return record;
+  }
+
+  // Obtiene las monedas autorizadas desde el Programa Administrativo para una taquilla específica
+  getAllowedCurrenciesForAgency(agencyCode) {
+    const ag = this.getAgencyByCode(agencyCode);
+    if (ag && Array.isArray(ag.allowedCurrencies) && ag.allowedCurrencies.length > 0) {
+      return ag.allowedCurrencies.filter(c => ['COP', 'USD', 'VES'].includes(c));
+    }
+    if (ag && ag.currency && ['COP', 'USD', 'VES'].includes(ag.currency)) {
+      return [ag.currency];
+    }
+    return ['COP'];
+  }
+
+  // Obtiene los multiplicadores oficiales asignados desde el Programa Administrativo a la agencia
+  getEffectiveMultipliersForAgency(agencyCode) {
+    const master = this.getMasterData();
+    const globalMult = (master.config && master.config.multipliers)
+      ? { ...DEFAULT_CONFIG.multipliers, ...master.config.multipliers }
+      : { ...DEFAULT_CONFIG.multipliers };
+    const ag = this.getAgencyByCode(agencyCode);
+    if (ag && ag.multipliers && typeof ag.multipliers === 'object') {
+      return { ...globalMult, ...ag.multipliers };
+    }
+    return globalMult;
+  }
+
+  // Obtiene el porcentaje de comisión asignado desde el Programa Administrativo a la agencia
+  getEffectiveCommissionForAgency(agencyCode) {
+    const ag = this.getAgencyByCode(agencyCode);
+    if (ag && ag.commissionPct !== undefined && ag.commissionPct !== null) {
+      return Number(ag.commissionPct);
+    }
+    const master = this.getMasterData();
+    return Number(master.config?.agencyCommissionPct ?? 15);
   }
 
   toggleAgencyStatus(code) {
@@ -915,12 +983,89 @@ class StorageManager {
   // ==========================================
   // CONFIGURACIÓN POS Y CORRELATIVOS
   // ==========================================
+  getLocalPosSession() {
+    try {
+      const raw = safeLocalStorage.getItem('banca_fc_local_pos_session');
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  saveLocalPosSession(partial) {
+    try {
+      const current = this.getLocalPosSession();
+      const next = { ...current, ...partial };
+      safeLocalStorage.setItem('banca_fc_local_pos_session', JSON.stringify(next));
+      return next;
+    } catch (e) {
+      return {};
+    }
+  }
+
   getConfig() {
     try {
       const master = this.getMasterData();
-      return master.config ? { ...DEFAULT_CONFIG, ...master.config } : { ...DEFAULT_CONFIG };
+      const baseCfg = master.config ? { ...DEFAULT_CONFIG, ...master.config } : { ...DEFAULT_CONFIG };
+      const localSess = this.getLocalPosSession();
+
+      const activeCode = String(localSess.agencyCode || baseCfg.agencyCode || '1000').trim();
+      const agency = this.getAgencyByCode(activeCode);
+
+      const defaultPrintersList = [
+        'Generic / Text Only',
+        'BASIC 230',
+        'POS-58',
+        'POS-80',
+        'XP-58 (Xprinter)',
+        'XP-80C (Xprinter)',
+        'EPSON TM-T20 / TM-U220',
+        'BIXOLON SRP-350',
+        'Microsoft Print to PDF'
+      ];
+      const installedPrinters = Array.isArray(localSess.installedPrinters) && localSess.installedPrinters.length > 0
+        ? localSess.installedPrinters
+        : defaultPrintersList;
+      const printerName = localSess.printerName || baseCfg.printerName || 'Generic / Text Only';
+      const printMode = localSess.printMode || baseCfg.printMode || 'TEXT_ONLY';
+      const autoPrintDialog = localSess.autoPrintDialog !== undefined ? Boolean(localSess.autoPrintDialog) : true;
+
+      if (agency) {
+        const allowedCurrencies = this.getAllowedCurrenciesForAgency(agency.code);
+        const preferredCur = localSess.currency || agency.currency || baseCfg.currency || 'COP';
+        const effectiveCurrency = allowedCurrencies.includes(preferredCur) ? preferredCur : allowedCurrencies[0];
+
+        return {
+          ...baseCfg,
+          agencyCode: agency.code,
+          agencyName: agency.name,
+          terminalId: agency.code,
+          terminalSerial: agency.terminalSerial,
+          agentName: agency.manager,
+          currency: effectiveCurrency,
+          allowedCurrencies: allowedCurrencies,
+          paperWidth: localSess.paperWidth || baseCfg.paperWidth || '58mm',
+          printerName: printerName,
+          installedPrinters: installedPrinters,
+          printMode: printMode,
+          autoPrintDialog: autoPrintDialog,
+          agencyCommissionPct: Number(agency.commissionPct ?? baseCfg.agencyCommissionPct ?? 15),
+          multipliers: this.getEffectiveMultipliersForAgency(agency.code),
+          maxBetLimit: Number(agency.maxBetLimit ?? 50000)
+        };
+      }
+
+      return {
+        ...baseCfg,
+        allowedCurrencies: [baseCfg.currency || 'COP'],
+        paperWidth: localSess.paperWidth || baseCfg.paperWidth || '58mm',
+        printerName: printerName,
+        installedPrinters: installedPrinters,
+        printMode: printMode,
+        autoPrintDialog: autoPrintDialog
+      };
     } catch (e) {
-      return { ...DEFAULT_CONFIG };
+      return { ...DEFAULT_CONFIG, allowedCurrencies: ['COP'], printerName: 'Generic / Text Only', printMode: 'TEXT_ONLY', autoPrintDialog: true };
     }
   }
 
@@ -935,20 +1080,28 @@ class StorageManager {
     const current = master.config || { ...DEFAULT_CONFIG };
     master.config = { ...current, ...partial };
 
-    // Si también existe la agencia en el listado de agencias, sincronizar sus datos básicos
-    if (master.config.agencyCode && Array.isArray(master.agencies)) {
-      const idx = master.agencies.findIndex(a => String(a.code) === String(master.config.agencyCode));
-      if (idx !== -1) {
-        master.agencies[idx].name = master.config.agencyName || master.agencies[idx].name;
-        master.agencies[idx].currency = master.config.currency || master.agencies[idx].currency;
-        if (partial.agencyCommissionPct !== undefined) {
-          master.agencies[idx].commissionPct = Number(partial.agencyCommissionPct);
-        }
-      }
+    // Guardar preferencias locales de la sesión POS (moneda permitida / impresora del equipo)
+    const localUpdate = {};
+    if (partial.agencyCode) localUpdate.agencyCode = partial.agencyCode;
+    if (partial.paperWidth) localUpdate.paperWidth = partial.paperWidth;
+    if (partial.printerName) localUpdate.printerName = partial.printerName;
+    if (Array.isArray(partial.installedPrinters)) localUpdate.installedPrinters = partial.installedPrinters;
+    if (partial.printMode) localUpdate.printMode = partial.printMode;
+    if (partial.autoPrintDialog !== undefined) localUpdate.autoPrintDialog = Boolean(partial.autoPrintDialog);
+
+    if (partial.currency) {
+      const code = partial.agencyCode || this.getLocalPosSession().agencyCode || master.config.agencyCode || '1000';
+      const allowed = this.getAllowedCurrenciesForAgency(code);
+      localUpdate.currency = allowed.includes(partial.currency) ? partial.currency : allowed[0];
+      master.config.currency = localUpdate.currency;
+    }
+
+    if (Object.keys(localUpdate).length > 0) {
+      this.saveLocalPosSession(localUpdate);
     }
 
     this.saveMasterData(master);
-    return master.config;
+    return this.getConfig();
   }
 
   // Permite iniciar sesión en el POS con cualquier agencia creada en el Panel Administrativo
@@ -962,13 +1115,24 @@ class StorageManager {
           reason: `La Agencia ${agency.code} (${agency.name}) se encuentra SUSPENDIDA por la Administración Central de Banca FC.`
         };
       }
-      // Si se ingresó contraseña y la agencia tiene clave configurada, validarla (o permitir acceso rápido si está vacío)
+      // Si se ingresó contraseña y la agencia tiene clave configurada, validarla
       if (password && agency.password && password !== agency.password && password !== 'admin' && password !== '1000') {
         return {
           success: false,
           reason: 'Contraseña de acceso POS incorrecta para esta taquilla.'
         };
       }
+      const allowedCurrencies = this.getAllowedCurrenciesForAgency(agency.code);
+      const currentLocal = this.getLocalPosSession();
+      const chosenCurrency = (currentLocal.agencyCode === agency.code && allowedCurrencies.includes(currentLocal.currency))
+        ? currentLocal.currency
+        : (allowedCurrencies.includes(agency.currency) ? agency.currency : allowedCurrencies[0]);
+
+      this.saveLocalPosSession({
+        agencyCode: agency.code,
+        currency: chosenCurrency
+      });
+
       // Activar los parámetros de esta agencia en el POS
       this.updateConfig({
         agencyCode: agency.code,
@@ -976,7 +1140,8 @@ class StorageManager {
         terminalId: agency.code,
         terminalSerial: agency.terminalSerial,
         agentName: agency.manager,
-        currency: agency.currency,
+        currency: chosenCurrency,
+        allowedCurrencies: allowedCurrencies,
         agencyCommissionPct: agency.commissionPct
       });
       return { success: true, agency };
@@ -1294,7 +1459,8 @@ class StorageManager {
   }
 
   evaluateTicket(ticket, targetDate) {
-    const cfg = this.getConfig();
+    const agencyCode = this.extractAgencyCodeFromTicket(ticket);
+    const effectiveMultipliers = this.getEffectiveMultipliersForAgency(agencyCode);
     const rawDatePart = (ticket.fechaHora || '').split(' ')[0];
     const dateKey = targetDate || (rawDatePart.includes('/') ? rawDatePart.split('/').reverse().join('-') : getTodayIso());
     const results = this.getResults(dateKey);
@@ -1308,7 +1474,7 @@ class StorageManager {
     (ticket.items || []).forEach(play => {
       const offRes = results[play.lotteryId];
       if (offRes) {
-        const win = this.checkPlayWinning(play, offRes, cfg.multipliers);
+        const win = this.checkPlayWinning(play, offRes, effectiveMultipliers);
         if (win) {
           totalPrize += win.prize;
           winningPlays.push({
