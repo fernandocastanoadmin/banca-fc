@@ -1635,10 +1635,15 @@ class BancaFcAdminController {
         sign,
         ball5,
         animalName,
-        timestamp: `${hr}:${min} ${ampm}`
+        timestamp: `${hr}:${min} ${ampm}`,
+        source: 'OFICIAL BANCA FC',
+        verified: true
       };
 
       const resStats = this.storage.saveResult(dateKey, lotteryId, resultObj);
+      if (window.bancaFcAutoResults) {
+        window.bancaFcAutoResults.pushToFirebaseOfficialNode(dateKey, this.storage.getResults(dateKey));
+      }
       document.getElementById('res-admin-number').value = '';
       document.getElementById('res-admin-ball5').value = '';
       animalPreview?.classList.add('hidden');

@@ -286,6 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Menú Premiación
     document.getElementById('menu-item-status-ganadores')?.addEventListener('click', () => modals.openModal('modal-verificar-ticket'));
+    document.getElementById('menu-item-tickets-ganadores')?.addEventListener('click', () => modals.openModal('modal-verificar-ticket'));
     document.getElementById('menu-item-numeros-premiados')?.addEventListener('click', () => {
       modals.renderResultadosTable();
       modals.openModal('modal-numeros-premiados');

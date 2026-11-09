@@ -178,14 +178,13 @@ class ModalManager {
     this.renderReimprimirList = renderList;
   }
 
-  // 3. MODAL NÚMEROS PREMIADOS (CARGA DE RESULTADOS OFICIALES)
+  // 3. MODAL NÚMEROS PREMIADOS (MODO SOLO CONSULTA ANTIFRAUDE - SINCRONIZACIÓN AUTOMÁTICA)
   setupResultadosModal() {
     const dateInput = document.getElementById('input-resultados-fecha');
-    const lotSelect = document.getElementById('select-resultados-loteria');
-    const numInput = document.getElementById('input-resultados-numero');
-    const signSelect = document.getElementById('select-resultados-signo');
-    const ball5Input = document.getElementById('input-resultados-5ta');
-    const saveBtn = document.getElementById('btn-guardar-resultado');
+    const catSelect = document.getElementById('select-resultados-loteria');
+    const filterInput = document.getElementById('input-resultados-filtro');
+    const searchBtn = document.getElementById('btn-buscar-resultados');
+    const statusLabel = document.getElementById('auto-results-sync-status');
     const tableBody = document.getElementById('tabla-resultados-guardados');
 
     // Inicializar fecha de hoy
@@ -193,118 +192,97 @@ class ModalManager {
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     if (dateInput) dateInput.value = todayStr;
 
-    // Llenar selector de loterías con todo el catálogo
-    if (lotSelect) {
-      lotSelect.innerHTML = '';
-      const allLots = [
-        ...LOTTERY_CATALOGS.sin_signo.map(l => ({ ...l, cat: 'SIN SIGNO' })),
-        ...LOTTERY_CATALOGS.con_signo.map(l => ({ ...l, cat: 'CON SIGNO' })),
-        ...LOTTERY_CATALOGS.cuatro_cifras.map(l => ({ ...l, cat: '4 CIFRAS' })),
-        ...LOTTERY_CATALOGS.animalitos.map(l => ({ ...l, cat: 'ANIMALITOS' }))
-      ];
+    const getCategoryBadgeStyle = (catKey) => {
+      if (catKey === 'sin_signo') return 'background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd;';
+      if (catKey === 'con_signo') return 'background: #f3e8ff; color: #6b21a8; border: 1px solid #d8b4fe;';
+      if (catKey === 'cuatro_cifras') return 'background: #fef3c7; color: #92400e; border: 1px solid #fcd34d;';
+      return 'background: #dcfce7; color: #166534; border: 1px solid #86efac;';
+    };
 
-      allLots.forEach(l => {
-        const opt = document.createElement('option');
-        opt.value = l.id;
-        opt.textContent = `[${l.cat}] ${l.name}`;
-        lotSelect.appendChild(opt);
-      });
-    }
-
-    // Llenar selector de signos
-    if (signSelect) {
-      signSelect.innerHTML = '<option value="">-- Sin Signo --</option>';
-      ZODIAC_SIGNS.forEach(s => {
-        signSelect.innerHTML += `<option value="${s.code}">${s.code} - ${s.name}</option>`;
-      });
-    }
-
-    const renderResultsTable = () => {
+    const renderResultsTable = async (triggerLiveSync = false) => {
       if (!tableBody || !dateInput) return;
-      const dateKey = dateInput.value;
-      const res = this.storage.getResults(dateKey);
-      const keys = Object.keys(res);
+      const dateKey = dateInput.value || todayStr;
+      const catFilter = catSelect ? catSelect.value : 'ALL';
+      const searchQ = filterInput ? filterInput.value.trim() : '';
 
-      if (keys.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="4" class="text-center p-3">No hay resultados cargados para esta fecha.</td></tr>';
+      if (triggerLiveSync && window.bancaFcAutoResults) {
+        if (statusLabel) {
+          statusLabel.textContent = '⏳ Sincronizando resultados oficiales desde la Web y Firebase...';
+          statusLabel.style.color = '#0369a1';
+        }
+        await window.bancaFcAutoResults.syncOfficialResultsForDate(dateKey, { silent: false });
+      }
+
+      const items = window.bancaFcAutoResults
+        ? window.bancaFcAutoResults.getFilteredOfficialResults(dateKey, catFilter, searchQ)
+        : [];
+
+      if (statusLabel) {
+        const syncHour = (window.bancaFcAutoResults && window.bancaFcAutoResults.lastSyncTime) || 'En vivo';
+        statusLabel.textContent = `✔ Sincronización Automática (${syncHour}) • ${items.length} sorteos oficiales`;
+        statusLabel.style.color = '#15803d';
+      }
+
+      if (items.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="4" class="text-center p-3">No hay resultados oficiales publicados para los filtros o la hora actual.</td></tr>';
         return;
       }
 
       let rows = '';
-      keys.forEach(k => {
-        const r = res[k];
-        let detail = r.number;
-        if (r.sign) detail += ` - ${r.sign}`;
-        if (r.animalName) detail += ` (${r.animalName})`;
-        if (r.ball5) detail += ` [5ta: ${r.ball5}]`;
+      items.forEach(item => {
+        let detail = `<strong>${item.number}</strong>`;
+        if (item.sign) detail += ` - <strong>${item.sign}</strong>`;
+        if (item.animalName) detail += ` - <strong>${item.animalName}</strong>`;
+        if (item.ball5) detail += ` <span style="font-size: 11px; color: #92400e;">[La 5ta: <strong>${item.ball5}</strong>]</span>`;
 
         rows += `
           <tr>
-            <td><strong>${k}</strong></td>
-            <td><span class="badge-result-num">${detail}</span></td>
-            <td>${r.timestamp || 'Cargado'}</td>
             <td>
-              <button class="btn btn-sm btn-outline-danger btn-del-res" data-id="${k}">Eliminar</button>
+              <span style="display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; ${getCategoryBadgeStyle(item.categoryKey)}">
+                ${item.categoryLabel}
+              </span>
+            </td>
+            <td><strong>${item.lotteryName}</strong></td>
+            <td><span class="badge-result-num" style="font-size: 13px;">${detail}</span></td>
+            <td>
+              <span style="font-weight: bold; color: #374151;">${item.drawTime12h}</span>
+              <span style="display: inline-block; margin-left: 6px; padding: 1px 6px; background: #dcfce7; color: #15803d; border: 1px solid #86efac; border-radius: 3px; font-size: 10px; font-weight: bold;">
+                ✔ OFICIAL VERIFICADO
+              </span>
             </td>
           </tr>
         `;
       });
       tableBody.innerHTML = rows;
-
-      tableBody.querySelectorAll('.btn-del-res').forEach(b => {
-        b.addEventListener('click', (e) => {
-          const id = e.target.dataset.id;
-          const all = this.storage.getResults();
-          if (all[dateKey]) {
-            delete all[dateKey][id];
-            localStorage.setItem(STORAGE_KEYS.RESULTS, JSON.stringify(all));
-            renderResultsTable();
-          }
-        });
-      });
     };
 
-    if (dateInput) dateInput.addEventListener('change', renderResultsTable);
-
-    if (saveBtn) {
-      saveBtn.addEventListener('click', () => {
-        const dateKey = dateInput.value;
-        const lotId = lotSelect.value;
-        const number = numInput.value.trim();
-        const sign = signSelect ? signSelect.value : '';
-        const ball5 = ball5Input ? ball5Input.value.trim() : '';
-
-        if (!number) {
-          alert('Debe ingresar el número premiado');
-          return;
+    if (dateInput) dateInput.addEventListener('change', () => renderResultsTable(true));
+    if (catSelect) catSelect.addEventListener('change', () => renderResultsTable(false));
+    if (filterInput) {
+      filterInput.addEventListener('input', () => renderResultsTable(false));
+      filterInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          renderResultsTable(true);
         }
-
-        let animalName = null;
-        const info = typeof getAnimalOrFruitInfo === 'function'
-          ? getAnimalOrFruitInfo(lotId, number)
-          : ANIMALITOS_DICT[number];
-        if (info) {
-          animalName = info.name;
-        }
-
-        const resObj = {
-          number: number,
-          sign: sign || null,
-          ball5: ball5 || null,
-          animalName: animalName,
-          timestamp: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })
-        };
-
-        this.storage.saveResult(dateKey, lotId, resObj);
-        numInput.value = '';
-        if (ball5Input) ball5Input.value = '';
-        renderResultsTable();
-        alert(`Resultado guardado para ${lotId}: ${number}`);
-        this.pos.playBeep('success');
+      });
+    }
+    if (searchBtn) {
+      searchBtn.addEventListener('click', () => {
+        renderResultsTable(true);
+        if (this.pos) this.pos.playBeep('blip');
       });
     }
 
-    this.renderResultadosTable = renderResultsTable;
+    // Actualizar automáticamente la tabla si llega un nuevo ciclo de 3 minutos mientras la ventana está abierta
+    window.addEventListener('banca_fc_official_results_synced', () => {
+      const modalEl = document.getElementById('modal-numeros-premiados');
+      if (modalEl && !modalEl.classList.contains('hidden')) {
+        renderResultsTable(false);
+      }
+    });
+
+    this.renderResultadosTable = () => renderResultsTable(true);
   }
 
   // 4. MODAL VERIFICAR Y PAGAR TICKETS GANADORES
@@ -314,11 +292,14 @@ class ModalManager {
     const resContainer = document.getElementById('verificar-ticket-result');
     const btnPagar = document.getElementById('btn-pagar-ticket-ganador');
 
-    const doVerify = () => {
+    const doVerify = async () => {
       const q = inputSearch.value.trim();
       if (!q) {
         alert('Ingrese el número o serial del ticket');
         return;
+      }
+      if (window.bancaFcAutoResults) {
+        await window.bancaFcAutoResults.syncOfficialResultsForDate(undefined, { silent: true });
       }
       const ticket = this.storage.getTicketById(q) || this.storage.getTicketBySerial(q);
       if (!ticket) {
