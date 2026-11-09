@@ -280,8 +280,11 @@ class ModalManager {
         }
 
         let animalName = null;
-        if (ANIMALITOS_DICT[number]) {
-          animalName = ANIMALITOS_DICT[number].name;
+        const info = typeof getAnimalOrFruitInfo === 'function'
+          ? getAnimalOrFruitInfo(lotId, number)
+          : ANIMALITOS_DICT[number];
+        if (info) {
+          animalName = info.name;
         }
 
         const resObj = {
@@ -289,7 +292,7 @@ class ModalManager {
           sign: sign || null,
           ball5: ball5 || null,
           animalName: animalName,
-          timestamp: new Date().toLocaleTimeString('es-VE')
+          timestamp: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })
         };
 
         this.storage.saveResult(dateKey, lotId, resObj);

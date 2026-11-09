@@ -17,14 +17,21 @@ document.addEventListener('DOMContentLoaded', () => {
     modals: modals
   };
 
-  // 2. Control de Reloj en Tiempo Real
+  // 2. Control de Reloj en Tiempo Real (Formato 12h AM/PM estricto)
   function updateLiveClock() {
     const clockEl = document.getElementById('header-live-clock');
     if (!clockEl) return;
     const now = new Date();
-    const dateStr = now.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const timeStr = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-    clockEl.textContent = `${dateStr} | ${timeStr}`;
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    let hr = now.getHours();
+    const min = String(now.getMinutes()).padStart(2, '0');
+    const sec = String(now.getSeconds()).padStart(2, '0');
+    const ampm = hr >= 12 ? 'PM' : 'AM';
+    hr = hr % 12;
+    if (hr === 0) hr = 12;
+    clockEl.textContent = `${dd}/${mm}/${yyyy} | ${hr}:${min}:${sec} ${ampm}`;
   }
   setInterval(updateLiveClock, 1000);
   updateLiveClock();
@@ -138,6 +145,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Botones de selección rápida de loterías
   document.getElementById('btn-marcar-todos')?.addEventListener('click', () => pos.selectAllLotteries());
   document.getElementById('btn-desmarcar-todos')?.addEventListener('click', () => pos.deselectAllLotteries());
+  document.getElementById('chk-show-all-week')?.addEventListener('change', (e) => {
+    pos.showAllWeekLotteries = e.target.checked;
+    pos.renderLotteriesList(document.getElementById('lottery-search-input')?.value || '');
+  });
 
   // 6. Configuración de Inputs de Captura Rápida (Panel Central)
   const inputNumero = document.getElementById('input-numero');
@@ -155,21 +166,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Previsualización instantánea de Animalito al digitar número
+  // Previsualización instantánea de Animalito o Fruta Gana al digitar número
   if (inputNumero) {
-    inputNumero.addEventListener('input', (e) => {
-      const val = e.target.value.trim();
-      if (pos.currentCategory === 'animalitos') {
-        const info = ANIMALITOS_DICT[val] || (val.length === 1 && ANIMALITOS_DICT['0' + val]);
-        if (info && animalitoPreviewBadge) {
-          animalitoPreviewBadge.innerHTML = `<span class="anm-emoji">${info.emoji}</span> <span class="anm-name">${info.name.toUpperCase()}</span>`;
-          animalitoPreviewBadge.classList.remove('hidden');
-        } else if (animalitoPreviewBadge) {
-          animalitoPreviewBadge.classList.add('hidden');
-        }
-      } else if (animalitoPreviewBadge) {
-        animalitoPreviewBadge.classList.add('hidden');
-      }
+    inputNumero.addEventListener('input', () => {
+      pos.updateAnimalitoPreviewBadge();
     });
 
     // Enter en Número salta a Monto
@@ -536,34 +536,40 @@ document.addEventListener('DOMContentLoaded', () => {
     if (last) printerInstance.downloadTxtReceipt(last);
   });
 
-  // 12. Modal de Ruleta / Selector Rápido de Animalitos
+  // 12. Modal de Ruleta / Selector Rápido de Animalitos y Fruta Gana
   const setupAnimalitosGrid = () => {
     const grid = document.getElementById('animalitos-quick-grid');
     if (!grid) return;
+
+    const selectedIds = Array.from(pos.selectedLotteries || []);
+    const isFrutaOnly = selectedIds.length > 0 && selectedIds.every(id => id.includes('FRUTA_GANA'));
+    const dict = (isFrutaOnly && typeof FRUTAS_DICT !== 'undefined') ? FRUTAS_DICT : ANIMALITOS_DICT;
+
     let html = '';
-    for (let i = 0; i <= 36; i++) {
-      const code = i === 0 ? '0' : (i < 10 ? `0${i}` : String(i));
-      const info = ANIMALITOS_DICT[code] || { name: 'Animal', emoji: '🐾' };
+    const codes = ['0', '00'];
+    for (let i = 1; i <= 36; i++) {
+      codes.push(i < 10 ? `0${i}` : String(i));
+    }
+
+    codes.forEach(code => {
+      const info = dict[code] || { name: 'Item', emoji: '🐾' };
+      const fruitSub = (!isFrutaOnly && typeof FRUTAS_DICT !== 'undefined' && FRUTAS_DICT[code])
+        ? `<span style="font-size:9px;color:#64748b;display:block;">${FRUTAS_DICT[code].emoji} ${FRUTAS_DICT[code].name}</span>`
+        : '';
       html += `
         <button type="button" class="animal-picker-btn" data-code="${code}">
           <span class="ap-code">${code}</span>
           <span class="ap-emoji">${info.emoji}</span>
           <span class="ap-name">${info.name}</span>
+          ${fruitSub}
         </button>
       `;
-    }
-    // Agregar 00 Ballena
-    html += `
-      <button type="button" class="animal-picker-btn" data-code="00">
-        <span class="ap-code">00</span>
-        <span class="ap-emoji">🐋</span>
-        <span class="ap-name">Ballena</span>
-      </button>
-    `;
+    });
+
     grid.innerHTML = html;
 
     grid.querySelectorAll('.animal-picker-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', () => {
         const code = btn.dataset.code;
         if (inputNumero) {
           inputNumero.value = code;
@@ -575,6 +581,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
   setupAnimalitosGrid();
+  document.getElementById('btn-anm-ruleta-rapida')?.addEventListener('click', () => setupAnimalitosGrid());
 
   // 13. Cierre general de modales mediante botones con data-close
   document.querySelectorAll('[data-close-modal]').forEach(btn => {

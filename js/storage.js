@@ -212,17 +212,17 @@ function getDemoSeedTickets() {
       usuario: '1000',
       moneda: 'COP',
       items: [
-        { lotteryId: 'TACHIRA_4A', lotteryName: 'Táchira 4:00 PM A', number: '745', type: 'triple', amount: 15000 },
-        { lotteryId: 'TACHIRA_4A', lotteryName: 'Táchira 4:00 PM A', number: '45', type: 'terminal', amount: 5000 },
-        { lotteryId: 'ZULIA_4A', lotteryName: 'Zulia 4:00 PM A', number: '845', type: 'triple', amount: 25000 }
+        { lotteryId: 'TACHIRA_A_1645', lotteryName: 'Táchira A 4:45 PM', number: '745', type: 'triple', amount: 15000 },
+        { lotteryId: 'TACHIRA_A_1645', lotteryName: 'Táchira A 4:45 PM', number: '45', type: 'terminal', amount: 5000 },
+        { lotteryId: 'ZULIA_A_1645', lotteryName: 'Zulia A 4:45 PM', number: '845', type: 'triple', amount: 25000 }
       ],
       total: 45000,
       estado: 'PAGADO',
       premioCalculado: 300000,
       premioPagado: 300000,
-      fechaPago: `${dateStr} 04:20:00 pm`,
+      fechaPago: `${dateStr} 04:50:00 pm`,
       winningPlays: [
-        { lotteryId: 'TACHIRA_4A', lotteryName: 'Táchira 4:00 PM A', number: '45', type: 'terminal', amount: 5000, winType: 'TERMINAL DERECHO', multiplier: 60, prize: 300000, resultNumber: '845' }
+        { lotteryId: 'TACHIRA_A_1645', lotteryName: 'Táchira A 4:45 PM', number: '45', type: 'terminal', amount: 5000, winType: 'TERMINAL DERECHO', multiplier: 60, prize: 300000, resultNumber: '845' }
       ]
     },
     {
@@ -234,9 +234,9 @@ function getDemoSeedTickets() {
       usuario: '1000',
       moneda: 'COP',
       items: [
-        { lotteryId: 'LOTTO_ACTIVO', lotteryName: 'Lotto Activo (Horas 9am-7pm)', number: '12', animalName: 'Caballo', type: 'animalito', amount: 40000 },
-        { lotteryId: 'LA_GRANJITA', lotteryName: 'La Granjita (Horas 9am-7pm)', number: '27', animalName: 'Perro', type: 'animalito', amount: 35000 },
-        { lotteryId: 'DORADO_TARDE', lotteryName: 'Dorado Tarde', number: '3814', type: 'cuatro_cifras', is5ta: true, amount: 25000 }
+        { lotteryId: 'LOTTO_ACTIVO_1200', lotteryName: 'Lotto Activo 12:00 PM', number: '12', animalName: 'Caballo', type: 'animalito', amount: 40000 },
+        { lotteryId: 'FRUTA_GANA_1400', lotteryName: 'Fruta Gana 2:00 PM', number: '07', animalName: 'Patilla', type: 'animalito', amount: 35000 },
+        { lotteryId: 'DORADO_TARDE', lotteryName: 'Dorado Tarde 3:30 PM', number: '3814', type: 'cuatro_cifras', is5ta: true, amount: 25000 }
       ],
       total: 100000,
       estado: 'ACTIVO',
@@ -251,15 +251,15 @@ function getDemoSeedTickets() {
       usuario: '7336',
       moneda: 'COP',
       items: [
-        { lotteryId: 'TACHIRA_4A', lotteryName: 'Táchira 4:00 PM A', number: '529', type: 'triple', amount: 20000 },
-        { lotteryId: 'T_ZODIACAL_4', lotteryName: 'Táchira Zodiacal 4:00 PM', number: '529', sign: 'LEO', type: 'zodiac', amount: 30000 },
-        { lotteryId: 'LOTTO_ACTIVO', lotteryName: 'Lotto Activo (Horas 9am-7pm)', number: '05', animalName: 'León', type: 'animalito', amount: 2000 }
+        { lotteryId: 'CHANCE_A_1300', lotteryName: 'Chance A 1:00 PM', number: '529', type: 'triple', amount: 20000 },
+        { lotteryId: 'TACHIRA_ZOD_1645', lotteryName: 'Táchira Zodiacal 4:45 PM', number: '529', sign: 'LEO', type: 'zodiac', amount: 30000 },
+        { lotteryId: 'LOTTO_ACTIVO_1200', lotteryName: 'Lotto Activo 12:00 PM', number: '05', animalName: 'León', type: 'animalito', amount: 2000 }
       ],
       total: 52000,
       estado: 'GANADOR',
       premioCalculado: 60000,
       winningPlays: [
-        { lotteryId: 'LOTTO_ACTIVO', lotteryName: 'Lotto Activo (Horas 9am-7pm)', number: '05', animalName: 'León', type: 'animalito', amount: 2000, winType: 'ANIMALITO GANADOR', multiplier: 30, prize: 60000, resultNumber: '05' }
+        { lotteryId: 'LOTTO_ACTIVO_1200', lotteryName: 'Lotto Activo 12:00 PM', number: '05', animalName: 'León', type: 'animalito', amount: 2000, winType: 'ANIMALITO GANADOR', multiplier: 30, prize: 60000, resultNumber: '05' }
       ]
     },
     {
@@ -271,7 +271,7 @@ function getDemoSeedTickets() {
       usuario: '7336',
       moneda: 'COP',
       items: [
-        { lotteryId: 'CULONA_DIA', lotteryName: 'Culona Día', number: '9042', type: 'cuatro_cifras', amount: 15000 }
+        { lotteryId: 'CULONA_DIA', lotteryName: 'Culona Día 2:30 PM', number: '9042', type: 'cuatro_cifras', amount: 15000 }
       ],
       total: 15000,
       estado: 'ANULADO',
@@ -287,9 +287,9 @@ function getDemoSeedTickets() {
       usuario: '7337',
       moneda: 'VES',
       items: [
-        { lotteryId: 'TACHIRA_4A', lotteryName: 'Táchira 4:00 PM A', number: '318', type: 'triple', amount: 450 },
-        { lotteryId: 'CARACAS_4A', lotteryName: 'Caracas 4:00 PM A', number: '77', type: 'terminal', amount: 300 },
-        { lotteryId: 'GUACHARO_ACTIVO', lotteryName: 'Guácharo Activo', number: '10', animalName: 'Tigre', type: 'animalito', amount: 500 }
+        { lotteryId: 'CHANCE_A_1400', lotteryName: 'Chance A 2:00 PM', number: '318', type: 'triple', amount: 450 },
+        { lotteryId: 'CARACAS_A_1630', lotteryName: 'Caracas A 4:30 PM', number: '77', type: 'terminal', amount: 300 },
+        { lotteryId: 'GUACHARO_1300', lotteryName: 'Guácharo Activo 1:00 PM', number: '10', animalName: 'Tigre', type: 'animalito', amount: 500 }
       ],
       total: 1250,
       estado: 'ACTIVO',
@@ -304,7 +304,7 @@ function getDemoSeedTickets() {
       usuario: '7337',
       moneda: 'VES',
       items: [
-        { lotteryId: 'LOTTO_ACTIVO', lotteryName: 'Lotto Activo (Horas 9am-7pm)', number: '05', animalName: 'León', type: 'animalito', amount: 10 }
+        { lotteryId: 'LOTTO_ACTIVO_1200', lotteryName: 'Lotto Activo 12:00 PM', number: '05', animalName: 'León', type: 'animalito', amount: 10 }
       ],
       total: 10,
       estado: 'PAGADO',
@@ -312,7 +312,7 @@ function getDemoSeedTickets() {
       premioPagado: 300,
       fechaPago: `${dateStr} 12:15:00 pm`,
       winningPlays: [
-        { lotteryId: 'LOTTO_ACTIVO', lotteryName: 'Lotto Activo (Horas 9am-7pm)', number: '05', animalName: 'León', type: 'animalito', amount: 10, winType: 'ANIMALITO GANADOR', multiplier: 30, prize: 300, resultNumber: '05' }
+        { lotteryId: 'LOTTO_ACTIVO_1200', lotteryName: 'Lotto Activo 12:00 PM', number: '05', animalName: 'León', type: 'animalito', amount: 10, winType: 'ANIMALITO GANADOR', multiplier: 30, prize: 300, resultNumber: '05' }
       ]
     },
     {
@@ -324,9 +324,9 @@ function getDemoSeedTickets() {
       usuario: '7338',
       moneda: 'COP',
       items: [
-        { lotteryId: 'TACHIRA_10A', lotteryName: 'Táchira 10:00 PM A', number: '912', type: 'triple', amount: 30000 },
-        { lotteryId: 'ZULIA_7A', lotteryName: 'Zulia 7:00 PM A', number: '44', type: 'terminal', amount: 25000 },
-        { lotteryId: 'LA_GRANJITA', lotteryName: 'La Granjita (Horas 9am-7pm)', number: '21', animalName: 'Gallo', type: 'animalito', amount: 30000 }
+        { lotteryId: 'TACHIRA_A_2210', lotteryName: 'Táchira A 10:10 PM', number: '912', type: 'triple', amount: 30000 },
+        { lotteryId: 'ZULIA_A_1905', lotteryName: 'Zulia A 7:05 PM', number: '44', type: 'terminal', amount: 25000 },
+        { lotteryId: 'LA_GRANJITA_1500', lotteryName: 'La Granjita 3:00 PM', number: '21', animalName: 'Gallo', type: 'animalito', amount: 30000 }
       ],
       total: 85000,
       estado: 'ACTIVO',
@@ -341,9 +341,9 @@ function getDemoSeedTickets() {
       usuario: '7339',
       moneda: 'COP',
       items: [
-        { lotteryId: 'ASTRO_LUNA', lotteryName: 'Super Astro Luna (Col)', number: '7742', sign: 'ARI', type: 'astro', amount: 50000 },
-        { lotteryId: 'DORADO_NOCHE', lotteryName: 'Dorado Noche', number: '1984', is5ta: true, type: 'cuatro_cifras', amount: 60000 },
-        { lotteryId: 'CHONTICO_NOCHE', lotteryName: 'Chontico Noche', number: '5510', isCombinado: true, type: 'cuatro_cifras', amount: 40000 }
+        { lotteryId: 'ASTRO_LUNA_2230', lotteryName: 'Super Astro Luna 10:30 PM', number: '7742', sign: 'ARI', type: 'astro', amount: 50000 },
+        { lotteryId: 'DORADO_NOCHE', lotteryName: 'Dorado Noche 10:15 PM', number: '1984', is5ta: true, type: 'cuatro_cifras', amount: 60000 },
+        { lotteryId: 'CHONTICO_NOCHE', lotteryName: 'Chontico Noche 7:00 PM', number: '5510', isCombinado: true, type: 'cuatro_cifras', amount: 40000 }
       ],
       total: 150000,
       estado: 'ACTIVO',
@@ -358,8 +358,8 @@ function getDemoSeedTickets() {
       usuario: '7340',
       moneda: 'VES',
       items: [
-        { lotteryId: 'T_ZODIACAL_10', lotteryName: 'Táchira Zodiacal 10:00 PM', number: '604', sign: 'TAU', type: 'zodiac', amount: 350 },
-        { lotteryId: 'SELVA_PLUS', lotteryName: 'Selva Plus', number: '00', animalName: 'Ballena', type: 'animalito', amount: 400 }
+        { lotteryId: 'TACHIRA_ZOD_2210', lotteryName: 'Táchira Zodiacal 10:10 PM', number: '604', sign: 'TAU', type: 'zodiac', amount: 350 },
+        { lotteryId: 'SELVA_PLUS_1615', lotteryName: 'Selva Plus 4:15 PM', number: '00', animalName: 'Ballena', type: 'animalito', amount: 400 }
       ],
       total: 750,
       estado: 'ACTIVO',
@@ -372,10 +372,10 @@ function getDemoSeedResults() {
   const dateKey = getTodayIso();
   return {
     [dateKey]: {
-      'TACHIRA_4A': { number: '845', sign: 'ARI', timestamp: '04:05:00 pm' },
-      'ZULIA_4A': { number: '123', sign: 'LEO', timestamp: '04:10:00 pm' },
-      'LOTTO_ACTIVO': { number: '05', animalName: 'León', timestamp: '12:02:00 pm' },
-      'DORADO_MANANA': { number: '4729', ball5: '3', timestamp: '11:05:00 am' }
+      'TACHIRA_A_1645': { number: '845', sign: 'ARI', timestamp: '04:50:00 pm' },
+      'ZULIA_A_1645': { number: '123', sign: 'LEO', timestamp: '04:50:00 pm' },
+      'LOTTO_ACTIVO_1200': { number: '05', animalName: 'León', timestamp: '12:02:00 pm' },
+      'DORADO_MANANA': { number: '4729', ball5: '3', timestamp: '11:00:00 am' }
     }
   };
 }

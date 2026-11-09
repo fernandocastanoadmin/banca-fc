@@ -1103,29 +1103,36 @@ class BancaFcAdminController {
     const ticketId = this.storage.getNextTicketNumber();
     const serial = this.storage.generateSecuritySerial();
     const now = new Date();
-    const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} ${now.toLocaleTimeString('es-VE')}`;
+    let hr = now.getHours();
+    const min = String(now.getMinutes()).padStart(2, '0');
+    const sec = String(now.getSeconds()).padStart(2, '0');
+    const ampm = hr >= 12 ? 'PM' : 'AM';
+    hr = hr % 12 || 12;
+    const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} ${hr}:${min}:${sec} ${ampm}`;
 
-    let lotteryId = 'TACHIRA_4A';
-    let lotteryName = 'Táchira 4:00 PM A';
+    let lotteryId = 'CHANCE_A_1300';
+    let lotteryName = 'Chance A 1:00 PM';
     let animalName = null;
     let sign = null;
     let multiplier = cfg.multipliers.triple || 500;
 
     if (catType === 'terminal') {
+      lotteryId = 'NAPA_GANA_1300';
+      lotteryName = 'Ñapa Gana 1:00 PM';
       multiplier = cfg.multipliers.terminal || 60;
     } else if (catType === 'animalito') {
-      lotteryId = 'LOTTO_ACTIVO';
-      lotteryName = 'Lotto Activo (Horas 9am-7pm)';
+      lotteryId = 'LOTTO_ACTIVO_1300';
+      lotteryName = 'Lotto Activo 1:00 PM';
       animalName = (ANIMALITOS_DICT[numVal] || { name: 'León' }).name;
       multiplier = cfg.multipliers.animalito || 30;
     } else if (catType === 'zodiac') {
-      lotteryId = 'T_ZODIACAL_4';
-      lotteryName = 'Táchira Zodiacal 4:00 PM';
+      lotteryId = 'TACHIRA_ZODIACAL_1645';
+      lotteryName = 'Táchira Zodiacal 4:45 PM';
       sign = 'LEO';
       multiplier = cfg.multipliers.triple || 500;
     } else if (catType === 'cuatro_cifras') {
       lotteryId = 'DORADO_NOCHE';
-      lotteryName = 'Dorado Noche';
+      lotteryName = 'Dorado Noche 10:05 PM';
       multiplier = cfg.multipliers.cuatroCifrasDirecto || 4500;
     }
 
@@ -1273,7 +1280,8 @@ class BancaFcAdminController {
       if (agFilter !== 'ALL' && String(tCode) !== String(agFilter)) return false;
       if (stFilter !== 'ALL' && t.estado !== stFilter) return false;
       if (q) {
-        const hay = `${t.ticketId} ${t.serialSeguridad} ${t.agencia} ${t.usuario}`.toLowerCase();
+        const itemsText = (t.items || []).map(p => `${p.lotteryName} ${p.number} ${p.animalName || ''} ${p.sign || ''}`).join(' ');
+        const hay = `${t.ticketId} ${t.serialSeguridad} ${t.agencia} ${t.usuario} ${itemsText}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
@@ -1288,6 +1296,13 @@ class BancaFcAdminController {
     filtered.forEach(t => {
       const prizeVal = Number(t.premioPagado || t.premioCalculado || 0);
       const cur = t.moneda || 'COP';
+      const playsDetailHtml = (t.items || []).map(p => {
+        let numTag = `<strong class="text-amber-300 font-mono">${p.number}</strong>`;
+        if (p.sign) numTag += ` <span class="text-sky-300 font-bold">${p.sign}</span>`;
+        if (p.animalName) numTag += ` <span class="text-emerald-300">(${p.animalName})</span>`;
+        if (p.is5ta) numTag += ` <span class="text-amber-400 font-bold">[5ta]</span>`;
+        return `<div class="text-[11px] leading-snug"><span class="text-slate-200 font-semibold">${p.lotteryName}:</span> ${numTag} <span class="text-slate-400 font-mono">(${this.formatMoney(p.amount, cur)})</span></div>`;
+      }).join('');
 
       html += `
         <tr>
@@ -1298,9 +1313,9 @@ class BancaFcAdminController {
           <td class="text-xs text-slate-300">${t.fechaHora}</td>
           <td>
             <div class="font-bold text-white text-xs">${t.agencia}</div>
-            <div class="text-[10px] text-slate-400">Moneda: ${cur}</div>
+            <div class="text-[10px] text-slate-400">Moneda: ${cur} • ${(t.items || []).length} jug.</div>
           </td>
-          <td class="text-center font-mono text-xs text-sky-300">${(t.items || []).length}</td>
+          <td class="text-left max-w-xs space-y-0.5 py-1.5">${playsDetailHtml || '<span class="text-slate-500">-</span>'}</td>
           <td class="text-right font-mono font-bold text-white">${this.formatMoney(t.total, cur)}</td>
           <td class="text-right font-mono font-bold ${prizeVal > 0 ? 'text-amber-400' : 'text-slate-500'}">
             ${this.formatMoney(prizeVal, cur)}
@@ -1535,13 +1550,19 @@ class BancaFcAdminController {
       });
     }
 
+    const filterInput = document.getElementById('res-admin-lottery-filter');
+
     const updateLotteriesByCat = () => {
       const cat = catSelect?.value || 'sin_signo';
-      const list = LOTTERY_CATALOGS[cat] || [];
+      const q = (filterInput?.value || '').trim().toLowerCase();
+      const list = (LOTTERY_CATALOGS[cat] || []).filter(l => {
+        if (!q) return true;
+        return l.name.toLowerCase().includes(q) || l.id.toLowerCase().includes(q);
+      });
       if (lotSelect) {
         lotSelect.innerHTML = '';
         list.forEach(l => {
-          lotSelect.innerHTML += `<option value="${l.id}">${l.name} (${l.id})</option>`;
+          lotSelect.innerHTML += `<option value="${l.id}">${l.name}</option>`;
         });
       }
       document.getElementById('res-admin-sign-box')?.classList.toggle('hidden', cat !== 'con_signo');
@@ -1549,19 +1570,24 @@ class BancaFcAdminController {
     };
 
     catSelect?.addEventListener('change', updateLotteriesByCat);
+    filterInput?.addEventListener('input', updateLotteriesByCat);
     updateLotteriesByCat();
   }
 
   bindResultsModuleEvents() {
     const numInput = document.getElementById('res-admin-number');
     const catSelect = document.getElementById('res-admin-category');
+    const lotSelect = document.getElementById('res-admin-lottery');
     const animalPreview = document.getElementById('res-admin-animal-preview');
     const animalLabel = document.getElementById('res-admin-animal-label');
 
-    numInput?.addEventListener('input', () => {
-      const val = numInput.value.trim();
-      if (catSelect?.value === 'animalitos') {
-        const info = ANIMALITOS_DICT[val] || (val.length === 1 && ANIMALITOS_DICT['0' + val]);
+    const updateAnimalOrFruitPreview = () => {
+      const val = (numInput?.value || '').trim();
+      if (catSelect?.value === 'animalitos' && val) {
+        const lotId = lotSelect?.value || '';
+        const info = typeof getAnimalOrFruitInfo === 'function'
+          ? getAnimalOrFruitInfo(val, lotId)
+          : (ANIMALITOS_DICT[val] || ANIMALITOS_DICT['0' + val]);
         if (info && animalPreview && animalLabel) {
           animalLabel.textContent = `${info.emoji} ${val} - ${info.name}`;
           animalPreview.classList.remove('hidden');
@@ -1569,7 +1595,10 @@ class BancaFcAdminController {
         }
       }
       animalPreview?.classList.add('hidden');
-    });
+    };
+
+    numInput?.addEventListener('input', updateAnimalOrFruitPreview);
+    lotSelect?.addEventListener('change', updateAnimalOrFruitPreview);
 
     document.getElementById('res-admin-date')?.addEventListener('change', () => this.renderResultsAndWinnersView());
 
@@ -1578,7 +1607,7 @@ class BancaFcAdminController {
       e.preventDefault();
       const dateKey = document.getElementById('res-admin-date').value;
       const lotteryId = document.getElementById('res-admin-lottery').value;
-      const number = document.getElementById('res-admin-number').value.trim();
+      let number = document.getElementById('res-admin-number').value.trim();
       const sign = document.getElementById('res-admin-sign').value || null;
       const ball5 = document.getElementById('res-admin-ball5').value.trim() || null;
 
@@ -1586,16 +1615,27 @@ class BancaFcAdminController {
 
       let animalName = null;
       if (document.getElementById('res-admin-category')?.value === 'animalitos') {
-        const info = ANIMALITOS_DICT[number] || ANIMALITOS_DICT['0' + number];
+        if (number !== '0' && number !== '00' && number.length === 1) {
+          number = '0' + number;
+        }
+        const info = typeof getAnimalOrFruitInfo === 'function'
+          ? getAnimalOrFruitInfo(number, lotteryId)
+          : (ANIMALITOS_DICT[number] || ANIMALITOS_DICT['0' + number]);
         if (info) animalName = info.name;
       }
+
+      const now = new Date();
+      let hr = now.getHours();
+      const min = String(now.getMinutes()).padStart(2, '0');
+      const ampm = hr >= 12 ? 'PM' : 'AM';
+      hr = hr % 12 || 12;
 
       const resultObj = {
         number,
         sign,
         ball5,
         animalName,
-        timestamp: new Date().toLocaleTimeString('es-VE')
+        timestamp: `${hr}:${min} ${ampm}`
       };
 
       const resStats = this.storage.saveResult(dateKey, lotteryId, resultObj);
@@ -1603,9 +1643,12 @@ class BancaFcAdminController {
       document.getElementById('res-admin-ball5').value = '';
       animalPreview?.classList.add('hidden');
 
+      const lotObj = typeof findLotteryById === 'function' ? findLotteryById(lotteryId) : null;
+      const lotDisplay = lotObj ? lotObj.name : lotteryId;
+
       this.refreshAllViews();
       this.showToast(
-        `Resultado ${lotteryId}: ${number} publicado. Se liquidaron automáticamente ${resStats.winnersCount} tickets ganadores.`,
+        `Resultado ${lotDisplay}: ${number}${animalName ? ' (' + animalName + ')' : ''} publicado. Se liquidaron ${resStats.winnersCount} tickets ganadores.`,
         '🏆'
       );
     });
@@ -1649,9 +1692,12 @@ class BancaFcAdminController {
             });
           });
 
+          const lotObj = typeof findLotteryById === 'function' ? findLotteryById(lotId) : null;
+          const lotDisplayName = lotObj ? lotObj.name : lotId;
+
           rows += `
             <tr>
-              <td class="font-mono font-bold text-white">${lotId}</td>
+              <td class="font-bold text-white text-xs">${lotDisplayName}</td>
               <td><span class="px-2.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 font-mono font-black text-xs">${detail}</span></td>
               <td class="text-xs text-slate-400">${r.timestamp || 'Oficial'}</td>
               <td class="text-center font-mono font-bold ${hitCount > 0 ? 'text-amber-400' : 'text-slate-500'}">${hitCount} aciertos</td>
@@ -1896,13 +1942,19 @@ class BancaFcAdminController {
     const ticketId = this.storage.getNextTicketNumber();
     const serial = this.storage.generateSecuritySerial();
     const now = new Date();
-    const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} ${now.toLocaleTimeString('es-VE')}`;
+    let hr = now.getHours();
+    const min = String(now.getMinutes()).padStart(2, '0');
+    const sec = String(now.getSeconds()).padStart(2, '0');
+    const ampm = hr >= 12 ? 'PM' : 'AM';
+    hr = hr % 12 || 12;
+    const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} ${hr}:${min}:${sec} ${ampm}`;
 
     const samplePlays = [
-      { lotteryId: 'TACHIRA_4A', lotteryName: 'Táchira 4:00 PM A', number: String(Math.floor(100 + Math.random() * 900)), type: 'triple' },
-      { lotteryId: 'LOTTO_ACTIVO', lotteryName: 'Lotto Activo (Horas 9am-7pm)', number: '12', animalName: 'Caballo', type: 'animalito' },
-      { lotteryId: 'ASTRO_LUNA', lotteryName: 'Super Astro Luna (Col)', number: String(Math.floor(1000 + Math.random() * 9000)), sign: 'LEO', type: 'astro' },
-      { lotteryId: 'DORADO_NOCHE', lotteryName: 'Dorado Noche', number: String(Math.floor(1000 + Math.random() * 9000)), is5ta: true, type: 'cuatro_cifras' }
+      { lotteryId: 'CHANCE_A_1300', lotteryName: 'Chance A 1:00 PM', number: String(Math.floor(100 + Math.random() * 900)), type: 'triple' },
+      { lotteryId: 'FRUTA_GANA_1400', lotteryName: 'Fruta Gana 2:00 PM', number: '07', animalName: 'Patilla', type: 'animalito' },
+      { lotteryId: 'SELVA_PLUS_1515', lotteryName: 'Selva Plus 3:15 PM', number: '12', animalName: 'Caballo', type: 'animalito' },
+      { lotteryId: 'ASTRO_LUNA_2230', lotteryName: 'Super Astro Luna 10:30 PM', number: String(Math.floor(1000 + Math.random() * 9000)), sign: 'LEO', type: 'astro' },
+      { lotteryId: 'DORADO_NOCHE', lotteryName: 'Dorado Noche 10:05 PM', number: String(Math.floor(1000 + Math.random() * 9000)), is5ta: true, type: 'cuatro_cifras' }
     ];
 
     const chosen = samplePlays[Math.floor(Math.random() * samplePlays.length)];
