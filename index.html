@@ -494,29 +494,48 @@
     </div>
   </div>
 
-  <!-- 5. Modal Relación Final (Cuadre de Caja) -->
+  <!-- 5. Modal Relación Final (Cuadre de Caja - 3 Cajas Independientes sin Conversión) -->
   <div id="modal-cuadre-caja" class="modal-overlay hidden">
-    <div class="modal-container" style="width: 580px;">
+    <div class="modal-container" style="width: 840px; max-width: 96vw;">
       <div class="modal-header">
-        <span>Relación Final - Cuadre de Caja de Taquilla</span>
+        <span>Relación Final - Cuadre de Caja de Taquilla (Cajas Independientes por Moneda)</span>
         <button type="button" class="win-ctrl-btn close" data-close-modal="modal-cuadre-caja">×</button>
       </div>
-      <div class="modal-body">
-        <div style="display: flex; gap: 10px; margin-bottom: 12px; align-items: center;">
-          <label style="font-weight: bold;">Fecha:</label>
-          <input type="text" id="input-cuadre-fecha" class="win-input-text" style="width: 120px;" placeholder="DD/MM/YYYY">
-          <label style="font-weight: bold; margin-left: 8px;">Moneda:</label>
-          <select id="select-cuadre-moneda" class="win-input-text" style="width: 100px;">
-            <option value="COP">COP ($)</option>
-            <option value="VES">VES (Bs.)</option>
-            <option value="USD">USD ($)</option>
-          </select>
-          <button type="button" id="btn-filtrar-cuadre" class="win-btn primary">Calcular</button>
+      <div class="modal-body" style="max-height: 82vh; overflow-y: auto;">
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; align-items: center; justify-content: space-between; background: #e5e7eb; padding: 8px 10px; border: 1px solid #9ca3af;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label style="font-weight: bold;">Fecha:</label>
+            <input type="text" id="input-cuadre-fecha" class="win-input-text" style="width: 115px; font-weight: bold;" placeholder="DD/MM/YYYY">
+            <label style="font-weight: bold; margin-left: 6px;">Filtro de Caja (Sin Conversión):</label>
+            <select id="select-cuadre-moneda" class="win-input-text" style="width: 190px; font-weight: bold;">
+              <option value="COP">COP ($ Pesos Colombianos)</option>
+              <option value="USD">USD ($ Dólares)</option>
+              <option value="VES">VES (Bs. Bolívares)</option>
+            </select>
+            <button type="button" id="btn-filtrar-cuadre" class="win-btn primary">Calcular</button>
+          </div>
+          <span style="font-size: 11px; font-weight: bold; color: #1e3a8a;">
+            🔒 Cero Conversión: Cada caja suma únicamente los tickets vendidos en su propia moneda.
+          </span>
         </div>
 
+        <!-- VISTA DE 3 CAJAS SIMULTÁNEAS INDEPENDIENTES (COP, USD, VES) -->
+        <div style="margin-bottom: 12px;">
+          <div style="font-size: 11px; font-weight: bold; text-transform: uppercase; color: #111827; margin-bottom: 6px;">
+            📊 Resumen Simultáneo de las 3 Cajas Independientes de la Taquilla (Clic en una caja para filtrar su detalle):
+          </div>
+          <div id="cuadre-three-boxes-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+            <!-- Renderizado dinámicamente por js/modals.js (Caja COP $, Caja USD $, Caja VES Bs.) -->
+          </div>
+        </div>
+
+        <!-- DETALLE ENFOCADO DE LA CAJA SELECCIONADA -->
+        <div style="font-size: 11px; font-weight: bold; text-transform: uppercase; color: #1e3a8a; margin-bottom: 4px;" id="cuadre-focused-box-title">
+          📌 Detalle de Caja Seleccionada: CAJA PESOS (COP $)
+        </div>
         <div class="cuadre-summary-grid">
           <div class="cuadre-card-stat">
-            <div class="stat-label">Tickets Emitidos:</div>
+            <div class="stat-label">Tickets (Activos / Anulados):</div>
             <div class="stat-val" id="cuadre-val-tickets">0</div>
           </div>
           <div class="cuadre-card-stat">
@@ -524,7 +543,7 @@
             <div class="stat-val" id="cuadre-val-brutas">$ 0</div>
           </div>
           <div class="cuadre-card-stat">
-            <div class="stat-label">Tickets Anulados:</div>
+            <div class="stat-label">Tickets Anulados (-):</div>
             <div class="stat-val text-danger" id="cuadre-val-anulados">$ 0</div>
           </div>
           <div class="cuadre-card-stat">
@@ -532,17 +551,17 @@
             <div class="stat-val text-success" id="cuadre-val-netas">$ 0</div>
           </div>
           <div class="cuadre-card-stat">
-            <div class="stat-label">Premios Pagados:</div>
+            <div class="stat-label">Premios Ganadores / Pagados (-):</div>
             <div class="stat-val" style="color: #d97706;" id="cuadre-val-premios">$ 0</div>
           </div>
           <div class="cuadre-card-stat">
-            <div class="stat-label">Comisión Agencia:</div>
-            <div class="stat-val" id="cuadre-val-comision">$ 0 (10%)</div>
+            <div class="stat-label">Comisión Agencia (-):</div>
+            <div class="stat-val" id="cuadre-val-comision">$ 0 (15%)</div>
           </div>
         </div>
 
         <div style="background: #111827; padding: 12px; border: 2px inset #555; display: flex; justify-content: space-between; align-items: center;">
-          <span style="color: #fff; font-weight: bold; font-size: 14px;">SALDO NETO A ENTREGAR A LA BANCA:</span>
+          <span style="color: #fff; font-weight: bold; font-size: 14px;" id="cuadre-balance-label">SALDO NETO A ENTREGAR A LA BANCA (CAJA COP):</span>
           <span id="cuadre-val-balance" class="text-xl text-success font-bold" style="font-family: 'Courier New', monospace; font-size: 24px;">$ 0</span>
         </div>
       </div>

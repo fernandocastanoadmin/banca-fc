@@ -86,43 +86,22 @@
         </div>
       </div>
 
-      <!-- Controles Centrales: Selector de Moneda de Consolidación, Tasas de Cambio y Filtro de Fecha -->
+      <!-- Controles Centrales: Selector de Caja / Moneda Independiente (Sin Conversión) y Filtro de Fecha -->
       <div class="flex flex-wrap items-center gap-3 bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2">
 
-        <!-- Selector de Moneda de Consolidación Global -->
+        <!-- Selector de Caja / Moneda Independiente (Filtro Puro, Cero Conversión) -->
         <div class="flex flex-col">
-          <label for="global-currency-selector" class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-            Moneda Consolidación
+          <label for="global-currency-selector" class="text-[10px] uppercase font-bold text-amber-400 tracking-wider">
+            Filtro de Caja / Moneda (Sin Conversión)
           </label>
           <select id="global-currency-selector" class="bg-slate-800 text-amber-400 font-bold text-xs rounded-lg px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:border-blue-500">
-            <option value="COP">🇨🇴 Pesos Colombianos (COP $)</option>
-            <option value="VES">🇻🇪 Bolívares (VES Bs.)</option>
-            <option value="USD">🇺🇸 Dólares (USD $)</option>
+            <option value="COP">🇨🇴 Caja Pesos Colombianos (COP $)</option>
+            <option value="USD">🇺🇸 Caja Dólares (USD $)</option>
+            <option value="VES">🇻🇪 Caja Bolívares (VES Bs.)</option>
           </select>
         </div>
 
         <div class="h-7 w-[1px] bg-slate-800 hidden sm:block"></div>
-
-        <!-- Configurador de Tasas de Cambio del Día -->
-        <div class="flex items-center gap-2">
-          <div>
-            <label for="rate-cop-ves" class="block text-[10px] uppercase font-bold text-slate-400">Tasa COP/VES</label>
-            <input type="number" id="rate-cop-ves" step="0.01" class="w-20 bg-slate-900 text-slate-100 font-mono text-xs px-2 py-1 rounded border border-slate-700 focus:border-blue-500" title="Cuántos Pesos Colombianos equivalen a 1 Bolívar">
-          </div>
-          <div>
-            <label for="rate-usd-cop" class="block text-[10px] uppercase font-bold text-slate-400">USD/COP</label>
-            <input type="number" id="rate-usd-cop" step="10" class="w-20 bg-slate-900 text-slate-100 font-mono text-xs px-2 py-1 rounded border border-slate-700 focus:border-blue-500" title="Pesos Colombianos por 1 Dólar">
-          </div>
-          <div>
-            <label for="rate-usd-ves" class="block text-[10px] uppercase font-bold text-slate-400">USD/VES</label>
-            <input type="number" id="rate-usd-ves" step="0.1" class="w-16 bg-slate-900 text-slate-100 font-mono text-xs px-2 py-1 rounded border border-slate-700 focus:border-blue-500" title="Bolívares por 1 Dólar">
-          </div>
-          <button type="button" id="btn-save-rates" class="mt-3.5 px-2.5 py-1 bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 border border-blue-500/30 rounded text-xs font-bold transition" title="Aplicar Tasas del Día">
-            Aplicar
-          </button>
-        </div>
-
-        <div class="h-7 w-[1px] bg-slate-800 hidden lg:block"></div>
 
         <!-- Filtro de Fecha / Rango -->
         <div class="flex items-center gap-2">
@@ -171,9 +150,14 @@
   </header>
 
   <!-- =========================================================================
-       2. PANEL DE MONITOREO GLOBAL (6 KPIs FINANCIEROS EN TIEMPO REAL)
+       2. PANEL DE MONITOREO GLOBAL: 3 CAJAS INDEPENDIENTES + 6 KPIs FILTRADOS POR MONEDA
        ========================================================================= -->
-  <section class="max-w-[1920px] w-full mx-auto px-4 pt-4 pb-2">
+  <section class="max-w-[1920px] w-full mx-auto px-4 pt-4 pb-2 space-y-3">
+    <!-- Vista Simultánea de las 3 Cajas Independientes (COP, USD, VES - Cero Conversión) -->
+    <div id="admin-three-boxes-grid" class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+      <!-- Renderizado dinámico por js/admin.js (CAJA PESOS COP $, CAJA DÓLARES USD $, CAJA BOLÍVARES VES Bs.) -->
+    </div>
+
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
 
       <!-- KPI 1: Ventas Brutas Globales -->
@@ -337,12 +321,11 @@
               </select>
             </div>
 
-            <!-- Selector de modo de visualización de montos en la tabla -->
+            <!-- Indicador de Contabilidad Nativa Separada -->
             <div class="flex items-center gap-1.5">
-              <label class="inline-flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
-                <input type="checkbox" id="chk-convert-table-amounts" class="rounded bg-slate-800 border-slate-600 text-blue-600">
-                <span>Convertir filas a moneda global</span>
-              </label>
+              <span id="agency-table-active-box-badge" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-amber-500/40 text-amber-300 text-xs font-bold">
+                🔒 Filtro de Caja Activo: COP $ (Sin Conversión)
+              </span>
             </div>
           </div>
 
@@ -957,7 +940,17 @@
       <!-- Cuerpo del Expediente -->
       <div class="p-5 overflow-y-auto space-y-5 flex-1">
 
-        <!-- 1. Resumen Financiero Individual de la Agencia -->
+        <!-- 0. Vista de 3 Cajas Independientes de la Agencia (COP $, USD $, VES Bs.) -->
+        <div>
+          <div class="text-xs font-black uppercase text-amber-400 mb-2">
+            🏦 Cajas Independientes de esta Agencia (Sin Conversión entre Monedas - Clic para filtrar):
+          </div>
+          <div id="audit-three-boxes-grid" class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+            <!-- Renderizado dinámico por js/admin.js -->
+          </div>
+        </div>
+
+        <!-- 1. Resumen Financiero Individual de la Agencia (Caja Seleccionada) -->
         <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
           <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
             <div class="text-[10px] uppercase font-bold text-slate-400">Ventas Brutas</div>
