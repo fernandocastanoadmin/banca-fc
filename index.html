@@ -206,10 +206,16 @@
 
         <!-- Buscador Rápido y Herramientas -->
         <div class="lottery-filter-box">
-          <input type="text" id="lottery-search-input" class="win-input-text" placeholder="🔍 Filtrar sorteo en vivo..." style="padding: 4px 6px; font-size: 12px;">
-          <div class="filter-tools-row">
-            <button type="button" id="btn-marcar-todos" class="btn-mini-tool" title="Marcar todos los sorteos visibles">Marcar Todos</button>
+          <input type="text" id="lottery-search-input" class="win-input-text" placeholder="🔍 Filtrar sorteo o hora (ej. 1:00 PM, Chance, Fruta)..." style="padding: 4px 6px; font-size: 12px;">
+          <div class="filter-tools-row" style="flex-wrap: wrap; align-items: center;">
+            <button type="button" id="btn-marcar-todos" class="btn-mini-tool" title="Marcar todos los sorteos abiertos visibles">Marcar Todos</button>
             <button type="button" id="btn-desmarcar-todos" class="btn-mini-tool" title="Desmarcar todos los sorteos (C)">Desmarcar (C)</button>
+            <span id="open-lotteries-count-badge" style="margin-left: auto; font-size: 10px; font-weight: bold; color: #0f766e;">0 abiertos</span>
+          </div>
+          <div id="week-lotteries-toggle-row" class="hidden" style="padding-top: 3px; font-size: 11px; color: #1e3a8a; font-weight: bold;">
+            <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+              <input type="checkbox" id="chk-show-all-week"> 📅 Ver Todas las Loterías de la Semana
+            </label>
           </div>
         </div>
 

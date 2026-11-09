@@ -399,7 +399,7 @@
                 <p class="text-xs text-slate-400">Audita cada ticket emitido, verifica su impresión térmica, pague o anule administrativamente.</p>
               </div>
               <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                <input type="text" id="live-ticket-search" placeholder="Buscar Ticket #, Serial o Agencia..." class="bg-slate-900 text-slate-100 text-xs rounded-lg px-3 py-1.5 border border-slate-700 focus:outline-none focus:border-blue-500">
+                <input type="text" id="live-ticket-search" placeholder="Buscar Ticket #, Agencia, Sorteo (ej. Chance 1:00 PM) o Nro..." class="bg-slate-900 text-slate-100 text-xs rounded-lg px-3 py-1.5 border border-slate-700 focus:outline-none focus:border-blue-500 min-w-[240px]">
                 <select id="live-ticket-agency-filter" class="bg-slate-900 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 border border-slate-700">
                   <option value="ALL">Todas las Agencias</option>
                 </select>
@@ -418,9 +418,9 @@
                 <thead>
                   <tr>
                     <th>Ticket # / Serial</th>
-                    <th>Fecha / Hora</th>
+                    <th>Fecha / Hora (AM/PM)</th>
                     <th>Agencia</th>
-                    <th class="text-center">Jugadas</th>
+                    <th>Sorteo / Hora / Números Jugados</th>
                     <th class="text-right">Total Venta</th>
                     <th class="text-right">Premio</th>
                     <th class="text-center">Estado</th>
@@ -510,8 +510,11 @@
                 </div>
               </div>
 
-              <div>
-                <label class="block text-xs font-bold text-slate-300 mb-1">Sorteo / Operadora Oficial:</label>
+              <div class="space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <label class="block text-xs font-bold text-slate-300">Sorteo / Operadora y Hora Oficial (12h AM/PM):</label>
+                  <input type="text" id="res-admin-lottery-filter" placeholder="🔍 Filtrar sorteo u hora (ej. Chance 1:00 PM)..." class="bg-slate-900 text-slate-200 text-[11px] rounded px-2.5 py-1 border border-slate-700 w-56">
+                </div>
                 <select id="res-admin-lottery" required class="w-full bg-slate-900 text-amber-300 font-bold text-xs rounded-lg px-3 py-2 border border-slate-700">
                   <!-- Dinámico según categoría -->
                 </select>
@@ -1162,7 +1165,7 @@
               <label for="input-firebase-db-url" class="block text-xs font-bold text-slate-200 mb-1">
                 🔗 URL de Firebase Realtime Database (o bloque <code class="text-amber-300">firebaseConfig</code>):
               </label>
-              <input type="text" id="input-firebase-db-url" required placeholder="https://banca-fc-castano-default-rtdb.firebaseio.com" class="w-full bg-slate-900 text-emerald-400 font-mono text-xs px-3.5 py-2.5 rounded-lg border border-slate-700 focus:outline-none focus:border-sky-500">
+              <input type="text" id="input-firebase-db-url" required value="https://banca-fc-castano-default-rtdb.firebaseio.com" placeholder="https://banca-fc-castano-default-rtdb.firebaseio.com" class="w-full bg-slate-900 text-emerald-400 font-mono text-xs px-3.5 py-2.5 rounded-lg border border-slate-700 focus:outline-none focus:border-sky-500">
             </div>
 
             <div class="flex flex-wrap items-center gap-2">
