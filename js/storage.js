@@ -364,15 +364,8 @@ function getDemoSeedTickets() {
 }
 
 function getDemoSeedResults() {
-  const dateKey = getTodayIso();
-  return {
-    [dateKey]: {
-      'TACHIRA_A_1645': { number: '845', sign: 'ARI', timestamp: '04:50:00 pm' },
-      'ZULIA_A_1645': { number: '123', sign: 'LEO', timestamp: '04:50:00 pm' },
-      'LOTTO_ACTIVO_1200': { number: '05', animalName: 'León', timestamp: '12:02:00 pm' },
-      'DORADO_MANANA': { number: '4729', ball5: '3', timestamp: '11:00:00 am' }
-    }
-  };
+  // Prohibido usar números simulados (Mock/Seed): Solo existen resultados extraídos de la web oficial por el Admin o cargados manualmente por el Admin
+  return {};
 }
 
 class StorageManager {
@@ -396,13 +389,29 @@ class StorageManager {
           master.collectors = [...DEFAULT_COLLECTORS];
           modified = true;
         }
-        if (!master.rates) {
-          master.rates = { ...DEFAULT_CONFIG.rates };
-          modified = true;
-        }
         if (!master.config) {
           master.config = { ...DEFAULT_CONFIG };
           modified = true;
+        }
+        // Limpiar cualquier resultado antiguo que provenga de generadores simulados/semillas
+        if (master.results && typeof master.results === 'object') {
+          Object.keys(master.results).forEach(dk => {
+            const dayMap = master.results[dk] || {};
+            Object.keys(dayMap).forEach(lotId => {
+              const r = dayMap[lotId];
+              if (!r || !r.origen || (r.origen !== 'MANUAL-ADMIN' && r.origen !== 'AUTO-WEB')) {
+                // Si fue creado por el admin previamente con source === 'OFICIAL BANCA FC', migrar a MANUAL-ADMIN
+                if (r && r.source === 'OFICIAL BANCA FC') {
+                  r.origen = 'MANUAL-ADMIN';
+                  r.bloqueadoPorAdmin = true;
+                  modified = true;
+                } else {
+                  delete dayMap[lotId];
+                  modified = true;
+                }
+              }
+            });
+          });
         }
         // Sincronizar eventuales tickets que se hayan guardado en clave legacy
         const legacyTicketsRaw = safeLocalStorage.getItem(STORAGE_KEYS.TICKETS);
@@ -1327,7 +1336,26 @@ class StorageManager {
       if (!master.results[dateString]) {
         master.results[dateString] = {};
       }
-      master.results[dateString][lotteryId] = resultObj;
+      const existing = master.results[dateString][lotteryId];
+      const isManualAdmin =
+        resultObj.origen === 'MANUAL-ADMIN' ||
+        resultObj.source === 'MANUAL-ADMIN' ||
+        resultObj.bloqueadoPorAdmin === true;
+
+      // Si el administrador ya cargó o corrigió un resultado manualmente, el sincronizador automático NO lo pisa
+      if (existing && (existing.bloqueadoPorAdmin || existing.origen === 'MANUAL-ADMIN') && !isManualAdmin) {
+        return { success: false, skippedLocked: true, winnersCount: 0, totalPrizeMoney: 0 };
+      }
+
+      const normalizedOrigen = isManualAdmin ? 'MANUAL-ADMIN' : (resultObj.origen || resultObj.source || 'AUTO-WEB');
+      master.results[dateString][lotteryId] = {
+        ...resultObj,
+        origen: normalizedOrigen,
+        source: normalizedOrigen,
+        bloqueadoPorAdmin: Boolean(isManualAdmin),
+        updatedAt: new Date().toISOString()
+      };
+      master.resultsUpdatedAt = new Date().toISOString();
       this.saveMasterData(master, false);
       const stats = this.recalculateAllTicketWinnings(dateString);
       return { success: true, ...stats };
@@ -1341,9 +1369,25 @@ class StorageManager {
     const master = this.getMasterData();
     if (master.results && master.results[dateString]) {
       delete master.results[dateString][lotteryId];
+      master.resultsUpdatedAt = new Date().toISOString();
       this.saveMasterData(master, false);
-      this.recalculateAllTicketWinnings(dateString);
+      return this.recalculateAllTicketWinnings(dateString);
     }
+    return { winnersCount: 0, totalPrizeMoney: 0 };
+  }
+
+  extractTicketDateIso(ticket) {
+    if (ticket && ticket.dateIso) return ticket.dateIso;
+    const raw = String((ticket && ticket.fechaHora) || '').trim();
+    const slashMatch = raw.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    if (slashMatch) {
+      return `${slashMatch[3]}-${slashMatch[2]}-${slashMatch[1]}`;
+    }
+    const isoMatch = raw.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+    }
+    return getTodayIso();
   }
 
   getMessages() {
@@ -1525,8 +1569,8 @@ class StorageManager {
   evaluateTicket(ticket, targetDate) {
     const agencyCode = this.extractAgencyCodeFromTicket(ticket);
     const effectiveMultipliers = this.getEffectiveMultipliersForAgency(agencyCode);
-    const rawDatePart = (ticket.fechaHora || '').split(' ')[0];
-    const dateKey = targetDate || (rawDatePart.includes('/') ? rawDatePart.split('/').reverse().join('-') : getTodayIso());
+    const ticketDate = this.extractTicketDateIso(ticket);
+    const dateKey = targetDate || ticketDate;
     const results = this.getResults(dateKey);
     let totalPrize = 0;
     const winningPlays = [];
@@ -1555,7 +1599,7 @@ class StorageManager {
 
     const isWinner = totalPrize > 0;
     return {
-      status: ticket.estado === 'PAGADO' ? 'PAGADO' : (isWinner ? 'GANADOR' : 'ACTIVO'),
+      status: (ticket.estado === 'PAGADO' && isWinner) ? 'PAGADO' : (isWinner ? 'GANADOR' : 'ACTIVO'),
       totalPrize,
       winningPlays
     };
@@ -1569,20 +1613,30 @@ class StorageManager {
 
     tickets.forEach(ticket => {
       if (ticket.estado === 'ANULADO') return;
-      const evalRes = this.evaluateTicket(ticket, dateString);
+      const ticketDate = this.extractTicketDateIso(ticket);
+      if (dateString && ticketDate !== dateString) return;
+
+      // Evaluar contra los resultados oficiales vigentes de esa fecha
+      const evalRes = this.evaluateTicket(ticket, ticketDate);
       if (evalRes.totalPrize > 0) {
         if (ticket.estado !== 'PAGADO') {
           ticket.estado = 'GANADOR';
+        } else {
+          ticket.premioPagado = evalRes.totalPrize;
         }
         ticket.premioCalculado = evalRes.totalPrize;
         ticket.winningPlays = evalRes.winningPlays;
+        ticket.updatedAt = new Date().toISOString();
         winnersCount++;
         totalPrizeMoney += evalRes.totalPrize;
-      } else if (ticket.estado === 'GANADOR') {
-        // Si se eliminó un resultado y ya no tiene jugadas ganadoras
+      } else if (ticket.estado === 'GANADOR' || (ticket.estado === 'PAGADO' && !String(ticket.agencia || '').includes('AJUSTE'))) {
+        // Si se corrigió o eliminó un resultado por error, revertir el cálculo anterior limpiamente
         ticket.estado = 'ACTIVO';
         ticket.premioCalculado = 0;
+        ticket.premioPagado = 0;
+        delete ticket.fechaPago;
         ticket.winningPlays = [];
+        ticket.updatedAt = new Date().toISOString();
       }
     });
 

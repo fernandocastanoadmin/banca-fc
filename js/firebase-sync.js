@@ -342,20 +342,38 @@ class BancaFcFirebaseSync {
           ticketMap.set(key, t);
         }
       } else {
-        const rank = { 'ACTIVO': 1, 'GANADOR': 2, 'PAGADO': 3, 'ANULADO': 4 };
-        const cRank = rank[inCloud.estado] || 1;
-        const lRank = rank[t.estado] || 1;
-        ticketMap.set(key, cRank >= lRank ? { ...t, ...inCloud } : { ...inCloud, ...t });
+        // Si uno de los dos tickets fue actualizado más recientemente (ej. re-liquidación o corrección del Admin), respetar el más reciente
+        if (inCloud.updatedAt && t.updatedAt && inCloud.updatedAt !== t.updatedAt) {
+          ticketMap.set(key, inCloud.updatedAt > t.updatedAt ? { ...t, ...inCloud } : { ...inCloud, ...t });
+        } else {
+          const rank = { 'ACTIVO': 1, 'GANADOR': 2, 'PAGADO': 3, 'ANULADO': 4 };
+          const cRank = rank[inCloud.estado] || 1;
+          const lRank = rank[t.estado] || 1;
+          ticketMap.set(key, cRank >= lRank ? { ...t, ...inCloud } : { ...inCloud, ...t });
+        }
       }
     });
 
     merged.tickets = Array.from(ticketMap.values()).sort((a, b) => Number(b.ticketId || 0) - Number(a.ticketId || 0));
 
-    const mergedResults = { ...(localDb.results || {}) };
-    for (const [dateKey, resObj] of Object.entries(cloudDb.results || {})) {
-      mergedResults[dateKey] = { ...(mergedResults[dateKey] || {}), ...resObj };
+    // Fuente Única de Verdad en Resultados: Respetar la tabla de resultados más reciente publicada por el Administrador
+    const cloudResultsNewer =
+      (cloudDb.resultsUpdatedAt && (!localDb.resultsUpdatedAt || cloudDb.resultsUpdatedAt >= localDb.resultsUpdatedAt)) ||
+      (!localDb.resultsUpdatedAt && cloudNewer);
+
+    if (cloudResultsNewer && cloudDb.results !== undefined) {
+      merged.results = cloudDb.results || {};
+      merged.resultsUpdatedAt = cloudDb.resultsUpdatedAt || cloudDb.updatedAt;
+    } else if (localDb.resultsUpdatedAt && (!cloudDb.resultsUpdatedAt || localDb.resultsUpdatedAt > cloudDb.resultsUpdatedAt)) {
+      merged.results = localDb.results || {};
+      merged.resultsUpdatedAt = localDb.resultsUpdatedAt;
+    } else {
+      const mergedResults = { ...(localDb.results || {}) };
+      for (const [dateKey, resObj] of Object.entries(cloudDb.results || {})) {
+        mergedResults[dateKey] = { ...(mergedResults[dateKey] || {}), ...resObj };
+      }
+      merged.results = mergedResults;
     }
-    merged.results = mergedResults;
 
     const maxNext = Math.max(
       Number(localDb.config?.nextTicketNumber || 1),

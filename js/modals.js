@@ -20,6 +20,9 @@ class ModalManager {
     const el = document.getElementById(modalId);
     if (el) {
       el.classList.remove('hidden');
+      if (modalId === 'modal-verificar-ticket' && typeof this.renderPosAgencyWinningTickets === 'function') {
+        this.renderPosAgencyWinningTickets(true);
+      }
       const firstInput = el.querySelector('input:not([disabled]), button.btn-primary');
       if (firstInput) {
         setTimeout(() => firstInput.focus(), 100);
@@ -178,7 +181,7 @@ class ModalManager {
     this.renderReimprimirList = renderList;
   }
 
-  // 3. MODAL NÚMEROS PREMIADOS (MODO SOLO CONSULTA ANTIFRAUDE - SINCRONIZACIÓN AUTOMÁTICA)
+  // 3. MODAL NÚMEROS PREMIADOS (MODO ESCLAVO / SOLO LECTURA - SINCRONIZADO CON EL PROGRAMA ADMINISTRATIVO)
   setupResultadosModal() {
     const dateInput = document.getElementById('input-resultados-fecha');
     const catSelect = document.getElementById('select-resultados-loteria');
@@ -199,18 +202,18 @@ class ModalManager {
       return 'background: #dcfce7; color: #166534; border: 1px solid #86efac;';
     };
 
-    const renderResultsTable = async (triggerLiveSync = false) => {
+    const renderResultsTable = async (triggerCentralPull = false) => {
       if (!tableBody || !dateInput) return;
       const dateKey = dateInput.value || todayStr;
       const catFilter = catSelect ? catSelect.value : 'ALL';
       const searchQ = filterInput ? filterInput.value.trim() : '';
 
-      if (triggerLiveSync && window.bancaFcAutoResults) {
+      if (triggerCentralPull && window.bancaFcAutoResults) {
         if (statusLabel) {
-          statusLabel.textContent = '⏳ Sincronizando resultados oficiales desde la Web y Firebase...';
+          statusLabel.textContent = '⏳ Consultando resultados autorizados en el Programa Administrativo Central...';
           statusLabel.style.color = '#0369a1';
         }
-        await window.bancaFcAutoResults.syncOfficialResultsForDate(dateKey, { silent: false });
+        await window.bancaFcAutoResults.pullPassiveResultsFromCentral(dateKey);
       }
 
       const items = window.bancaFcAutoResults
@@ -219,12 +222,12 @@ class ModalManager {
 
       if (statusLabel) {
         const syncHour = (window.bancaFcAutoResults && window.bancaFcAutoResults.lastSyncTime) || 'En vivo';
-        statusLabel.textContent = `✔ Sincronización Automática (${syncHour}) • ${items.length} sorteos oficiales`;
+        statusLabel.textContent = `✔ Sincronizado con Panel Administrativo (${syncHour}) • ${items.length} sorteos oficiales`;
         statusLabel.style.color = '#15803d';
       }
 
       if (items.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="4" class="text-center p-3">No hay resultados oficiales publicados para los filtros o la hora actual.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="4" class="text-center p-3">No hay resultados oficiales publicados en el Programa Administrativo para la fecha o categoría seleccionada.</td></tr>';
         return;
       }
 
@@ -234,6 +237,10 @@ class ModalManager {
         if (item.sign) detail += ` - <strong>${item.sign}</strong>`;
         if (item.animalName) detail += ` - <strong>${item.animalName}</strong>`;
         if (item.ball5) detail += ` <span style="font-size: 11px; color: #92400e;">[La 5ta: <strong>${item.ball5}</strong>]</span>`;
+
+        const origenBadge = item.bloqueadoPorAdmin
+          ? `<span style="display: inline-block; margin-left: 6px; padding: 1px 6px; background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; border-radius: 3px; font-size: 10px; font-weight: bold;">🛡️ MANUAL-ADMIN</span>`
+          : `<span style="display: inline-block; margin-left: 6px; padding: 1px 6px; background: #dcfce7; color: #15803d; border: 1px solid #86efac; border-radius: 3px; font-size: 10px; font-weight: bold;">🌐 AUTO-WEB</span>`;
 
         rows += `
           <tr>
@@ -246,9 +253,7 @@ class ModalManager {
             <td><span class="badge-result-num" style="font-size: 13px;">${detail}</span></td>
             <td>
               <span style="font-weight: bold; color: #374151;">${item.drawTime12h}</span>
-              <span style="display: inline-block; margin-left: 6px; padding: 1px 6px; background: #dcfce7; color: #15803d; border: 1px solid #86efac; border-radius: 3px; font-size: 10px; font-weight: bold;">
-                ✔ OFICIAL VERIFICADO
-              </span>
+              ${origenBadge}
             </td>
           </tr>
         `;
@@ -274,23 +279,106 @@ class ModalManager {
       });
     }
 
-    // Actualizar automáticamente la tabla si llega un nuevo ciclo de 3 minutos mientras la ventana está abierta
+    // Actualizar automáticamente la tabla cuando el Administrador publique o modifique resultados en tiempo real
     window.addEventListener('banca_fc_official_results_synced', () => {
       const modalEl = document.getElementById('modal-numeros-premiados');
       if (modalEl && !modalEl.classList.contains('hidden')) {
         renderResultsTable(false);
+      }
+      const verifyModalEl = document.getElementById('modal-verificar-ticket');
+      if (verifyModalEl && !verifyModalEl.classList.contains('hidden') && typeof this.renderPosAgencyWinningTickets === 'function') {
+        this.renderPosAgencyWinningTickets(false);
+      }
+    });
+
+    window.addEventListener('banca_fc_data_updated', () => {
+      const modalEl = document.getElementById('modal-numeros-premiados');
+      if (modalEl && !modalEl.classList.contains('hidden')) {
+        renderResultsTable(false);
+      }
+      const verifyModalEl = document.getElementById('modal-verificar-ticket');
+      if (verifyModalEl && !verifyModalEl.classList.contains('hidden') && typeof this.renderPosAgencyWinningTickets === 'function') {
+        this.renderPosAgencyWinningTickets(false);
       }
     });
 
     this.renderResultadosTable = () => renderResultsTable(true);
   }
 
-  // 4. MODAL VERIFICAR Y PAGAR TICKETS GANADORES
+  // 4. MODAL VERIFICAR Y PAGAR TICKETS GANADORES (LIQUIDADOS POR EL PROGRAMA ADMINISTRATIVO)
   setupVerificarPagoModal() {
     const inputSearch = document.getElementById('input-verificar-ticket');
     const btnSearch = document.getElementById('btn-verificar-ticket');
     const resContainer = document.getElementById('verificar-ticket-result');
     const btnPagar = document.getElementById('btn-pagar-ticket-ganador');
+    const winnersTableBody = document.getElementById('tabla-pos-tickets-ganadores');
+    const winnersCountLabel = document.getElementById('pos-winning-tickets-count');
+
+    const renderAgencyWinningTicketsList = async (pullCentralFirst = false) => {
+      if (!winnersTableBody) return;
+      if (pullCentralFirst && window.bancaFcAutoResults) {
+        await window.bancaFcAutoResults.pullPassiveResultsFromCentral();
+      }
+
+      const cfg = this.storage.getConfig();
+      const currentAgencyCode = String(cfg.agencyCode || '1000').trim();
+      const allTickets = this.storage.getTickets();
+
+      const agencyWinners = allTickets.filter(t => {
+        const tCode = this.storage.extractAgencyCodeFromTicket(t);
+        if (String(tCode) !== currentAgencyCode) return false;
+        return t.estado === 'GANADOR' || t.estado === 'PAGADO';
+      });
+
+      if (winnersCountLabel) {
+        const pendingCount = agencyWinners.filter(t => t.estado === 'GANADOR').length;
+        winnersCountLabel.textContent = `${agencyWinners.length} premiados (${pendingCount} pendientes por pagar)`;
+      }
+
+      if (agencyWinners.length === 0) {
+        winnersTableBody.innerHTML = '<tr><td colspan="6" class="text-center p-3">No hay tickets ganadores liquidados para esta agencia.</td></tr>';
+        return;
+      }
+
+      let rows = '';
+      agencyWinners.forEach(t => {
+        const cur = t.moneda || 'COP';
+        const prize = Number(t.premioPagado || t.premioCalculado || 0);
+        const detail = (t.winningPlays || [])
+          .map(wp => `${wp.lotteryName}: <strong>${wp.number}</strong> (${wp.multiplier}x)`)
+          .join('<br>') || 'Premio Liquidado';
+        const isPaid = t.estado === 'PAGADO';
+
+        rows += `
+          <tr>
+            <td><strong>#${t.ticketId}</strong><div style="font-size: 10px; color: #555;">${t.serialSeguridad}</div></td>
+            <td style="font-size: 11px;">${detail}</td>
+            <td><strong>Caja ${cur}</strong></td>
+            <td class="text-right"><strong style="color: #15803d;">${this.printer.formatCurrency(prize, cur)}</strong></td>
+            <td>
+              <span style="padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; ${isPaid ? 'background: #dcfce7; color: #166534;' : 'background: #fef3c7; color: #92400e;'}">
+                ${isPaid ? '💵 PAGADO' : '🏆 GANADOR'}
+              </span>
+            </td>
+            <td>
+              <button type="button" class="win-btn btn-select-pos-winner" data-id="${t.ticketId}" style="padding: 2px 8px; font-size: 11px; font-weight: bold;">
+                ${isPaid ? 'Ver Detalle' : '💵 Pagar'}
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+
+      winnersTableBody.innerHTML = rows;
+      winnersTableBody.querySelectorAll('.btn-select-pos-winner').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (inputSearch) {
+            inputSearch.value = btn.dataset.id;
+            doVerify();
+          }
+        });
+      });
+    };
 
     const doVerify = async () => {
       const q = inputSearch.value.trim();
@@ -299,7 +387,7 @@ class ModalManager {
         return;
       }
       if (window.bancaFcAutoResults) {
-        await window.bancaFcAutoResults.syncOfficialResultsForDate(undefined, { silent: true });
+        await window.bancaFcAutoResults.pullPassiveResultsFromCentral();
       }
       const ticket = this.storage.getTicketById(q) || this.storage.getTicketBySerial(q);
       if (!ticket) {
@@ -308,7 +396,7 @@ class ModalManager {
         return;
       }
 
-      // Evaluar si es ganador contra los resultados
+      // Evaluar si es ganador contra los resultados autorizados por el Administrador
       const evalRes = this.storage.evaluateTicket(ticket);
       const isWinner = evalRes.totalPrize > 0;
       const isPaid = ticket.estado === 'PAGADO';
@@ -351,7 +439,7 @@ class ModalManager {
             <strong class="text-xl text-success">${this.printer.formatCurrency(evalRes.totalPrize, ticket.moneda)}</strong>
           </div>
           ${winningRows ? `<div class="winning-plays-container"><h4>Aciertos Registrados:</h4>${winningRows}</div>` : ''}
-          ${!isWinner && !isAnulado ? '<div class="alert alert-info">Este ticket no tiene aciertos registrados en los sorteos evaluados.</div>' : ''}
+          ${!isWinner && !isAnulado ? '<div class="alert alert-info">Este ticket no tiene aciertos registrados en los sorteos oficiales publicados por Administración.</div>' : ''}
           ${isPaid ? `<div class="alert alert-success">Ticket PAGADO el ${ticket.fechaPago || 'previamente'} en Caja ${ticket.moneda || 'COP'}.</div>` : ''}
         </div>
       `;
@@ -374,16 +462,20 @@ class ModalManager {
         if (confirm(`¿Confirma el pago del premio por ${this.printer.formatCurrency(prize, ticketCur)} (Caja ${ticketCur}) al cliente?`)) {
           const updated = this.storage.updateTicketStatus(tId, 'PAGADO', {
             fechaPago: new Date().toLocaleString(),
-            premioPagado: prize
+            premioPagado: prize,
+            updatedAt: new Date().toISOString()
           });
           if (updated) {
             alert(`¡PREMIO PAGADO EXITOSAMENTE PARA EL TICKET #${tId} EN CAJA ${ticketCur}!`);
             this.pos.playBeep('success');
             doVerify();
+            renderAgencyWinningTicketsList(false);
           }
         }
       });
     }
+
+    this.renderPosAgencyWinningTickets = renderAgencyWinningTicketsList;
   }
 
   // Sincroniza los selectores de moneda de la taquilla (Configuración, Cuadre y Cabecera)

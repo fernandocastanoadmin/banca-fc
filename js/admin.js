@@ -1619,9 +1619,9 @@ class BancaFcAdminController {
   }
 
   // =========================================================================
-  // 6. MÓDULO 4: CARGA DE RESULTADOS Y LIQUIDACIÓN AUTOMÁTICA DE PREMIOS
+  // 6. MÓDULO 4: CENTRO DE CONTROL DE RESULTADOS Y LIQUIDACIÓN OFICIAL (MASTER-SLAVE)
   // =========================================================================
-  populateResultsLotterySelect() {
+  populateResultsLotterySelect(preserveLotteryId = null) {
     const catSelect = document.getElementById('res-admin-category');
     const lotSelect = document.getElementById('res-admin-lottery');
     const signSelect = document.getElementById('res-admin-sign');
@@ -1641,7 +1641,7 @@ class BancaFcAdminController {
 
     const filterInput = document.getElementById('res-admin-lottery-filter');
 
-    const updateLotteriesByCat = () => {
+    this.updateAdminLotteriesDropdown = (targetLotId = null) => {
       const cat = catSelect?.value || 'sin_signo';
       const q = (filterInput?.value || '').trim().toLowerCase();
       const list = (LOTTERY_CATALOGS[cat] || []).filter(l => {
@@ -1649,36 +1649,119 @@ class BancaFcAdminController {
         return l.name.toLowerCase().includes(q) || l.id.toLowerCase().includes(q);
       });
       if (lotSelect) {
+        const currentSelected = targetLotId || lotSelect.value;
         lotSelect.innerHTML = '';
         list.forEach(l => {
           lotSelect.innerHTML += `<option value="${l.id}">${l.name}</option>`;
         });
+        if (currentSelected && list.some(l => l.id === currentSelected)) {
+          lotSelect.value = currentSelected;
+        }
       }
       document.getElementById('res-admin-sign-box')?.classList.toggle('hidden', cat !== 'con_signo');
       document.getElementById('res-admin-5ta-box')?.classList.toggle('hidden', cat !== 'cuatro_cifras');
     };
 
-    catSelect?.addEventListener('change', updateLotteriesByCat);
-    filterInput?.addEventListener('input', updateLotteriesByCat);
-    updateLotteriesByCat();
+    if (!this._resultsSelectBound) {
+      this._resultsSelectBound = true;
+      catSelect?.addEventListener('change', () => this.updateAdminLotteriesDropdown());
+      filterInput?.addEventListener('input', () => this.updateAdminLotteriesDropdown());
+    }
+    this.updateAdminLotteriesDropdown(preserveLotteryId);
+  }
+
+  findCategoryForLotteryId(lotteryId) {
+    if (typeof LOTTERY_CATALOGS === 'undefined') return 'sin_signo';
+    for (const catKey of ['sin_signo', 'con_signo', 'cuatro_cifras', 'animalitos']) {
+      if ((LOTTERY_CATALOGS[catKey] || []).some(l => l.id === lotteryId)) {
+        return catKey;
+      }
+    }
+    return 'sin_signo';
   }
 
   bindResultsModuleEvents() {
+    window.BANCA_FC_ROLE = 'ADMIN';
     const numInput = document.getElementById('res-admin-number');
     const catSelect = document.getElementById('res-admin-category');
     const lotSelect = document.getElementById('res-admin-lottery');
     const animalPreview = document.getElementById('res-admin-animal-preview');
     const animalLabel = document.getElementById('res-admin-animal-label');
+    const editBanner = document.getElementById('admin-edit-result-banner');
+    const btnCancelEdit = document.getElementById('btn-cancel-edit-result');
+    const btnSyncWeb = document.getElementById('btn-admin-sync-web-results');
+    const chkAutoSync = document.getElementById('chk-admin-auto-sync-3min');
+    const syncStatusEl = document.getElementById('admin-web-sync-status');
 
-    const updateAnimalOrFruitPreview = () => {
+    // Inicializar estado del interruptor Auto-Sincronizar cada 3 min
+    if (chkAutoSync && window.bancaFcAutoResults) {
+      chkAutoSync.checked = window.bancaFcAutoResults.isAdminAutoSyncEnabled();
+      chkAutoSync.addEventListener('change', () => {
+        window.bancaFcAutoResults.setAdminAutoSyncEnabled(chkAutoSync.checked);
+        this.showToast(
+          chkAutoSync.checked
+            ? 'Auto-Sincronización Web activada (cada 3 minutos).'
+            : 'Auto-Sincronización Web pausada (solo carga manual o bajo demanda).',
+          chkAutoSync.checked ? '🔄' : '⏸️'
+        );
+      });
+    }
+
+    // Modo 1: Botón de Extracción Automática Centralizada desde Web Oficial (TuAzar / Colombia)
+    if (btnSyncWeb) {
+      btnSyncWeb.addEventListener('click', async () => {
+        if (!window.bancaFcAutoResults) return;
+        const dateKey = document.getElementById('res-admin-date')?.value || new Date().toISOString().split('T')[0];
+        const originalHtml = btnSyncWeb.innerHTML;
+        btnSyncWeb.disabled = true;
+        btnSyncWeb.innerHTML = '<span>⏳</span> Extrayendo Resultados desde Web Oficial...';
+        if (syncStatusEl) {
+          syncStatusEl.textContent = '⏳ Consultando páginas oficiales (TuAzar / Resultados Colombia) y sincronizando con Firebase...';
+          syncStatusEl.className = 'text-[11px] font-mono text-sky-400 font-bold';
+        }
+
+        const syncOutcome = await window.bancaFcAutoResults.syncFromOfficialWeb(dateKey, { silent: false });
+        btnSyncWeb.disabled = false;
+        btnSyncWeb.innerHTML = originalHtml;
+
+        const totalPublished = (syncOutcome && syncOutcome.results) ? syncOutcome.results.length : 0;
+        const extractedNow = (syncOutcome && syncOutcome.extractedCount) || 0;
+        const syncTime = window.bancaFcAutoResults.lastSyncTime || 'Ahora';
+
+        if (syncStatusEl) {
+          syncStatusEl.textContent = `✔ Sincronización Web completada (${syncTime}) • ${totalPublished} sorteos publicados (${extractedNow} nuevos extraídos de la web) • Cero simulados.`;
+          syncStatusEl.className = 'text-[11px] font-mono text-emerald-400 font-bold';
+        }
+
+        this.refreshAllViews();
+        this.showToast(
+          `Sincronización Web Oficial completada (${totalPublished} sorteos publicados en fecha ${dateKey}).`,
+          '🔄'
+        );
+      });
+    }
+
+    // Escuchar actualizaciones automáticas del ciclo de 3 minutos
+    window.addEventListener('banca_fc_official_results_synced', (e) => {
+      if (syncStatusEl && e.detail && e.detail.timestamp) {
+        const dateKey = document.getElementById('res-admin-date')?.value || new Date().toISOString().split('T')[0];
+        const count = Object.keys(this.storage.getResults(dateKey) || {}).length;
+        syncStatusEl.textContent = `✔ Sincronizado con Nube Central (${e.detail.timestamp}) • ${count} sorteos oficiales publicados • Cero números simulados.`;
+        syncStatusEl.className = 'text-[11px] font-mono text-emerald-400 font-bold';
+      }
+      this.refreshAllViews();
+    });
+
+    this.updateAnimalOrFruitPreview = () => {
       const val = (numInput?.value || '').trim();
-      if (catSelect?.value === 'animalitos' && val) {
+      if (catSelect?.value === 'animalitos' && val !== '') {
         const lotId = lotSelect?.value || '';
+        const normalizedCode = (val !== '0' && val !== '00' && val.length === 1) ? `0${val}` : val;
         const info = typeof getAnimalOrFruitInfo === 'function'
-          ? getAnimalOrFruitInfo(val, lotId)
-          : (ANIMALITOS_DICT[val] || ANIMALITOS_DICT['0' + val]);
+          ? getAnimalOrFruitInfo(normalizedCode, lotId)
+          : (ANIMALITOS_DICT[normalizedCode] || ANIMALITOS_DICT[val]);
         if (info && animalPreview && animalLabel) {
-          animalLabel.textContent = `${info.emoji} ${val} - ${info.name}`;
+          animalLabel.textContent = `${info.emoji} ${normalizedCode} - ${String(info.name).toUpperCase()}`;
           animalPreview.classList.remove('hidden');
           return;
         }
@@ -1686,13 +1769,25 @@ class BancaFcAdminController {
       animalPreview?.classList.add('hidden');
     };
 
-    numInput?.addEventListener('input', updateAnimalOrFruitPreview);
-    lotSelect?.addEventListener('change', updateAnimalOrFruitPreview);
+    numInput?.addEventListener('input', () => this.updateAnimalOrFruitPreview());
+    lotSelect?.addEventListener('change', () => this.updateAnimalOrFruitPreview());
+    catSelect?.addEventListener('change', () => this.updateAnimalOrFruitPreview());
+
+    btnCancelEdit?.addEventListener('click', () => {
+      editBanner?.classList.add('hidden');
+      if (numInput) numInput.value = '';
+      const ball5Input = document.getElementById('res-admin-ball5');
+      if (ball5Input) ball5Input.value = '';
+      animalPreview?.classList.add('hidden');
+    });
 
     document.getElementById('res-admin-date')?.addEventListener('change', () => this.renderResultsAndWinnersView());
+    document.getElementById('admin-results-cat-filter')?.addEventListener('change', () => this.renderResultsAndWinnersView());
+    document.getElementById('admin-results-search-input')?.addEventListener('input', () => this.renderResultsAndWinnersView());
 
+    // Modo 2: Formulario de Carga y Corrección Manual de Respaldo (`origen: "MANUAL-ADMIN"`, `bloqueadoPorAdmin: true`)
     const form = document.getElementById('form-admin-load-result');
-    form?.addEventListener('submit', (e) => {
+    form?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const dateKey = document.getElementById('res-admin-date').value;
       const lotteryId = document.getElementById('res-admin-lottery').value;
@@ -1700,7 +1795,7 @@ class BancaFcAdminController {
       const sign = document.getElementById('res-admin-sign').value || null;
       const ball5 = document.getElementById('res-admin-ball5').value.trim() || null;
 
-      if (!number) return;
+      if (!number || !lotteryId) return;
 
       let animalName = null;
       if (document.getElementById('res-admin-category')?.value === 'animalitos') {
@@ -1721,31 +1816,72 @@ class BancaFcAdminController {
 
       const resultObj = {
         number,
-        sign,
-        ball5,
+        sign: document.getElementById('res-admin-category')?.value === 'con_signo' ? sign : null,
+        ball5: document.getElementById('res-admin-category')?.value === 'cuatro_cifras' ? ball5 : null,
         animalName,
         timestamp: `${hr}:${min} ${ampm}`,
-        source: 'OFICIAL BANCA FC',
+        origen: 'MANUAL-ADMIN',
+        source: 'MANUAL-ADMIN',
+        bloqueadoPorAdmin: true,
         verified: true
       };
 
       const resStats = this.storage.saveResult(dateKey, lotteryId, resultObj);
       if (window.bancaFcAutoResults) {
-        window.bancaFcAutoResults.pushToFirebaseOfficialNode(dateKey, this.storage.getResults(dateKey));
+        await window.bancaFcAutoResults.pushToFirebaseOfficialNode(dateKey, this.storage.getResults(dateKey));
       }
       document.getElementById('res-admin-number').value = '';
       document.getElementById('res-admin-ball5').value = '';
       animalPreview?.classList.add('hidden');
+      editBanner?.classList.add('hidden');
 
       const lotObj = typeof findLotteryById === 'function' ? findLotteryById(lotteryId) : null;
       const lotDisplay = lotObj ? lotObj.name : lotteryId;
 
       this.refreshAllViews();
       this.showToast(
-        `Resultado ${lotDisplay}: ${number}${animalName ? ' (' + animalName + ')' : ''} publicado. Se liquidaron ${resStats.winnersCount} tickets ganadores.`,
-        '🏆'
+        `Resultado Oficial [${lotDisplay}: ${number}${animalName ? ' - ' + animalName : ''}${resultObj.sign ? ' - ' + resultObj.sign : ''}] publicado y blindado (MANUAL-ADMIN). Tickets ganadores: ${resStats.winnersCount}.`,
+        '✅'
       );
     });
+  }
+
+  // Carga un resultado existente en el formulario izquierdo para que el Administrador pueda corregirlo y re-liquidar al instante
+  loadResultIntoAdminFormForEdit(dateKey, lotteryId) {
+    const results = this.storage.getResults(dateKey);
+    const r = results ? results[lotteryId] : null;
+    if (!r) return;
+
+    const catKey = this.findCategoryForLotteryId(lotteryId);
+    const catSelect = document.getElementById('res-admin-category');
+    const filterInput = document.getElementById('res-admin-lottery-filter');
+    const lotSelect = document.getElementById('res-admin-lottery');
+    const numInput = document.getElementById('res-admin-number');
+    const signSelect = document.getElementById('res-admin-sign');
+    const ball5Input = document.getElementById('res-admin-ball5');
+    const editBanner = document.getElementById('admin-edit-result-banner');
+    const editLotNameEl = document.getElementById('admin-edit-result-lottery-name');
+
+    if (catSelect) catSelect.value = catKey;
+    if (filterInput) filterInput.value = '';
+    if (this.updateAdminLotteriesDropdown) {
+      this.updateAdminLotteriesDropdown(lotteryId);
+    }
+    if (lotSelect) lotSelect.value = lotteryId;
+    if (numInput) numInput.value = r.number || '';
+    if (signSelect) signSelect.value = r.sign || '';
+    if (ball5Input) ball5Input.value = r.ball5 || '';
+    if (this.updateAnimalOrFruitPreview) {
+      this.updateAnimalOrFruitPreview();
+    }
+
+    const lotObj = typeof findLotteryById === 'function' ? findLotteryById(lotteryId) : null;
+    if (editLotNameEl) editLotNameEl.textContent = lotObj ? lotObj.name : lotteryId;
+    editBanner?.classList.remove('hidden');
+
+    numInput?.focus();
+    numInput?.select();
+    this.showToast(`Editando resultado de ${lotObj ? lotObj.name : lotteryId}. Modifique el número y pulse Publicar para re-liquidar.`, '✏️');
   }
 
   renderResultsAndWinnersView() {
@@ -1757,16 +1893,30 @@ class BancaFcAdminController {
     const resultsTbody = document.getElementById('admin-results-tbody');
     const winnersTbody = document.getElementById('admin-winning-tickets-tbody');
     const countBadge = document.getElementById('results-count-badge');
+    const catFilter = document.getElementById('admin-results-cat-filter')?.value || 'ALL';
+    const searchQ = (document.getElementById('admin-results-search-input')?.value || '').trim().toLowerCase();
 
-    const keys = Object.keys(results);
-    if (countBadge) countBadge.textContent = `${keys.length} Sorteos`;
+    const allKeys = Object.keys(results);
+    const filteredKeys = allKeys.filter(lotId => {
+      const lotCat = this.findCategoryForLotteryId(lotId);
+      if (catFilter !== 'ALL' && lotCat !== catFilter) return false;
+      if (searchQ) {
+        const r = results[lotId] || {};
+        const lotObj = typeof findLotteryById === 'function' ? findLotteryById(lotId) : null;
+        const hay = `${lotId} ${lotObj ? lotObj.name : ''} ${r.number || ''} ${r.animalName || ''} ${r.sign || ''} ${r.origen || ''}`.toLowerCase();
+        if (!hay.includes(searchQ)) return false;
+      }
+      return true;
+    });
+
+    if (countBadge) countBadge.textContent = `${allKeys.length} Sorteos`;
 
     if (resultsTbody) {
-      if (keys.length === 0) {
-        resultsTbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">No hay resultados cargados para la fecha ${dateKey}.</td></tr>`;
+      if (filteredKeys.length === 0) {
+        resultsTbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">No hay resultados oficiales publicados para la fecha ${dateKey} con el filtro actual.</td></tr>`;
       } else {
         let rows = '';
-        keys.forEach(lotId => {
+        filteredKeys.forEach(lotId => {
           const r = results[lotId];
           let detail = r.number;
           if (r.sign) detail += ` - ${r.sign}`;
@@ -1778,6 +1928,8 @@ class BancaFcAdminController {
           const prizeByCur = { COP: 0, USD: 0, VES: 0 };
           allTickets.forEach(t => {
             if (t.estado === 'ANULADO') return;
+            const tDate = this.storage.extractTicketDateIso(t);
+            if (tDate !== dateKey) return;
             const tCur = (t.moneda || 'COP').toUpperCase();
             (t.winningPlays || []).forEach(wp => {
               if (wp.lotteryId === lotId) {
@@ -1794,29 +1946,59 @@ class BancaFcAdminController {
 
           const lotObj = typeof findLotteryById === 'function' ? findLotteryById(lotId) : null;
           const lotDisplayName = lotObj ? lotObj.name : lotId;
+          const isManual = r.bloqueadoPorAdmin || r.origen === 'MANUAL-ADMIN' || r.source === 'MANUAL-ADMIN';
+          const origenBadge = isManual
+            ? `<span class="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 font-mono font-bold text-[10px]" title="Cargado o editado manualmente por el Administrador (Blindado)">🛡️ MANUAL-ADMIN</span>`
+            : `<span class="px-1.5 py-0.5 rounded bg-sky-500/20 border border-sky-500/40 text-sky-300 font-mono font-bold text-[10px]" title="Extraído automáticamente de la Web Oficial">🌐 AUTO-WEB</span>`;
 
           rows += `
             <tr>
-              <td class="font-bold text-white text-xs">${lotDisplayName}</td>
+              <td>
+                <div class="font-bold text-white text-xs">${lotDisplayName}</div>
+                <div class="text-[10px] text-slate-400 font-mono">${lotId}</div>
+              </td>
               <td><span class="px-2.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 font-mono font-black text-xs">${detail}</span></td>
-              <td class="text-xs text-slate-400">${r.timestamp || 'Oficial'}</td>
+              <td class="text-xs text-slate-300">
+                <div>${origenBadge}</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">${r.timestamp || 'Oficial'}</div>
+              </td>
               <td class="text-center font-mono font-bold ${hitCount > 0 ? 'text-amber-400' : 'text-slate-500'}">${hitCount} aciertos</td>
               <td class="text-right font-mono font-bold ${hitCount > 0 ? 'text-amber-400' : 'text-slate-500'}">${prizeSummaryHtml}</td>
               <td class="text-center">
-                <button type="button" class="btn-del-official-res px-2 py-1 rounded bg-rose-950/80 hover:bg-rose-900 text-rose-300 text-[11px] font-bold" data-lot="${lotId}">
-                  Eliminar
-                </button>
+                <div class="inline-flex items-center gap-1">
+                  <button type="button" class="btn-edit-official-res px-2 py-1 rounded bg-blue-600/30 hover:bg-blue-600/50 text-sky-300 border border-blue-500/40 text-[11px] font-bold transition" data-lot="${lotId}" title="Editar / Rectificar Resultado y Re-Liquidar">
+                    ✏️ Editar
+                  </button>
+                  <button type="button" class="btn-del-official-res px-2 py-1 rounded bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800/60 text-[11px] font-bold transition" data-lot="${lotId}" title="Eliminar Resultado y Revertir Premios de este Sorteo">
+                    🗑️ Eliminar
+                  </button>
+                </div>
               </td>
             </tr>
           `;
         });
         resultsTbody.innerHTML = rows;
 
-        resultsTbody.querySelectorAll('.btn-del-official-res').forEach(btn => {
+        resultsTbody.querySelectorAll('.btn-edit-official-res').forEach(btn => {
           btn.addEventListener('click', () => {
-            this.storage.deleteResult(dateKey, btn.dataset.lot);
+            this.loadResultIntoAdminFormForEdit(dateKey, btn.dataset.lot);
+          });
+        });
+
+        resultsTbody.querySelectorAll('.btn-del-official-res').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const lotId = btn.dataset.lot;
+            const lotObj = typeof findLotteryById === 'function' ? findLotteryById(lotId) : null;
+            const lotName = lotObj ? lotObj.name : lotId;
+            if (!confirm(`¿Confirma ELIMINAR el resultado oficial de "${lotName}" y revertir automáticamente los premios calculados de ese sorteo?`)) {
+              return;
+            }
+            this.storage.deleteResult(dateKey, lotId);
+            if (window.bancaFcAutoResults) {
+              await window.bancaFcAutoResults.pushToFirebaseOfficialNode(dateKey, this.storage.getResults(dateKey));
+            }
             this.refreshAllViews();
-            this.showToast(`Resultado de ${btn.dataset.lot} eliminado y premios recalculados.`, '🗑️');
+            this.showToast(`Resultado de ${lotName} eliminado. Todos los tickets de ese sorteo fueron recalculados y revertidos.`, '🗑️');
           });
         });
       }
