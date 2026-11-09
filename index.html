@@ -162,11 +162,6 @@
         </div>
       </div>
 
-      <!-- Panel Central Banca FC -->
-      <div class="menu-item-dropdown">
-        <button type="button" class="dropdown-toggle" id="menu-item-panel-admin" style="color: #0f766e; font-weight: bold;" onclick="window.open('admin.html', '_blank')">📊 Panel Central Banca FC</button>
-      </div>
-
       <!-- Salir -->
       <div class="menu-item-dropdown">
         <button type="button" class="dropdown-toggle" id="menu-item-salir"><u>S</u>alir</button>
@@ -424,11 +419,11 @@
     </div>
   </div>
 
-  <!-- 3. Modal Números Premiados (Carga de Resultados) -->
+  <!-- 3. Modal Números Premiados (Modo Solo Consulta Antifraude - Sincronización Automática) -->
   <div id="modal-numeros-premiados" class="modal-overlay hidden">
-    <div class="modal-container" style="width: 600px;">
+    <div class="modal-container" style="width: 680px;">
       <div class="modal-header">
-        <span>Carga de Números Premiados Oficiales</span>
+        <span>Consulta de Números Premiados Oficiales (Sincronización Automática)</span>
         <button type="button" class="win-ctrl-btn close" data-close-modal="modal-numeros-premiados">×</button>
       </div>
       <div class="modal-body">
@@ -439,43 +434,38 @@
           </div>
           <div>
             <label style="font-weight: bold;">Sorteo / Lotería:</label>
-            <select id="select-resultados-loteria" class="win-input-text" style="width: 100%; font-size: 11px;">
-              <!-- Opciones de todas las loterías -->
+            <select id="select-resultados-loteria" class="win-input-text" style="width: 100%; font-weight: bold;">
+              <option value="ALL">TODAS LAS CATEGORÍAS</option>
+              <option value="sin_signo">SIN SIGNO</option>
+              <option value="con_signo">CON SIGNO</option>
+              <option value="cuatro_cifras">4 CIFRAS</option>
+              <option value="animalitos">ANIMALITOS</option>
             </select>
           </div>
         </div>
 
-        <div class="form-grid-2col" style="margin-bottom: 10px;">
-          <div>
-            <label style="font-weight: bold;">Número Ganador:</label>
-            <input type="text" id="input-resultados-numero" class="win-input-text" placeholder="Ej. 845, 05 o 4729" style="width: 100%;">
-          </div>
-          <div>
-            <label style="font-weight: bold;">Signo Zodiacal (si aplica):</label>
-            <select id="select-resultados-signo" class="win-input-text" style="width: 100%;">
-              <!-- Signos -->
-            </select>
-          </div>
+        <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 10px;">
+          <input type="text" id="input-resultados-filtro" class="win-input-text" placeholder="Filtrar lotería: Táchira, Lotto Activo, Dorado, Fruta..." style="flex: 1;">
+          <button type="button" id="btn-buscar-resultados" class="win-btn primary" style="min-width: 150px; font-weight: bold;">🔍 Buscar</button>
         </div>
 
-        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 12px;">
-          <input type="text" id="input-resultados-5ta" class="win-input-text" placeholder="5ta balota (opcional)" style="width: 160px;">
-          <button type="button" id="btn-guardar-resultado" class="win-btn primary" style="flex: 1;">Guardar Resultado y Recalcular Premios</button>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <h4 style="font-size: 12px; font-weight: bold; margin: 0;">Resultados cargados para la fecha seleccionada:</h4>
+          <span id="auto-results-sync-status" style="font-size: 11px; color: #15803d; font-weight: bold;">✔ Sincronización Automática Activa (Cada 3 min)</span>
         </div>
 
-        <h4 style="font-size: 12px; font-weight: bold; margin-bottom: 4px;">Resultados cargados para la fecha seleccionada:</h4>
-        <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc;">
+        <div style="max-height: 290px; overflow-y: auto; border: 1px solid #ccc; background: #fff;">
           <table class="pos-table-clean">
             <thead>
               <tr>
-                <th>Lotería</th>
+                <th>Categoría</th>
+                <th>Lotería / Sorteo</th>
                 <th>Resultado Oficial</th>
-                <th>Hora Carga</th>
-                <th>Acción</th>
+                <th>Hora Sorteo / Estado</th>
               </tr>
             </thead>
             <tbody id="tabla-resultados-guardados">
-              <!-- Resultados -->
+              <!-- Resultados Oficiales en Modo Solo Lectura -->
             </tbody>
           </table>
         </div>
@@ -791,6 +781,7 @@
   <script src="js/catalogs.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/firebase-sync.js"></script>
+  <script src="js/auto-results.js"></script>
   <script src="js/print.js"></script>
   <script src="js/pos.js"></script>
   <script src="js/modals.js"></script>
