@@ -459,21 +459,69 @@
       </section>
 
       <!-- =====================================================================
-           VISTA 3: MÓDULO 4 - CARGA DE RESULTADOS Y LIQUIDACIÓN AUTOMÁTICA
+           VISTA 3: MÓDULO 3 - CENTRO DE CONTROL DE RESULTADOS Y LIQUIDACIÓN OFICIAL
+           (ARQUITECTURA MASTER-SLAVE: FUENTE ÚNICA DE VERDAD)
            ===================================================================== -->
       <section id="tab-resultados" class="admin-tab-view hidden space-y-5">
 
+        <!-- MODO 1: BARRA SUPERIOR DE EXTRACCIÓN AUTOMÁTICA CENTRALIZADA (SOLO ADMINISTRADOR) -->
+        <div class="bg-slate-950/90 border border-amber-500/40 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-lg">
+          <div class="space-y-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-amber-400 text-slate-950 font-black text-[10px] uppercase tracking-wider">MASTER CONTROL</span>
+              <h2 class="text-sm md:text-base font-black text-white uppercase tracking-wide">
+                🏛️ Centro de Control de Resultados y Liquidación Oficial (Master-Slave)
+              </h2>
+            </div>
+            <p class="text-xs text-slate-400">
+              Únicamente este Panel Administrativo extrae resultados de la web oficial (<code class="text-sky-300">origen: "AUTO-WEB"</code>) o publica correcciones manuales blindadas (<code class="text-amber-300">origen: "MANUAL-ADMIN"</code>). Las taquillas POS operan en modo esclavo de solo lectura.
+            </p>
+            <div id="admin-web-sync-status" class="text-[11px] font-mono text-emerald-400 font-bold">
+              ✔ Fuente Única de Verdad Activa • Prohibido usar números simulados (si un sorteo no ha salido en la web oficial, no se agrega).
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3">
+            <!-- Interruptor Auto-Sincronizar cada 3 min -->
+            <label for="chk-admin-auto-sync-3min" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 cursor-pointer select-none hover:border-emerald-500/50 transition">
+              <input type="checkbox" id="chk-admin-auto-sync-3min" checked class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
+              <span class="text-xs font-bold text-slate-200">Auto-Sincronizar cada 3 min</span>
+            </label>
+
+            <!-- Botón Destacado de Sincronización Web Oficial -->
+            <button type="button" id="btn-admin-sync-web-results" class="px-4 py-2.5 rounded-lg bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-black text-xs uppercase tracking-wide shadow-lg flex items-center gap-2 transition">
+              <span>🔄</span> Sincronizar Resultados desde Web Oficial (TuAzar / Colombia)
+            </button>
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
 
-          <!-- Panel Izquierdo (5 cols): Formulario de Carga y Liquidación -->
+          <!-- Panel Izquierdo (5 cols): Modo 2 - Carga y Corrección Manual de Respaldo -->
           <div class="lg:col-span-5 bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-4">
             <div class="border-b border-slate-800 pb-3">
-              <h2 class="text-base font-black text-amber-400 uppercase flex items-center gap-2">
-                <span>🏆</span> Publicar Resultado Oficial y Liquidar Sorteo
-              </h2>
+              <div class="flex items-center justify-between">
+                <h2 class="text-base font-black text-amber-400 uppercase flex items-center gap-2">
+                  <span>🏆</span> Carga y Corrección Manual (Respaldo Oficial)
+                </h2>
+                <span class="px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 font-mono font-bold text-[10px]">
+                  MANUAL-ADMIN
+                </span>
+              </div>
               <p class="text-xs text-slate-400 mt-1">
-                Al guardar el resultado, el motor de <strong>Banca FC Fernando Castaño</strong> recorrerá todos los tickets activos de todas las agencias y liquidará los premios al instante.
+                Todo resultado ingresado o corregido aquí sobrescribe cualquier dato previo y queda blindado (<code class="text-emerald-300">bloqueadoPorAdmin: true</code>) para que el extractor automático no lo pise.
               </p>
+            </div>
+
+            <!-- Banner de Modo Edición (cuando el Administrador pulsa "Editar" en la tabla) -->
+            <div id="admin-edit-result-banner" class="hidden p-2.5 rounded-lg bg-amber-500/15 border border-amber-400/50 flex items-center justify-between gap-2">
+              <div class="text-xs text-amber-200">
+                <strong class="text-amber-400 uppercase">✏️ Editando Resultado Oficial:</strong>
+                <span id="admin-edit-result-lottery-name" class="font-bold ml-1">--</span>
+              </div>
+              <button type="button" id="btn-cancel-edit-result" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold">
+                Cancelar Edición
+              </button>
             </div>
 
             <form id="form-admin-load-result" class="space-y-3">
@@ -483,20 +531,20 @@
                   <input type="date" id="res-admin-date" required class="w-full bg-slate-900 text-white text-xs rounded-lg px-3 py-2 border border-slate-700">
                 </div>
                 <div>
-                  <label class="block text-xs font-bold text-slate-300 mb-1">Categoría de Sorteo:</label>
-                  <select id="res-admin-category" class="w-full bg-slate-900 text-white text-xs rounded-lg px-3 py-2 border border-slate-700">
-                    <option value="sin_signo">1. Sin Signo (Triples y Terminales)</option>
-                    <option value="con_signo">2. Con Signo (Zodiacales y Astros)</option>
-                    <option value="cuatro_cifras">3. 4 Cifras / Chance Colombia</option>
-                    <option value="animalitos">4. Animalitos (Ruletas)</option>
+                  <label class="block text-xs font-bold text-slate-300 mb-1">Categoría:</label>
+                  <select id="res-admin-category" class="w-full bg-slate-900 text-white text-xs rounded-lg px-3 py-2 border border-slate-700 font-bold">
+                    <option value="sin_signo">SIN SIGNO (Triples y Terminales)</option>
+                    <option value="con_signo">CON SIGNO (Zodiacales y Astros)</option>
+                    <option value="cuatro_cifras">4 CIFRAS (Chance Colombia)</option>
+                    <option value="animalitos">ANIMALITOS (Ruletas y Fruta Gana)</option>
                   </select>
                 </div>
               </div>
 
               <div class="space-y-1.5">
-                <div class="flex items-center justify-between">
-                  <label class="block text-xs font-bold text-slate-300">Sorteo / Operadora y Hora Oficial (12h AM/PM):</label>
-                  <input type="text" id="res-admin-lottery-filter" placeholder="🔍 Filtrar sorteo u hora (ej. Chance 1:00 PM)..." class="bg-slate-900 text-slate-200 text-[11px] rounded px-2.5 py-1 border border-slate-700 w-56">
+                <div class="flex items-center justify-between gap-2">
+                  <label class="block text-xs font-bold text-slate-300">Sorteo / Lotería y Hora:</label>
+                  <input type="text" id="res-admin-lottery-filter" placeholder="🔍 Buscador rápido (ej. Táchira, Lotto Activo, Dorado)..." class="bg-slate-900 text-slate-200 text-[11px] rounded px-2.5 py-1 border border-slate-700 w-60">
                 </div>
                 <select id="res-admin-lottery" required class="w-full bg-slate-900 text-amber-300 font-bold text-xs rounded-lg px-3 py-2 border border-slate-700">
                   <!-- Dinámico según categoría -->
@@ -506,23 +554,23 @@
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label class="block text-xs font-bold text-slate-300 mb-1">Número Ganador:</label>
-                  <input type="text" id="res-admin-number" required placeholder="Ej: 845, 05, 4729" maxlength="5" class="w-full bg-slate-900 text-emerald-400 font-mono font-black text-base rounded-lg px-3 py-1.5 border border-slate-700">
+                  <input type="text" id="res-admin-number" required placeholder="Ej: 845, 0, 00, 28, 4729" maxlength="5" class="w-full bg-slate-900 text-emerald-400 font-mono font-black text-base rounded-lg px-3 py-1.5 border border-slate-700">
                 </div>
                 <div id="res-admin-sign-box">
-                  <label class="block text-xs font-bold text-slate-300 mb-1">Signo (Si aplica):</label>
+                  <label class="block text-xs font-bold text-slate-300 mb-1">Signo (CON SIGNO):</label>
                   <select id="res-admin-sign" class="w-full bg-slate-900 text-white text-xs rounded-lg px-3 py-2 border border-slate-700">
                     <option value="">-- Sin Signo --</option>
                   </select>
                 </div>
                 <div id="res-admin-5ta-box">
-                  <label class="block text-xs font-bold text-slate-300 mb-1">5ta Balota (Chance):</label>
-                  <input type="text" id="res-admin-ball5" placeholder="Opcional (1 díg)" maxlength="1" class="w-full bg-slate-900 text-white font-mono text-xs rounded-lg px-3 py-2 border border-slate-700">
+                  <label class="block text-xs font-bold text-slate-300 mb-1">La 5ta balota (Opcional):</label>
+                  <input type="text" id="res-admin-ball5" placeholder="Ej: 3 (1 díg)" maxlength="1" class="w-full bg-slate-900 text-white font-mono text-xs rounded-lg px-3 py-2 border border-slate-700">
                 </div>
               </div>
 
-              <div id="res-admin-animal-preview" class="hidden p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-xs flex items-center justify-between">
-                <span class="text-slate-400">Animalito detectado:</span>
-                <strong id="res-admin-animal-label" class="text-amber-400 text-sm">🦁 05 - León</strong>
+              <div id="res-admin-animal-preview" class="hidden p-2.5 rounded-lg bg-slate-900 border border-amber-500/40 text-xs flex items-center justify-between">
+                <span class="text-slate-300 font-semibold">Animalito / Fruta detectado automáticamente:</span>
+                <strong id="res-admin-animal-label" class="text-amber-400 text-sm font-black">🐬 0 - DELFÍN</strong>
               </div>
 
               <!-- Resumen de Multiplicadores Oficiales Activos -->
@@ -538,30 +586,43 @@
                 </div>
               </div>
 
-              <button type="submit" class="w-full py-2.5 px-4 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wide shadow-lg transition">
-                ⚡ Guardar Resultado y Liquidar Tickets Ganadores
+              <button type="submit" id="btn-submit-manual-result" class="w-full py-2.5 px-4 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wide shadow-lg transition">
+                ✅ Publicar Resultado Oficial y Liquidar Taquillas
               </button>
             </form>
           </div>
 
-          <!-- Panel Derecho (7 cols): Resultados Cargados y Tickets Ganadores Detectados -->
+          <!-- Panel Derecho (7 cols): Resultados Oficiales Publicados y Tickets Ganadores Liquidados -->
           <div class="lg:col-span-7 space-y-4">
 
-            <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4">
-              <h3 class="text-sm font-black uppercase text-white mb-3 flex items-center justify-between">
-                <span>📋 Resultados Oficiales Publicados en la Fecha</span>
-                <span id="results-count-badge" class="badge-pill badge-activa">0 Sorteos</span>
-              </h3>
-              <div class="overflow-x-auto max-h-60 border border-slate-800 rounded-lg">
+            <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-3">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <h3 class="text-sm font-black uppercase text-white flex items-center gap-2">
+                  <span>📋 Resultados Oficiales Publicados en la Base Central</span>
+                  <span id="results-count-badge" class="badge-pill badge-activa">0 Sorteos</span>
+                </h3>
+                <div class="flex flex-wrap items-center gap-2">
+                  <select id="admin-results-cat-filter" class="bg-slate-900 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 border border-slate-700 font-bold">
+                    <option value="ALL">Todas las Categorías</option>
+                    <option value="sin_signo">SIN SIGNO</option>
+                    <option value="con_signo">CON SIGNO</option>
+                    <option value="cuatro_cifras">4 CIFRAS</option>
+                    <option value="animalitos">ANIMALITOS</option>
+                  </select>
+                  <input type="text" id="admin-results-search-input" placeholder="🔍 Filtrar sorteo o número..." class="bg-slate-900 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 border border-slate-700 w-48">
+                </div>
+              </div>
+
+              <div class="overflow-x-auto max-h-64 border border-slate-800 rounded-lg">
                 <table class="fc-data-table">
                   <thead>
                     <tr>
-                      <th>Código Sorteo</th>
+                      <th>Sorteo / Lotería y Hora</th>
                       <th>Resultado Oficial</th>
-                      <th>Hora Publicación</th>
+                      <th>Origen / Hora</th>
                       <th class="text-center">Tickets Premiados</th>
                       <th class="text-right">Total Premios Sorteo</th>
-                      <th class="text-center">Acción</th>
+                      <th class="text-center">Acción (Editar / Eliminar)</th>
                     </tr>
                   </thead>
                   <tbody id="admin-results-tbody">
@@ -573,7 +634,7 @@
 
             <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4">
               <h3 class="text-sm font-black uppercase text-amber-400 mb-3">
-                🎯 Tickets Ganadores Detectados Automáticamente
+                🎯 Tickets Ganadores Detectados y Liquidados (En su Moneda Nativa)
               </h3>
               <div class="overflow-x-auto max-h-72 border border-slate-800 rounded-lg">
                 <table class="fc-data-table">

@@ -414,7 +414,7 @@
     </div>
   </div>
 
-  <!-- 3. Modal Números Premiados (Modo Solo Consulta Antifraude - Sincronización Automática) -->
+  <!-- 3. Modal Números Premiados (Modo Esclavo / Solo Consulta - Sincronización Pasiva con el Administrador) -->
   <div id="modal-numeros-premiados" class="modal-overlay hidden">
     <div class="modal-container" style="width: 680px;">
       <div class="modal-header">
@@ -445,8 +445,8 @@
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-          <h4 style="font-size: 12px; font-weight: bold; margin: 0;">Resultados cargados para la fecha seleccionada:</h4>
-          <span id="auto-results-sync-status" style="font-size: 11px; color: #15803d; font-weight: bold;">✔ Sincronización Automática Activa (Cada 3 min)</span>
+          <h4 style="font-size: 12px; font-weight: bold; margin: 0;">Resultados oficiales autorizados en el Programa Administrativo:</h4>
+          <span id="auto-results-sync-status" style="font-size: 11px; color: #15803d; font-weight: bold;">✔ Sincronizado con Panel Central Administrativo</span>
         </div>
 
         <div style="max-height: 290px; overflow-y: auto; border: 1px solid #ccc; background: #fff;">
@@ -456,11 +456,11 @@
                 <th>Categoría</th>
                 <th>Lotería / Sorteo</th>
                 <th>Resultado Oficial</th>
-                <th>Hora Sorteo / Estado</th>
+                <th>Hora Sorteo / Origen</th>
               </tr>
             </thead>
             <tbody id="tabla-resultados-guardados">
-              <!-- Resultados Oficiales en Modo Solo Lectura -->
+              <!-- Resultados Oficiales en Modo Solo Lectura (Sincronizados desde Administración) -->
             </tbody>
           </table>
         </div>
@@ -471,24 +471,51 @@
     </div>
   </div>
 
-  <!-- 4. Modal Verificar y Pagar Premios -->
+  <!-- 4. Modal Verificar y Pagar Premios (Tickets Ganadores Liquidados por Administración) -->
   <div id="modal-verificar-ticket" class="modal-overlay hidden">
-    <div class="modal-container" style="width: 520px;">
+    <div class="modal-container" style="width: 680px; max-width: 96vw;">
       <div class="modal-header">
-        <span>Verificación y Pago de Tickets Ganadores</span>
+        <span>Tickets Ganadores y Pago de Premios (Liquidados por Administración Central)</span>
         <button type="button" class="win-ctrl-btn close" data-close-modal="modal-verificar-ticket">×</button>
       </div>
-      <div class="modal-body">
-        <div style="display: flex; gap: 6px; margin-bottom: 12px;">
-          <input type="text" id="input-verificar-ticket" class="win-input-text" placeholder="Escanear código de barra, serial o ticket #..." style="flex: 1;">
-          <button type="button" id="btn-verificar-ticket" class="win-btn primary">Verificar</button>
+      <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
+        <div style="display: flex; gap: 6px; margin-bottom: 10px;">
+          <input type="text" id="input-verificar-ticket" class="win-input-text" placeholder="Escanear código de barra, serial o ticket # para verificar y pagar..." style="flex: 1;">
+          <button type="button" id="btn-verificar-ticket" class="win-btn primary" style="font-weight: bold;">🔍 Verificar Ticket</button>
         </div>
-        <div id="verificar-ticket-result">
-          <div class="alert alert-info">Ingrese o escanee el código del ticket para evaluar sus aciertos contra los sorteos oficiales.</div>
+        <div id="verificar-ticket-result" style="margin-bottom: 12px;">
+          <div class="alert alert-info">Ingrese el número/serial del ticket o seleccione un ticket ganador de la lista inferior para pagar su premio en su moneda original.</div>
+        </div>
+
+        <!-- Lista de Tickets Ganadores de esta Agencia ya liquidados por el Administrador -->
+        <div style="border-top: 1px solid #9ca3af; padding-top: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 12px; font-weight: bold; color: #1e3a8a;">
+              🏆 Tickets Ganadores de esta Agencia (Liquidados por el Programa Administrativo):
+            </span>
+            <span id="pos-winning-tickets-count" style="font-size: 11px; font-weight: bold; color: #15803d;">0 ganadores</span>
+          </div>
+          <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc; background: #fff;">
+            <table class="pos-table-clean">
+              <thead>
+                <tr>
+                  <th>Ticket #</th>
+                  <th>Jugada Premiada</th>
+                  <th>Caja / Moneda</th>
+                  <th class="text-right">Premio Oficial</th>
+                  <th>Estado</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-pos-tickets-ganadores">
+                <!-- Renderizado dinámico por js/modals.js -->
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" id="btn-pagar-ticket-ganador" class="win-btn" style="background: #15803d; color: #fff;" disabled>PAGAR PREMIO AL CLIENTE</button>
+        <button type="button" id="btn-pagar-ticket-ganador" class="win-btn" style="background: #15803d; color: #fff; font-weight: bold;" disabled>💵 PAGAR PREMIO AL CLIENTE</button>
         <button type="button" class="win-btn" data-close-modal="modal-verificar-ticket">Cerrar (ESC)</button>
       </div>
     </div>
