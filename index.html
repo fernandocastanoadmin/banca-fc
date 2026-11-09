@@ -94,8 +94,6 @@
           <button type="button" id="menu-item-f2-venta"><span>F2 Venta de Ticket</span> <kbd>F2</kbd></button>
           <button type="button" id="menu-item-f3-anular"><span>F3 Anular Ticket</span> <kbd>F3</kbd></button>
           <button type="button" id="menu-item-reimprimir"><span>Reimprimir Ticket</span> <kbd>Ctrl+P</kbd></button>
-          <hr>
-          <button type="button" id="menu-item-aguila"><span>Águila Última Polla</span></button>
         </div>
       </div>
 
@@ -108,7 +106,6 @@
           <button type="button" id="menu-item-tickets-ganadores"><span>Tickets Ganadores</span></button>
           <hr>
           <button type="button" id="menu-item-pago-ticket"><span>Pago de Ticket</span></button>
-          <button type="button" id="menu-item-pagar-polla"><span>Pagar Polla</span></button>
         </div>
       </div>
 
@@ -120,8 +117,6 @@
           <button type="button" id="menu-item-cuadre-caja"><span>Relación Final (Cuadre de Caja)</span></button>
           <button type="button" id="menu-item-reportes-tickets"><span>Reportes de Tickets</span></button>
           <button type="button" id="menu-item-edo-cuentas"><span>Edo. de Cuentas</span></button>
-          <hr>
-          <button type="button" id="menu-item-reporte-polla"><span>Reporte de Polla</span></button>
         </div>
       </div>
 
@@ -590,11 +585,11 @@
     </div>
   </div>
 
-  <!-- 7. Modal Configuración y Parámetros -->
+  <!-- 7A. Modal Datos de la Agencia (Control Centralizado) -->
   <div id="modal-configuracion" class="modal-overlay hidden">
-    <div class="modal-container" style="width: 520px;">
+    <div class="modal-container" style="width: 500px;">
       <div class="modal-header">
-        <span>Configuración de Parámetros de Taquilla</span>
+        <span>Datos de la Agencia (Control Centralizado)</span>
         <button type="button" class="win-ctrl-btn close" data-close-modal="modal-configuracion">×</button>
       </div>
       <form id="form-parametros">
@@ -602,78 +597,112 @@
           <div class="form-grid-2col" style="margin-bottom: 8px;">
             <div>
               <label style="font-weight: bold;">Código de Agencia:</label>
-              <input type="text" id="cfg-agency-code" class="win-input-text" style="width: 100%;">
+              <input type="text" id="cfg-agency-code" class="win-input-text" readonly style="width: 100%; background: #e5e7eb; color: #374151; font-weight: bold;">
             </div>
             <div>
               <label style="font-weight: bold;">Nombre de la Agencia:</label>
-              <input type="text" id="cfg-agency-name" class="win-input-text" style="width: 100%;">
-            </div>
-          </div>
-
-          <div class="form-grid-2col" style="margin-bottom: 8px;">
-            <div>
-              <label style="font-weight: bold;">Usuario / Taquilla:</label>
-              <input type="text" id="cfg-user-id" class="win-input-text" style="width: 100%;">
-            </div>
-            <div>
-              <label style="font-weight: bold;">Moneda Principal:</label>
-              <select id="cfg-currency" class="win-input-text" style="width: 100%;">
-                <option value="COP">COP ($ Pesos Colombianos)</option>
-                <option value="VES">VES (Bs. Bolívares)</option>
-                <option value="USD">USD ($ Dólares)</option>
-              </select>
+              <input type="text" id="cfg-agency-name" class="win-input-text" readonly style="width: 100%; background: #e5e7eb; color: #374151; font-weight: bold;">
             </div>
           </div>
 
           <div class="form-grid-2col" style="margin-bottom: 12px;">
             <div>
-              <label style="font-weight: bold;">Ancho de Papel Térmico:</label>
-              <select id="cfg-paper-width" class="win-input-text" style="width: 100%;">
-                <option value="58mm">58mm (Estándar Taquilla)</option>
-                <option value="80mm">80mm (Ancho)</option>
-              </select>
+              <label style="font-weight: bold;">Usuario / Taquilla:</label>
+              <input type="text" id="cfg-user-id" class="win-input-text" readonly style="width: 100%; background: #e5e7eb; color: #374151; font-weight: bold;">
             </div>
             <div>
-              <label style="font-weight: bold;">Comisión Agencia (%):</label>
-              <input type="number" id="cfg-commission" class="win-input-text" style="width: 100%;" min="0" max="50">
+              <label style="font-weight: bold;">Moneda de Venta Autorizada:</label>
+              <select id="cfg-currency" class="win-input-text" style="width: 100%; font-weight: bold;">
+                <!-- Llenado dinámicamente solo con las monedas autorizadas por el Admin para esta agencia -->
+              </select>
             </div>
           </div>
 
-          <h4 style="font-size: 12px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 2px; margin-bottom: 8px;">Multiplicadores de Pago:</h4>
-          <div class="form-grid-2col" style="gap: 6px;">
-            <div>
-              <label style="font-size: 11px;">Triple (Directo):</label>
-              <input type="number" id="cfg-mult-triple" class="win-input-text" style="width: 100%;">
+          <!-- Bloque Informativo de Solo Lectura (Sincronizado desde el Programa Administrativo) -->
+          <div style="background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 4px; padding: 10px; font-size: 11px; color: #1f2937;">
+            <div style="font-weight: bold; color: #0f766e; margin-bottom: 4px;">
+              🔒 Parámetros Oficiales Asignados por la Administración Central (Solo Lectura):
             </div>
-            <div>
-              <label style="font-size: 11px;">Terminal (Derecho):</label>
-              <input type="number" id="cfg-mult-terminal" class="win-input-text" style="width: 100%;">
-            </div>
-            <div>
-              <label style="font-size: 11px;">Aproximación Terminal:</label>
-              <input type="number" id="cfg-mult-aprox" class="win-input-text" style="width: 100%;">
-            </div>
-            <div>
-              <label style="font-size: 11px;">Animalitos (Ruleta):</label>
-              <input type="number" id="cfg-mult-animalito" class="win-input-text" style="width: 100%;">
-            </div>
-            <div>
-              <label style="font-size: 11px;">4 Cifras Directo:</label>
-              <input type="number" id="cfg-mult-4cifras" class="win-input-text" style="width: 100%;">
-            </div>
-            <div>
-              <label style="font-size: 11px;">Modalidad La 5ta:</label>
-              <input type="number" id="cfg-mult-la5ta" class="win-input-text" style="width: 100%;">
-            </div>
-            <div>
-              <label style="font-size: 11px;">Astro 4 Cifras + Signo:</label>
-              <input type="number" id="cfg-mult-astro" class="win-input-text" style="width: 100%;">
+            <div id="cfg-readonly-summary" style="line-height: 1.5;">
+              <!-- Renderizado dinámicamente desde la configuración del Admin -->
             </div>
           </div>
         </div>
         <div class="modal-footer">
-          <button type="submit" class="win-btn primary">Guardar Parámetros</button>
-          <button type="button" class="win-btn" data-close-modal="modal-configuracion">Cancelar</button>
+          <button type="submit" class="win-btn primary">Guardar Preferencia</button>
+          <button type="button" class="win-btn" data-close-modal="modal-configuracion">Cerrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 7B. Modal Parámetros del Sistema (Configuración de Impresora del Equipo) -->
+  <div id="modal-parametros-impresora" class="modal-overlay hidden">
+    <div class="modal-container" style="width: 540px;">
+      <div class="modal-header">
+        <span>Parámetros del Sistema - Configuración de Impresora</span>
+        <button type="button" class="win-ctrl-btn close" data-close-modal="modal-parametros-impresora">×</button>
+      </div>
+      <form id="form-parametros-impresora">
+        <div class="modal-body">
+          <div style="margin-bottom: 10px;">
+            <label style="font-weight: bold; display: block; margin-bottom: 4px;">
+              🖨️ Impresora Instalada en el Equipo (Panel de Control / Impresoras y escáneres):
+            </label>
+            <div style="display: flex; gap: 6px;">
+              <select id="printer-device-select" class="win-input-text" style="flex: 1; font-weight: bold;">
+                <!-- Llenado dinámicamente con Generic / Text Only, BASIC 230 y las agregadas en el equipo -->
+              </select>
+              <button type="button" id="btn-detect-usb-printer" class="win-btn" title="Detectar impresora conectada por USB / Serial en este equipo">
+                🔌 Detectar USB
+              </button>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 10px; background: #f8fafc; border: 1px solid #cbd5e1; padding: 8px; border-radius: 4px;">
+            <label style="font-size: 11px; font-weight: bold; color: #334155; display: block; margin-bottom: 4px;">
+              ➕ Agregar o escribir otro nombre exacto de impresora de tu Panel de Control de Windows:
+            </label>
+            <div style="display: flex; gap: 6px;">
+              <input type="text" id="printer-custom-name" class="win-input-text" placeholder="Ej: Generic / Text Only, BASIC 230, POS-58, EPSON..." style="flex: 1;">
+              <button type="button" id="btn-add-custom-printer" class="win-btn primary">Usar esta Impresora</button>
+            </div>
+          </div>
+
+          <div class="form-grid-2col" style="margin-bottom: 10px;">
+            <div>
+              <label style="font-weight: bold;">Ancho de Papel Térmico:</label>
+              <select id="cfg-paper-width" class="win-input-text" style="width: 100%; font-weight: bold;">
+                <option value="58mm">58mm (Estándar Taquilla - 32 col.)</option>
+                <option value="80mm">80mm (Rollo Ancho - 48 col.)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-weight: bold;">Modo de Driver / Formato:</label>
+              <select id="cfg-print-mode" class="win-input-text" style="width: 100%; font-weight: bold;">
+                <option value="TEXT_ONLY">Texto Puro (Generic / Text Only & BASIC 230)</option>
+                <option value="GRAPHIC">Gráfico Térmico (Con Código de Barras)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; background: #f3f4f6; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 4px;">
+            <label style="display: flex; align-items: center; gap: 6px; font-weight: bold; cursor: pointer; font-size: 12px;">
+              <input type="checkbox" id="cfg-auto-print-dialog" checked>
+              Enviar directo a la impresora al presionar Imprimir (+ o /)
+            </label>
+            <button type="button" id="btn-test-printer" class="win-btn" style="font-weight: bold; color: #0369a1;">
+              🧪 Imprimir Prueba
+            </button>
+          </div>
+
+          <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 4px; padding: 8px 10px; font-size: 11px; color: #1e3a8a;">
+            <strong>💡 Tip para Windows (Generic / Text Only o BASIC 230):</strong> Selecciona arriba el nombre exacto de tu impresora tal como aparece en <em>Bluetooth y dispositivos → Impresoras y escáneres</em>. En la ventana de impresión de Windows déjala seleccionada como destino por defecto para imprimir con un solo Enter.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="win-btn primary">Guardar Impresora</button>
+          <button type="button" class="win-btn" data-close-modal="modal-parametros-impresora">Cerrar (ESC)</button>
         </div>
       </form>
     </div>
