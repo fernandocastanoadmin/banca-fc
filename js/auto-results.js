@@ -368,6 +368,24 @@
       const isManual = origenTag === 'MANUAL-ADMIN';
 
       if (lot.categoryKey === 'animalitos') {
+        const resolved = typeof validateAndResolveAnimalForLottery === 'function'
+          ? validateAndResolveAnimalForLottery(rawNum, lot.id || lot.name)
+          : null;
+        if (resolved) {
+          if (!resolved.valid) return null;
+          return {
+            number: resolved.code,
+            sign: null,
+            ball5: null,
+            animalName: resolved.name,
+            timestamp: officialDrawTime12h,
+            origen: origenTag,
+            source: origenTag,
+            bloqueadoPorAdmin: isManual,
+            verified: true,
+            updatedAt: new Date().toISOString()
+          };
+        }
         const cleanRaw = String(rawNum || '').trim();
         let num = cleanRaw;
         if (cleanRaw !== '0' && cleanRaw !== '00') {

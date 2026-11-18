@@ -1,5 +1,5 @@
 // js/catalogs.js - Parrilla Exacta de Sorteos (Venezuela y Colombia) en Formato 12h AM/PM
-// Con Cierre y Eliminación Automática 5 Minutos Antes del Sorteo (-5 min)
+// Con Motor de Diccionarios Dinámicos por Operadora (OPERATOR_DICTIONARIES) y Cierre (-5 min)
 // Sistema "Banca FC - Fernando Castaño (Seguro Te Paga)"
 
 const ZODIAC_SIGNS = [
@@ -17,179 +17,247 @@ const ZODIAC_SIGNS = [
   { code: 'PIS', name: 'Piscis', icon: '♓' }
 ];
 
-// Diccionario Oficial de Animalitos (0, 00 al 40)
-const ANIMALITOS_DICT = {
-  '0': { name: 'Delfín', emoji: '🐬' },
-  '00': { name: 'Ballena', emoji: '🐋' },
-  '01': { name: 'Carnero', emoji: '🐏' },
-  '1': { name: 'Carnero', emoji: '🐏' },
-  '02': { name: 'Toro', emoji: '🐂' },
-  '2': { name: 'Toro', emoji: '🐂' },
-  '03': { name: 'Ciempiés', emoji: '🐛' },
-  '3': { name: 'Ciempiés', emoji: '🐛' },
-  '04': { name: 'Alacrán', emoji: '🦂' },
-  '4': { name: 'Alacrán', emoji: '🦂' },
-  '05': { name: 'León', emoji: '🦁' },
-  '5': { name: 'León', emoji: '🦁' },
-  '06': { name: 'Rana', emoji: '🐸' },
-  '6': { name: 'Rana', emoji: '🐸' },
-  '07': { name: 'Perico', emoji: '🦜' },
-  '7': { name: 'Perico', emoji: '🦜' },
-  '08': { name: 'Ratón', emoji: '🐭' },
-  '8': { name: 'Ratón', emoji: '🐭' },
-  '09': { name: 'Águila', emoji: '🦅' },
-  '9': { name: 'Águila', emoji: '🦅' },
-  '10': { name: 'Tigre', emoji: '🐅' },
-  '11': { name: 'Gato', emoji: '🐱' },
-  '12': { name: 'Caballo', emoji: '🐎' },
-  '13': { name: 'Mono', emoji: '🐒' },
-  '14': { name: 'Paloma', emoji: '🕊️' },
-  '15': { name: 'Zorro', emoji: '🦊' },
-  '16': { name: 'Oso', emoji: '🐻' },
-  '17': { name: 'Pavo', emoji: '🦃' },
-  '18': { name: 'Burro', emoji: '🫏' },
-  '19': { name: 'Chivo', emoji: '🐐' },
-  '20': { name: 'Cochino', emoji: '🐖' },
-  '21': { name: 'Gallo', emoji: '🐓' },
-  '22': { name: 'Camello', emoji: '🐪' },
-  '23': { name: 'Cebra', emoji: '🦓' },
-  '24': { name: 'Iguana', emoji: '🦎' },
-  '25': { name: 'Gallina', emoji: '🐔' },
-  '26': { name: 'Vaca', emoji: '🐄' },
-  '27': { name: 'Perro', emoji: '🐕' },
-  '28': { name: 'Zamuro', emoji: '🦅' },
-  '29': { name: 'Elefante', emoji: '🐘' },
-  '30': { name: 'Caimán', emoji: '🐊' },
-  '31': { name: 'Lapa', emoji: '🦔' },
-  '32': { name: 'Ardilla', emoji: '🐿️' },
-  '33': { name: 'Pescado', emoji: '🐟' },
-  '34': { name: 'Venado', emoji: '🦌' },
-  '35': { name: 'Jirafa', emoji: '🦒' },
-  '36': { name: 'Culebra', emoji: '🐍' },
-  '37': { name: 'Mariposa', emoji: '🦋' },
-  '38': { name: 'Conejo', emoji: '🐰' },
-  '39': { name: 'Culebra Real', emoji: '🐍' },
-  '40': { name: 'Avispa', emoji: '🐝' },
-  '41': { name: 'Canguro', emoji: '🦘' },
-  '42': { name: 'Tucán', emoji: '🦜' },
-  '43': { name: 'Castor', emoji: '🦫' },
-  '44': { name: 'Chigüire', emoji: '🐹' },
-  '45': { name: 'Garza', emoji: '🦩' },
-  '46': { name: 'Puma', emoji: '🐆' },
-  '47': { name: 'Pavo Real', emoji: '🦚' },
-  '48': { name: 'Puercoespín', emoji: '🦔' },
-  '49': { name: 'Pereza', emoji: '🦥' },
-  '50': { name: 'Canario', emoji: '🐤' },
-  '51': { name: 'Pelícano', emoji: '🦤' },
-  '52': { name: 'Pulpo', emoji: '🐙' },
-  '53': { name: 'Caracol', emoji: '🐌' },
-  '54': { name: 'Grillo', emoji: '🦗' },
-  '55': { name: 'Oso Hormiguero', emoji: '🐜' },
-  '56': { name: 'Tiburón', emoji: '🦈' },
-  '57': { name: 'Pato', emoji: '🦆' },
-  '58': { name: 'Hormiga', emoji: '🐜' },
-  '59': { name: 'Pantera', emoji: '🐈‍⬛' },
-  '60': { name: 'Camaleón', emoji: '🦎' },
-  '61': { name: 'Panda', emoji: '🐼' },
-  '62': { name: 'Cachicamo', emoji: '🦔' },
-  '63': { name: 'Cangrejo', emoji: '🦀' },
-  '64': { name: 'Gavilán', emoji: '🦅' },
-  '65': { name: 'Araña', emoji: '🕷️' },
-  '66': { name: 'Lobo', emoji: '🐺' },
-  '67': { name: 'Avestruz', emoji: '🦤' },
-  '68': { name: 'Jaguar', emoji: '🐆' },
-  '69': { name: 'Liebre', emoji: '🐇' },
-  '70': { name: 'Bisonte', emoji: '🦬' },
-  '71': { name: 'Guacamaya', emoji: '🦜' },
-  '72': { name: 'Gorila', emoji: '🦍' },
-  '73': { name: 'Hipopótamo', emoji: '🦛' },
-  '74': { name: 'Turpial', emoji: '🐦' },
-  '75': { name: 'Guácharo', emoji: '🦇' },
-  '76': { name: 'Rinoceronte', emoji: '🦏' },
-  '77': { name: 'Ciervo', emoji: '🦌' },
-  '78': { name: 'Sapo', emoji: '🐸' },
-  '79': { name: 'Cigueña', emoji: '🦢' },
-  '80': { name: 'Ganso', emoji: '🪿' },
-  '81': { name: 'Pingüino', emoji: '🐧' },
-  '82': { name: 'Foca', emoji: '🦭' },
-  '83': { name: 'Koala', emoji: '🐨' },
-  '84': { name: 'Búho', emoji: '🦉' },
-  '85': { name: 'Hiena', emoji: '🐕' },
-  '86': { name: 'Cisne', emoji: '🦢' },
-  '87': { name: 'Cucaracha', emoji: '🪳' },
-  '88': { name: 'Gallo Fino', emoji: '🐓' },
-  '89': { name: 'Nutria', emoji: '🦦' },
-  '90': { name: 'Escarabajo', emoji: '🪲' },
-  '91': { name: 'Morrocoy', emoji: '🐢' },
-  '92': { name: 'Loro', emoji: '🦜' },
-  '93': { name: 'Colibrí', emoji: '🐦' },
-  '94': { name: 'Guepardo', emoji: '🐆' },
-  '95': { name: 'Mapache', emoji: '🦝' },
-  '96': { name: 'Halcón', emoji: '🦅' },
-  '97': { name: 'Abeja', emoji: '🐝' },
-  '98': { name: 'Búfalo', emoji: '🐃' },
-  '99': { name: 'Cóndor', emoji: '🦅' }
+// ============================================================================
+// DICCIONARIOS OFICIALES EXACTOS POR OPERADORA (OPERATOR_DICTIONARIES)
+// ============================================================================
+
+// A. Base Clásica 38 Animalitos (0, 00 al 36)
+const BASE_38 = {
+  "0": "DELFÍN", "00": "BALLENA", "01": "CARNERO", "02": "TORO", "03": "CIEMPIÉS",
+  "04": "ALACRÁN", "05": "LEÓN", "06": "RANA", "07": "PERICO", "08": "RATÓN",
+  "09": "ÁGUILA", "10": "TIGRE", "11": "GATO", "12": "CABALLO", "13": "MONO",
+  "14": "PALOMA", "15": "ZORRO", "16": "OSO", "17": "PAVO", "18": "BURRO",
+  "19": "CHIVO", "20": "CERDO", "21": "GALLO", "22": "CAMELLO", "23": "CEBRA",
+  "24": "IGUANA", "25": "GALLINA", "26": "VACA", "27": "PERRO", "28": "ZAMURO",
+  "29": "ELEFANTE", "30": "CAIMÁN", "31": "LAPA", "32": "ARDILLA", "33": "PESCADO",
+  "34": "VENADO", "35": "JIRAFA", "36": "CULEBRA"
 };
 
-// Diccionario Oficial de FRUTA GANA (0 y 00 al 36)
-const FRUTAS_DICT = {
-  '0': { name: 'Mango', emoji: '🥭' },
-  '00': { name: 'Níspero', emoji: '🍑' },
-  '01': { name: 'Mamón', emoji: '🍈' },
-  '1': { name: 'Mamón', emoji: '🍈' },
-  '02': { name: 'Guayaba', emoji: '🍐' },
-  '2': { name: 'Guayaba', emoji: '🍐' },
-  '03': { name: 'Melón', emoji: '🍈' },
-  '3': { name: 'Melón', emoji: '🍈' },
-  '04': { name: 'Pistacho', emoji: '🥜' },
-  '4': { name: 'Pistacho', emoji: '🥜' },
-  '05': { name: 'Mandarina', emoji: '🍊' },
-  '5': { name: 'Mandarina', emoji: '🍊' },
-  '06': { name: 'Durazno', emoji: '🍑' },
-  '6': { name: 'Durazno', emoji: '🍑' },
-  '07': { name: 'Patilla', emoji: '🍉' },
-  '7': { name: 'Patilla', emoji: '🍉' },
-  '08': { name: 'Limón', emoji: '🍋' },
-  '8': { name: 'Limón', emoji: '🍋' },
-  '09': { name: 'Fresa', emoji: '🍓' },
-  '9': { name: 'Fresa', emoji: '🍓' },
-  '10': { name: 'Uva', emoji: '🍇' },
-  '11': { name: 'Parchita', emoji: '🍋' },
-  '12': { name: 'Manzana', emoji: '🍎' },
-  '13': { name: 'Cambur', emoji: '🍌' },
-  '14': { name: 'Piña', emoji: '🍍' },
-  '15': { name: 'Lechosa', emoji: '🍈' },
-  '16': { name: 'Pera', emoji: '🍐' },
-  '17': { name: 'Cereza', emoji: '🍒' },
-  '18': { name: 'Aguacate', emoji: '🥑' },
-  '19': { name: 'Mora', emoji: '🫐' },
-  '20': { name: 'Toronja', emoji: '🍊' },
-  '21': { name: 'Guanábana', emoji: '🍈' },
-  '22': { name: 'Ciruela', emoji: '🍑' },
-  '23': { name: 'Tomate', emoji: '🍅' },
-  '24': { name: 'Higo', emoji: '🌰' },
-  '25': { name: 'Maíz', emoji: '🌽' },
-  '26': { name: 'Canela', emoji: '🪵' },
-  '27': { name: 'Maní', emoji: '🥜' },
-  '28': { name: 'Coco', emoji: '🥥' },
-  '29': { name: 'Naranja', emoji: '🍊' },
-  '30': { name: 'Tamarindo', emoji: '🫘' },
-  '31': { name: 'Cotufa', emoji: '🍿' },
-  '32': { name: 'Nuez', emoji: '🌰' },
-  '33': { name: 'Garbanzo', emoji: '🫘' },
-  '34': { name: 'Auyama', emoji: '🎃' },
-  '35': { name: 'Cacao', emoji: '🍫' },
-  '36': { name: 'Kiwi', emoji: '🥝' }
+// B. El Guacharito Millonario / Selva Plus (0, 00 al 99 - 101 animalitos)
+const GUACHARITO_101 = {
+  ...BASE_38,
+  "37": "TORTUGA", "38": "BÚFALO", "39": "LECHUZA", "40": "AVISPA", "41": "CANGURO",
+  "42": "TUCÁN", "43": "MARIPOSA", "44": "CHIGÜIRE", "45": "GARZA", "46": "PUMA",
+  "47": "PAVO REAL", "48": "PUERCOESPÍN", "49": "PEREZA", "50": "CANARIO", "51": "PELÍCANO",
+  "52": "PULPO", "53": "CARACOL", "54": "GRILLO", "55": "OSO HORMIGUERO", "56": "TIBURÓN",
+  "57": "PATO", "58": "HORMIGA", "59": "PANTERA", "60": "CAMALEÓN", "61": "PANDA",
+  "62": "CACHICAMO", "63": "CANGREJO", "64": "GAVILÁN", "65": "ARAÑA", "66": "LOBO",
+  "67": "AVESTRUZ", "68": "JAGUAR", "69": "CONEJO", "70": "BISONTE", "71": "GUACAMAYA",
+  "72": "GORILA", "73": "HIPOPÓTAMO", "74": "TURPIAL", "75": "GUÁCHARO", "76": "RINOCERONTE",
+  "77": "PINGÜINO", "78": "ANTÍLOPE", "79": "CALAMAR", "80": "MURCIÉLAGO", "81": "CUERVO",
+  "82": "CUCARACHA", "83": "BÚHO", "84": "CAMARÓN", "85": "HÁMSTER", "86": "BUEY",
+  "87": "CABRA", "88": "ERIZO DE MAR", "89": "ANGUILA", "90": "HURÓN", "91": "MORROCOY",
+  "92": "CISNE", "93": "GAVIOTA", "94": "PAUJIL", "95": "ESCARABAJO", "96": "CABALLITO DE MAR",
+  "97": "LORO", "98": "COCODRILO", "99": "GUACHARITO"
 };
 
-// Devuelve el animalito o fruta correspondiente según el sorteo
+// Subset helper para construir rangos exactos (0, 00 y 01..maxNum)
+function _buildRangeDict(sourceDict, maxNum, overrides = {}) {
+  const out = { "0": sourceDict["0"], "00": sourceDict["00"] };
+  for (let i = 1; i <= maxNum; i++) {
+    const k = String(i).padStart(2, '0');
+    if (sourceDict[k]) out[k] = sourceDict[k];
+  }
+  return { ...out, ...overrides };
+}
+
+// C. Mega Animal 40 (0, 00 al 40 - 42 animalitos)
+const MEGA_ANIMAL_42 = _buildRangeDict(GUACHARITO_101, 40);
+
+// D. El Gatazo (0, 00 al 74 - 76 animalitos: 11 = GATAZO, 61 = COLIBRÍ)
+const GATAZO_76 = _buildRangeDict(GUACHARITO_101, 74, {
+  "11": "GATAZO",
+  "61": "COLIBRÍ"
+});
+
+// E. Guácharo Activo (0, 00 al 75 - 77 animalitos: 75 = GUÁCHARO, 61 = PANDA)
+const GUACHARO_77 = _buildRangeDict(GUACHARITO_101, 75, {
+  "61": "PANDA",
+  "75": "GUÁCHARO"
+});
+
+// F. Cóndor Gana (0, 00 al 75 - 77 animalitos: 75 = CÓNDOR)
+const CONDOR_77 = _buildRangeDict(GUACHARITO_101, 75, {
+  "75": "CÓNDOR"
+});
+
+// G. GM El Granjazo (0, 00 al 76 - 78 animalitos)
+const GRANJAZO_78 = {
+  ...BASE_38,
+  "20": "COCHINO",
+  "37": "MARIPOSA", "38": "CONEJO", "39": "RINOCERONTE", "40": "HIPOPÓTAMO",
+  "41": "BÚFALO", "42": "MURCIÉLAGO", "43": "KOALA", "44": "PUMA",
+  "45": "CANGURO", "46": "LOBO", "47": "TORTUGA", "48": "MORSA",
+  "49": "HIENA", "50": "COMADREJA", "51": "DRAGÓN", "52": "CHACAL",
+  "53": "JAGUAR", "54": "CAMALEÓN", "55": "FOCA", "56": "ARMIÑO",
+  "57": "JABALÍ", "58": "CASTOR", "59": "GUACAMAYA", "60": "TIBURÓN",
+  "61": "TURPIAL", "62": "TUCÁN", "63": "CACHICAMO", "64": "HORMIGA",
+  "65": "GORILA", "66": "BISONTE", "67": "FLAMINGO", "68": "ARAÑA",
+  "69": "PAVO REAL", "70": "CANGREJO", "71": "RABIPELAO", "72": "PELÍCANO",
+  "73": "COLIBRÍ", "74": "ESCARABAJO", "75": "CODORNIZ", "76": "MANTIS"
+};
+
+// H. Fruta Gana (0, 00 al 36 - 38 frutas)
+const FRUTA_GANA_38 = {
+  "0": "GUANÁBANA", "00": "NÍSPERO", "01": "CIRUELA", "02": "GUAYABA", "03": "TAMARINDO",
+  "04": "PISTACHO", "05": "MELÓN", "06": "MAMÓN", "07": "PATILLA", "08": "LIMÓN",
+  "09": "KIWI / FRESA", "10": "MANZANA", "11": "PARCHITA", "12": "MANGO", "13": "CAMBUR",
+  "14": "PIÑA", "15": "ZAPOTE", "16": "PERA", "17": "MELOCOTÓN", "18": "AGUACATE",
+  "19": "GRANADA", "20": "TORONJA", "21": "UVA", "22": "AVELLANA", "23": "DURAZNO",
+  "24": "PLÁTANO", "25": "MAÍZ", "26": "MORA", "27": "FRAMBUESA", "28": "COCO",
+  "29": "NARANJA", "30": "MANDARINA", "31": "LECHOSA", "32": "NUEZ", "33": "POMARROSA",
+  "34": "HIGO", "35": "CEREZA", "36": "KIWI"
+};
+
+const OPERATOR_DICTIONARIES = {
+  BASE_38: { key: 'BASE_38', label: 'Clásico 38 Animalitos (0, 00 al 36)', maxNum: 36, dict: BASE_38 },
+  MEGA_ANIMAL_42: { key: 'MEGA_ANIMAL_42', label: 'Mega Animal 40 (0, 00 al 40)', maxNum: 40, dict: MEGA_ANIMAL_42 },
+  GATAZO_76: { key: 'GATAZO_76', label: 'El Gatazo (0, 00 al 74)', maxNum: 74, dict: GATAZO_76 },
+  GUACHARO_77: { key: 'GUACHARO_77', label: 'Guácharo Activo (0, 00 al 75)', maxNum: 75, dict: GUACHARO_77 },
+  CONDOR_77: { key: 'CONDOR_77', label: 'Cóndor Gana (0, 00 al 75)', maxNum: 75, dict: CONDOR_77 },
+  GRANJAZO_78: { key: 'GRANJAZO_78', label: 'GM El Granjazo (0, 00 al 76)', maxNum: 76, dict: GRANJAZO_78 },
+  GUACHARITO_101: { key: 'GUACHARITO_101', label: 'Guacharito Millonario (0, 00 al 99)', maxNum: 99, dict: GUACHARITO_101 },
+  SELVA_PLUS_101: { key: 'SELVA_PLUS_101', label: 'Selva Plus (0, 00 al 99)', maxNum: 99, dict: GUACHARITO_101 },
+  FRUTA_GANA_38: { key: 'FRUTA_GANA_38', label: 'Fruta Gana (0, 00 al 36)', maxNum: 36, dict: FRUTA_GANA_38, isFruta: true }
+};
+
+const FIGURE_EMOJIS = {
+  "DELFÍN": "🐬", "BALLENA": "🐋", "CARNERO": "🐏", "TORO": "🐂", "CIEMPIÉS": "🐛",
+  "ALACRÁN": "🦂", "LEÓN": "🦁", "RANA": "🐸", "PERICO": "🦜", "RATÓN": "🐭",
+  "ÁGUILA": "🦅", "TIGRE": "🐅", "GATO": "🐱", "GATAZO": "🐱", "CABALLO": "🐎",
+  "MONO": "🐒", "PALOMA": "🕊️", "ZORRO": "🦊", "OSO": "🐻", "PAVO": "🦃",
+  "BURRO": "🫏", "CHIVO": "🐐", "CERDO": "🐖", "COCHINO": "🐖", "GALLO": "🐓",
+  "CAMELLO": "🐪", "CEBRA": "🦓", "IGUANA": "🦎", "GALLINA": "🐔", "VACA": "🐄",
+  "PERRO": "🐕", "ZAMURO": "🦅", "ELEFANTE": "🐘", "CAIMÁN": "🐊", "LAPA": "🦔",
+  "ARDILLA": "🐿️", "PESCADO": "🐟", "VENADO": "🦌", "JIRAFA": "🦒", "CULEBRA": "🐍",
+  "TORTUGA": "🐢", "BÚFALO": "🐃", "LECHUZA": "🦉", "AVISPA": "🐝", "CANGURO": "🦘",
+  "TUCÁN": "🦜", "MARIPOSA": "🦋", "CHIGÜIRE": "🐹", "GARZA": "🦩", "PUMA": "🐆",
+  "PAVO REAL": "🦚", "PUERCOESPÍN": "🦔", "PEREZA": "🦥", "CANARIO": "🐤", "PELÍCANO": "🦤",
+  "PULPO": "🐙", "CARACOL": "🐌", "GRILLO": "🦗", "OSO HORMIGUERO": "🐜", "TIBURÓN": "🦈",
+  "PATO": "🦆", "HORMIGA": "🐜", "PANTERA": "🐈‍⬛", "CAMALEÓN": "🦎", "PANDA": "🐼",
+  "CACHICAMO": "🦔", "CANGREJO": "🦀", "GAVILÁN": "🦅", "ARAÑA": "🕷️", "LOBO": "🐺",
+  "AVESTRUZ": "🦤", "JAGUAR": "🐆", "CONEJO": "🐰", "BISONTE": "🦬", "GUACAMAYA": "🦜",
+  "GORILA": "🦍", "HIPOPÓTAMO": "🦛", "TURPIAL": "🐦", "GUÁCHARO": "🦇", "CÓNDOR": "🦅",
+  "RINOCERONTE": "🦏", "PINGÜINO": "🐧", "ANTÍLOPE": "🦌", "CALAMAR": "🦑", "MURCIÉLAGO": "🦇",
+  "CUERVO": "🐦‍⬛", "CUCARACHA": "🪳", "BÚHO": "🦉", "CAMARÓN": "🦐", "HÁMSTER": "🐹",
+  "BUEY": "🐂", "CABRA": "🐐", "ERIZO DE MAR": "🦔", "ANGUILA": "🐍", "HURÓN": "🦦",
+  "MORROCOY": "🐢", "CISNE": "🦢", "GAVIOTA": "🕊️", "PAUJIL": "🦃", "ESCARABAJO": "🪲",
+  "CABALLITO DE MAR": "🐠", "LORO": "🦜", "COCODRILO": "🐊", "GUACHARITO": "🦇",
+  "KOALA": "🐨", "MORSA": "🦭", "HIENA": "🐕", "COMADREJA": "🦦", "DRAGÓN": "🐉",
+  "CHACAL": "🐕", "FOCA": "🦭", "ARMIÑO": "🦦", "JABALÍ": "🐗", "CASTOR": "🦫",
+  "FLAMINGO": "🦩", "RABIPELAO": "🐀", "COLIBRÍ": "🐦", "CODORNIZ": "🐦", "MANTIS": "🦗",
+  "GUANÁBANA": "🍈", "NÍSPERO": "🍑", "CIRUELA": "🍑", "GUAYABA": "🍐", "TAMARINDO": "🫘",
+  "PISTACHO": "🥜", "MELÓN": "🍈", "MAMÓN": "🍈", "PATILLA": "🍉", "LIMÓN": "🍋",
+  "KIWI / FRESA": "🍓", "MANZANA": "🍎", "PARCHITA": "🍋", "MANGO": "🥭", "CAMBUR": "🍌",
+  "PIÑA": "🍍", "ZAPOTE": "🍑", "PERA": "🍐", "MELOCOTÓN": "🍑", "AGUACATE": "🥑",
+  "GRANADA": "🍎", "TORONJA": "🍊", "UVA": "🍇", "AVELLANA": "🌰", "DURAZNO": "🍑",
+  "PLÁTANO": "🍌", "MAÍZ": "🌽", "MORA": "🫐", "FRAMBUESA": "🍓", "COCO": "🥥",
+  "NARANJA": "🍊", "MANDARINA": "🍊", "LECHOSA": "🍈", "NUEZ": "🌰", "POMARROSA": "🍎",
+  "HIGO": "🌰", "CEREZA": "🍒", "KIWI": "🥝"
+};
+
+function getEmojiForFigureName(nameStr, isFruta = false) {
+  const upper = String(nameStr || '').toUpperCase().trim();
+  return FIGURE_EMOJIS[upper] || (isFruta ? '🍉' : '🐾');
+}
+
+// Resuelve el diccionario oficial exacto para cualquier sorteo u operadora
+function getOperatorConfigForLottery(lotteryIdOrName = '') {
+  const raw = String(lotteryIdOrName || '').toUpperCase();
+  if (raw.includes('FRUTA_GANA') || raw.includes('FRUTA GANA') || raw.includes('FRUTA')) {
+    return OPERATOR_DICTIONARIES.FRUTA_GANA_38;
+  }
+  if (raw.includes('GUACHARITO')) {
+    return OPERATOR_DICTIONARIES.GUACHARITO_101;
+  }
+  if (raw.includes('SELVA_PLUS') || raw.includes('SELVA PLUS')) {
+    return OPERATOR_DICTIONARIES.SELVA_PLUS_101;
+  }
+  if (raw.includes('GRANJAZO')) {
+    return OPERATOR_DICTIONARIES.GRANJAZO_78;
+  }
+  if (raw.includes('GUACHARO_ACTIVO') || raw.includes('GUÁCHARO ACTIVO') || raw.includes('GUACHARO ACTIVO')) {
+    return OPERATOR_DICTIONARIES.GUACHARO_77;
+  }
+  if (raw.includes('CONDOR_GANA') || raw.includes('CÓNDOR GANA') || raw.includes('CONDOR GANA')) {
+    return OPERATOR_DICTIONARIES.CONDOR_77;
+  }
+  if (raw.includes('GATAZO')) {
+    return OPERATOR_DICTIONARIES.GATAZO_76;
+  }
+  if (raw.includes('MEGA_ANIMAL') || raw.includes('MEGA ANIMAL')) {
+    return OPERATOR_DICTIONARIES.MEGA_ANIMAL_42;
+  }
+  return OPERATOR_DICTIONARIES.BASE_38;
+}
+
+// Compatibilidad con código legacy que consulte ANIMALITOS_DICT o FRUTAS_DICT directamente
+const ANIMALITOS_DICT = {};
+Object.entries(GUACHARITO_101).forEach(([k, v]) => {
+  ANIMALITOS_DICT[k] = { name: v, emoji: getEmojiForFigureName(v, false) };
+  if (k.length === 2 && k.startsWith('0') && k !== '00') {
+    ANIMALITOS_DICT[String(parseInt(k, 10))] = { name: v, emoji: getEmojiForFigureName(v, false) };
+  }
+});
+
+const FRUTAS_DICT = {};
+Object.entries(FRUTA_GANA_38).forEach(([k, v]) => {
+  FRUTAS_DICT[k] = { name: v, emoji: getEmojiForFigureName(v, true) };
+  if (k.length === 2 && k.startsWith('0') && k !== '00') {
+    FRUTAS_DICT[String(parseInt(k, 10))] = { name: v, emoji: getEmojiForFigureName(v, true) };
+  }
+});
+
+// Normaliza el código de animalito/fruta ('1' -> '01', preservando '0' y '00')
+function normalizeAnimalCode(numberStr) {
+  const clean = String(numberStr ?? '').trim();
+  if (!clean) return '';
+  if (clean === '0' || clean === '00') return clean;
+  const n = parseInt(clean, 10);
+  if (isNaN(n) || n < 0) return clean;
+  return n < 10 ? `0${n}` : String(n);
+}
+
+// Verifica si un número es válido para la operadora indicada y devuelve { valid, code, name, emoji, maxNum, operatorLabel }
+function validateAndResolveAnimalForLottery(numberStr, lotteryIdOrName = '') {
+  const opCfg = getOperatorConfigForLottery(lotteryIdOrName);
+  const code = normalizeAnimalCode(numberStr);
+  if (!code || !/^\d{1,2}$/.test(code)) {
+    return { valid: false, code, name: null, emoji: null, maxNum: opCfg.maxNum, operatorLabel: opCfg.label };
+  }
+  if (code !== '0' && code !== '00') {
+    const n = parseInt(code, 10);
+    if (isNaN(n) || n < 1 || n > opCfg.maxNum) {
+      return { valid: false, code, name: null, emoji: null, maxNum: opCfg.maxNum, operatorLabel: opCfg.label };
+    }
+  }
+  const figName = opCfg.dict[code];
+  if (!figName) {
+    return { valid: false, code, name: null, emoji: null, maxNum: opCfg.maxNum, operatorLabel: opCfg.label };
+  }
+  return {
+    valid: true,
+    code,
+    name: figName,
+    emoji: getEmojiForFigureName(figName, Boolean(opCfg.isFruta)),
+    maxNum: opCfg.maxNum,
+    operatorLabel: opCfg.label
+  };
+}
+
+// Devuelve el animalito o fruta correspondiente según la operadora específica
 function getAnimalOrFruitInfo(numberStr, lotteryIdOrName = '') {
-  const cleanNum = String(numberStr || '').trim();
-  const isFruta = String(lotteryIdOrName || '').toUpperCase().includes('FRUTA');
-  const dict = isFruta ? FRUTAS_DICT : ANIMALITOS_DICT;
-  return dict[cleanNum] || (cleanNum.length === 1 ? dict['0' + cleanNum] : null) || {
-    name: isFruta ? 'Fruta' : 'Animalito',
-    emoji: isFruta ? '🍉' : '🐾'
+  const res = validateAndResolveAnimalForLottery(numberStr, lotteryIdOrName);
+  if (res.valid) {
+    return { name: res.name, emoji: res.emoji, code: res.code, maxNum: res.maxNum, valid: true };
+  }
+  const opCfg = getOperatorConfigForLottery(lotteryIdOrName);
+  return {
+    name: opCfg.isFruta ? 'FUERA DE RANGO' : 'FUERA DE RANGO',
+    emoji: '⛔',
+    code: normalizeAnimalCode(numberStr),
+    maxNum: opCfg.maxNum,
+    valid: false
   };
 }
 
@@ -211,7 +279,6 @@ function parse12HourTime(time12Str) {
   };
 }
 
-// Genera una serie de sorteos individuales hora por hora
 function buildHourlyDraws(prefixId, baseName, times12Array, extraProps = {}) {
   return times12Array.map(t12 => {
     const parsed = parse12HourTime(t12);
@@ -229,7 +296,6 @@ function buildHourlyDraws(prefixId, baseName, times12Array, extraProps = {}) {
   });
 }
 
-// Genera horas con minuto fijo entre startHour24 y endHour24 (inclusive)
 function generateRangeHours12(startHour24, endHour24, minuteVal = 0) {
   const list = [];
   const mm = String(minuteVal).padStart(2, '0');
@@ -241,7 +307,6 @@ function generateRangeHours12(startHour24, endHour24, minuteVal = 0) {
   return list;
 }
 
-// Horas comunes reutilizables
 const HOURS_8AM_TO_7PM_00 = generateRangeHours12(8, 19, 0);
 const HOURS_9AM_TO_7PM_00 = generateRangeHours12(9, 19, 0);
 const HOURS_9AM_TO_8PM_00 = generateRangeHours12(9, 20, 0);
@@ -260,7 +325,6 @@ const HOURS_9AM_TO_6PM_30 = generateRangeHours12(9, 18, 30);
 
 const HOURS_9AM_TO_7PM_40 = generateRangeHours12(9, 19, 40);
 
-// Construye un ítem único con hora en formato 12h
 function singleDraw(id, baseName, time12, extraProps = {}) {
   const parsed = parse12HourTime(time12);
   return {
@@ -279,147 +343,74 @@ function singleDraw(id, baseName, time12, extraProps = {}) {
 // CATÁLOGO MAESTRO DE SORTEOS (4 PESTAÑAS OFICIALES)
 // ============================================================================
 const LOTTERY_CATALOGS = {
-  // --------------------------------------------------------------------------
   // 1. PESTAÑA 1: SIN SIGNO (TRIPLES Y TERMINALES VENEZUELA)
-  // --------------------------------------------------------------------------
   sin_signo: [
-    // 1. Chance (Chance A y Chance B): 9:00 AM a 7:00 PM
     ...buildHourlyDraws('CHANCE_A', 'Chance A', HOURS_9AM_TO_7PM_00, { type: 'triple' }),
     ...buildHourlyDraws('CHANCE_B', 'Chance B', HOURS_9AM_TO_7PM_00, { type: 'triple' }),
-
-    // 2. Triple Táchira (Táchira A y Táchira B): 1:15 PM, 4:45 PM, 10:10 PM
     ...buildHourlyDraws('TACHIRA_A', 'Táchira A', ['1:15 PM', '4:45 PM', '10:10 PM'], { type: 'triple' }),
     ...buildHourlyDraws('TACHIRA_B', 'Táchira B', ['1:15 PM', '4:45 PM', '10:10 PM'], { type: 'triple' }),
-
-    // 3. Triple Zulia (Zulia A y Zulia B): 12:45 PM, 4:45 PM, 7:05 PM
     ...buildHourlyDraws('ZULIA_A', 'Zulia A', ['12:45 PM', '4:45 PM', '7:05 PM'], { type: 'triple' }),
     ...buildHourlyDraws('ZULIA_B', 'Zulia B', ['12:45 PM', '4:45 PM', '7:05 PM'], { type: 'triple' }),
-
-    // 4. Triple Caliente (Caliente A y Caliente B): 1:00 PM, 4:30 PM, 7:10 PM
     ...buildHourlyDraws('CALIENTE_A', 'Caliente A', ['1:00 PM', '4:30 PM', '7:10 PM'], { type: 'triple' }),
     ...buildHourlyDraws('CALIENTE_B', 'Caliente B', ['1:00 PM', '4:30 PM', '7:10 PM'], { type: 'triple' }),
-
-    // 5. Triple Lago (Triple Lago A y Triple Lago B): 1:00 PM, 4:30 PM, 10:15 PM
     ...buildHourlyDraws('TRIPLE_LAGO_A', 'Triple Lago A', ['1:00 PM', '4:30 PM', '10:15 PM'], { type: 'triple' }),
     ...buildHourlyDraws('TRIPLE_LAGO_B', 'Triple Lago B', ['1:00 PM', '4:30 PM', '10:15 PM'], { type: 'triple' }),
-
-    // 6. Triple Gato (Triple Gato A y Triple Gato B): 12:45 PM, 4:45 PM, 5:00 PM, 7:45 PM
     ...buildHourlyDraws('TRIPLE_GATO_A', 'Triple Gato A', ['12:45 PM', '4:45 PM', '5:00 PM', '7:45 PM'], { type: 'triple' }),
     ...buildHourlyDraws('TRIPLE_GATO_B', 'Triple Gato B', ['12:45 PM', '4:45 PM', '5:00 PM', '7:45 PM'], { type: 'triple' }),
-
-    // 7. El Arrejuntao (Arrejuntao A y Arrejuntao B): 10:00 AM, 1:00 PM, 4:00 PM, 7:00 PM, 11:00 PM
     ...buildHourlyDraws('ARREJUNTAO_A', 'Arrejuntao A', ['10:00 AM', '1:00 PM', '4:00 PM', '7:00 PM', '11:00 PM'], { type: 'triple' }),
     ...buildHourlyDraws('ARREJUNTAO_B', 'Arrejuntao B', ['10:00 AM', '1:00 PM', '4:00 PM', '7:00 PM', '11:00 PM'], { type: 'triple' }),
-
-    // 8. Triple Zamorano: 10:00 AM, 12:00 PM, 2:00 PM, 4:00 PM, 7:00 PM
     ...buildHourlyDraws('TRIPLE_ZAMORANO', 'Triple Zamorano', ['10:00 AM', '12:00 PM', '2:00 PM', '4:00 PM', '7:00 PM'], { type: 'triple' }),
-
-    // 9. La Ricachona (Sorteos a los :05): 8:05 AM a 7:05 PM
     ...buildHourlyDraws('LA_RICACHONA', 'La Ricachona', HOURS_8AM_TO_7PM_05, { type: 'triple' }),
-
-    // 10. Triple Fácil: 8:00 AM a 7:00 PM
     ...buildHourlyDraws('TRIPLE_FACIL', 'Triple Fácil', HOURS_8AM_TO_7PM_00, { type: 'triple' }),
-
-    // 11. Trío Activo El Patronus: 8:00 AM a 7:00 PM
     ...buildHourlyDraws('TRIO_ACTIVO', 'Trío Activo', HOURS_8AM_TO_7PM_00, { type: 'triple' }),
-
-    // 12. Triple Popular: 9:00 AM a 9:00 PM
     ...buildHourlyDraws('TRIPLE_POPULAR', 'Triple Popular', HOURS_9AM_TO_9PM_00, { type: 'triple' }),
-
-    // 13. Triple Dorado Venezuela: 9:00 AM, 10:00 AM, 11:00 AM, 1:00 PM, 2:00 PM, 3:00 PM, 4:00 PM, 5:00 PM, 6:00 PM
     ...buildHourlyDraws('TRIPLE_DORADO', 'Triple Dorado', ['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM'], { type: 'triple' }),
-
-    // 14. Triple Fortuna: 10:00 AM a 7:00 PM
     ...buildHourlyDraws('TRIPLE_FORTUNA', 'Triple Fortuna', generateRangeHours12(10, 19, 0), { type: 'triple' }),
-
-    // 15. Ñapa Gana (Terminal): 9:00 AM, 10:30 AM, 11:30 AM, 12:00 PM a 7:00 PM
     ...buildHourlyDraws('NAPA_GANA', 'Ñapa Gana', ['9:00 AM', '10:30 AM', '11:30 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM', '7:00 PM'], { type: 'terminal' }),
-
-    // 16. Triple Caracas (Caracas A y Caracas B): 1:00 PM, 4:30 PM, 7:00 PM
     ...buildHourlyDraws('CARACAS_A', 'Caracas A', ['1:00 PM', '4:30 PM', '7:00 PM'], { type: 'triple' }),
     ...buildHourlyDraws('CARACAS_B', 'Caracas B', ['1:00 PM', '4:30 PM', '7:00 PM'], { type: 'triple' })
   ],
 
-  // --------------------------------------------------------------------------
   // 2. PESTAÑA 2: CON SIGNO (ZODIACALES VENEZUELA Y ASTROS COLOMBIA)
-  // --------------------------------------------------------------------------
   con_signo: [
-    // 1. Chance Astral: 9:00 AM a 7:00 PM
     ...buildHourlyDraws('CHANCE_ASTRAL', 'Chance Astral', HOURS_9AM_TO_7PM_00, { type: 'zodiac' }),
-
-    // 2. Táchira Zodiacal: 1:15 PM, 4:45 PM, 10:10 PM
     ...buildHourlyDraws('TACHIRA_ZODIACAL', 'Táchira Zodiacal', ['1:15 PM', '4:45 PM', '10:10 PM'], { type: 'zodiac' }),
-
-    // 3. Zodiaco del Zulia: 12:45 PM, 4:45 PM, 7:05 PM
     ...buildHourlyDraws('ZODIACO_ZULIA', 'Zodiaco del Zulia', ['12:45 PM', '4:45 PM', '7:05 PM'], { type: 'zodiac' }),
-
-    // 4. Signo Caliente: 1:00 PM, 4:30 PM, 7:10 PM
     ...buildHourlyDraws('SIGNO_CALIENTE', 'Signo Caliente', ['1:00 PM', '4:30 PM', '7:10 PM'], { type: 'zodiac' }),
-
-    // 5. Astro Zamorano: 10:00 AM, 12:00 PM, 2:00 PM, 4:00 PM, 7:00 PM
     ...buildHourlyDraws('ASTRO_ZAMORANO', 'Astro Zamorano', ['10:00 AM', '12:00 PM', '2:00 PM', '4:00 PM', '7:00 PM'], { type: 'zodiac' }),
-
-    // 6. Lago Zodiacal: 1:00 PM, 4:30 PM, 10:15 PM
     ...buildHourlyDraws('LAGO_ZODIACAL', 'Lago Zodiacal', ['1:00 PM', '4:30 PM', '10:15 PM'], { type: 'zodiac' }),
-
-    // 7. Triple Gana Signo: 1:00 PM, 4:00 PM, 10:00 PM
     ...buildHourlyDraws('TRIPLE_GANA_SIGNO', 'Triple Gana Signo', ['1:00 PM', '4:00 PM', '10:00 PM'], { type: 'zodiac' }),
-
-    // 8. Super Gana (4 Cifras + Signo): 1:00 PM, 4:00 PM, 10:00 PM
     ...buildHourlyDraws('SUPER_GANA', 'Super Gana', ['1:00 PM', '4:00 PM', '10:00 PM'], { type: 'astro' }),
-
-    // 9. Triple Gato Zodiacal: 12:45 PM, 4:45 PM, 5:00 PM, 7:45 PM
     ...buildHourlyDraws('TRIPLE_GATO_ZOD', 'Triple Gato Zodiacal', ['12:45 PM', '4:45 PM', '5:00 PM', '7:45 PM'], { type: 'zodiac' }),
-
-    // 10. Arrejuntao Signo: 10:00 AM, 1:00 PM, 4:00 PM, 7:00 PM, 11:00 PM
     ...buildHourlyDraws('ARREJUNTAO_SIGNO', 'Arrejuntao Signo', ['10:00 AM', '1:00 PM', '4:00 PM', '7:00 PM', '11:00 PM'], { type: 'zodiac' }),
-
-    // 11. Tripletazo (Caracas Zodiacal): 1:00 PM, 4:30 PM, 7:00 PM
     ...buildHourlyDraws('TRIPLETAZO', 'Tripletazo', ['1:00 PM', '4:30 PM', '7:00 PM'], { type: 'zodiac' }),
-
-    // 12. Astros Colombia
     singleDraw('ASTRO_SOL_1430', 'Super Astro Sol', '2:30 PM', { type: 'astro', country: 'COL', daysOfWeek: [1, 2, 3, 4, 5, 6] }),
     singleDraw('ASTRO_LUNA_2230', 'Super Astro Luna', '10:30 PM', { type: 'astro', country: 'COL', daysOfWeek: [0, 1, 2, 3, 4, 5, 6] })
   ],
 
-  // --------------------------------------------------------------------------
   // 3. PESTAÑA 3: 4 CIFRAS (LOTERÍAS Y CHANCES COLOMBIANOS + ESPECIALES)
-  // --------------------------------------------------------------------------
   cuatro_cifras: [
-    // A. Loterías Principales de Colombia por Día de Sorteo
-    // Lunes (day === 1)
     singleDraw('CUNDINAMARCA', 'Lotería de Cundinamarca', '10:30 PM', { has5ta: false, daysOfWeek: [1], dayLabel: 'Lunes' }),
     singleDraw('TOLIMA', 'Lotería del Tolima', '10:30 PM', { has5ta: false, daysOfWeek: [1], dayLabel: 'Lunes' }),
-    // Martes (day === 2)
     singleDraw('CRUZ_ROJA', 'Lotería de la Cruz Roja', '10:55 PM', { has5ta: false, daysOfWeek: [2], dayLabel: 'Martes' }),
     singleDraw('HUILA', 'Lotería del Huila', '10:30 PM', { has5ta: false, daysOfWeek: [2], dayLabel: 'Martes' }),
-    // Miércoles (day === 3)
     singleDraw('MANIZALES', 'Lotería de Manizales', '10:30 PM', { has5ta: false, daysOfWeek: [3], dayLabel: 'Miércoles' }),
     singleDraw('META', 'Lotería del Meta', '10:30 PM', { has5ta: false, daysOfWeek: [3], dayLabel: 'Miércoles' }),
     singleDraw('VALLE', 'Lotería del Valle', '10:30 PM', { has5ta: false, daysOfWeek: [3], dayLabel: 'Miércoles' }),
-    // Jueves (day === 4)
     singleDraw('BOGOTA', 'Lotería de Bogotá', '11:15 PM', { has5ta: false, daysOfWeek: [4], dayLabel: 'Jueves' }),
     singleDraw('QUINDIO', 'Lotería del Quindío', '10:30 PM', { has5ta: false, daysOfWeek: [4], dayLabel: 'Jueves' }),
-    // Viernes (day === 5)
     singleDraw('MEDELLIN', 'Lotería de Medellín', '11:00 PM', { has5ta: false, daysOfWeek: [5], dayLabel: 'Viernes' }),
     singleDraw('SANTANDER', 'Lotería de Santander', '11:00 PM', { has5ta: false, daysOfWeek: [5], dayLabel: 'Viernes' }),
     singleDraw('RISARALDA', 'Lotería de Risaralda', '11:00 PM', { has5ta: false, daysOfWeek: [5], dayLabel: 'Viernes' }),
-    // Sábados (day === 6)
     singleDraw('BOYACA', 'Lotería de Boyacá', '10:40 PM', { has5ta: false, daysOfWeek: [6], dayLabel: 'Sábado' }),
     singleDraw('CAUCA', 'Lotería del Cauca', '10:40 PM', { has5ta: false, daysOfWeek: [6], dayLabel: 'Sábado' }),
-
-    // B. Chances y Juegos de Sorteo Diario Colombia (Con soporte para "La 5ta")
     singleDraw('DORADO_MANANA', 'Dorado Mañana', '10:55 AM', { has5ta: true, daysOfWeek: [1, 2, 3, 4, 5, 6] }),
     singleDraw('DORADO_TARDE', 'Dorado Tarde', '3:30 PM', { has5ta: true, daysOfWeek: [1, 2, 3, 4, 5, 6] }),
     singleDraw('DORADO_NOCHE', 'Dorado Noche', '10:05 PM', { has5ta: true, daysOfWeek: [0, 1, 2, 3, 4, 5, 6] }),
-
-    // Sinuano Lunes a Sábado vs Domingo
     singleDraw('SINUANO_DIA_LV', 'Sinuano Día', '2:30 PM', { has5ta: true, daysOfWeek: [1, 2, 3, 4, 5, 6] }),
     singleDraw('SINUANO_DIA_DOM', 'Sinuano Día (Dom)', '1:00 PM', { has5ta: true, daysOfWeek: [0] }),
     singleDraw('SINUANO_NOCHE_LV', 'Sinuano Noche', '10:30 PM', { has5ta: true, daysOfWeek: [1, 2, 3, 4, 5, 6] }),
     singleDraw('SINUANO_NOCHE_DOM', 'Sinuano Noche (Dom)', '8:30 PM', { has5ta: true, daysOfWeek: [0] }),
-
-    // Otros Sorteos Diarios de Colombia
     singleDraw('ANTIOQUENITA_DIA', 'Antioqueñita Día', '10:00 AM', { has5ta: true }),
     singleDraw('ANTIOQUENITA_TARDE', 'Antioqueñita Tarde', '4:00 PM', { has5ta: true }),
     singleDraw('CAFETERITO_TARDE', 'Cafeterito Tarde', '12:00 PM', { has5ta: true }),
@@ -443,58 +434,57 @@ const LOTTERY_CATALOGS = {
     singleDraw('CULONA_NOCHE', 'Culona Noche', '9:30 PM', { has5ta: false }),
     singleDraw('MOTILON_TARDE', 'Motilón Tarde', '3:00 PM', { has5ta: true }),
     singleDraw('MOTILON_NOCHE', 'Motilón Noche', '9:00 PM', { has5ta: true }),
-
-    // Especiales 4 y 5 Cifras Venezuela
     ...buildHourlyDraws('EL_ARRIMAO', 'El Arrimao', ['10:00 AM', '1:00 PM', '4:00 PM', '7:00 PM', '11:00 PM'], { has5ta: false }),
     ...buildHourlyDraws('EL_PEGADITO', 'El Pegadito', ['10:00 AM', '1:00 PM', '4:00 PM', '7:00 PM', '11:00 PM'], { has5ta: false })
   ],
 
-  // --------------------------------------------------------------------------
-  // 4. PESTAÑA 4: ANIMALITOS (DESGLOSADOS POR HORA Y MINUTO EXACTO + FRUTA GANA)
-  // --------------------------------------------------------------------------
+  // 4. PESTAÑA 4: ANIMALITOS Y FRUTAS (CON RANGO Y DICCIONARIO OFICIAL POR OPERADORA)
   animalitos: [
-    // Grupo 1: Sorteos en punto (:00) de 8:00 AM a 7:00 PM
-    ...buildHourlyDraws('LOTTO_ACTIVO', 'Lotto Activo', HOURS_8AM_TO_7PM_00, { maxNum: 36, type: 'animalito' }),
-    ...buildHourlyDraws('LA_GRANJITA', 'La Granjita', HOURS_8AM_TO_7PM_00, { maxNum: 36, type: 'animalito' }),
-    ...buildHourlyDraws('GUACHARO_ACTIVO', 'Guácharo Activo', HOURS_8AM_TO_7PM_00, { maxNum: 36, type: 'animalito' }),
-    ...buildHourlyDraws('LOTO_CHAIMA', 'Loto Chaima', HOURS_8AM_TO_7PM_00, { maxNum: 36, type: 'animalito' }),
+    // Operadoras de 38 figuras (0, 00 al 36) y especiales en punto (:00)
+    ...buildHourlyDraws('LOTTO_ACTIVO', 'Lotto Activo', HOURS_8AM_TO_7PM_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
+    ...buildHourlyDraws('LA_GRANJITA', 'La Granjita', HOURS_8AM_TO_7PM_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
+    ...buildHourlyDraws('GUACHARO_ACTIVO', 'Guácharo Activo', HOURS_8AM_TO_7PM_00, { maxNum: 75, dictKey: 'GUACHARO_77', type: 'animalito' }),
+    ...buildHourlyDraws('CONDOR_GANA', 'Cóndor Gana', HOURS_9AM_TO_7PM_00, { maxNum: 75, dictKey: 'CONDOR_77', type: 'animalito' }),
+    ...buildHourlyDraws('LOTO_CHAIMA', 'Loto Chaima', HOURS_8AM_TO_7PM_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
 
-    // Grupo 2: Sorteos en punto (:00) de 9:00 AM a 7:00 PM / 8:00 PM / 9:00 PM
-    ...buildHourlyDraws('FRUTA_GANA', 'Fruta Gana', HOURS_9AM_TO_7PM_00, { maxNum: 36, type: 'animalito', isFruta: true }),
-    ...buildHourlyDraws('GRANJA_MILLONARIA', 'Granja Millonaria', HOURS_9AM_TO_8PM_00, { maxNum: 36, type: 'animalito' }),
-    ...buildHourlyDraws('FIERAS_ORIENTE', 'Animalitos del Oriente - Fieras', HOURS_9AM_TO_6PM_00, { maxNum: 36, type: 'animalito' }),
-    ...buildHourlyDraws('CHANCE_ANIMALITOS', 'Chance con Animalitos', HOURS_9AM_TO_7PM_00, { maxNum: 36, type: 'animalito' }),
-    ...buildHourlyDraws('CHANCE_ANIMALITOS_B', 'Chance con Animalitos B', HOURS_9AM_TO_7PM_00, { maxNum: 36, type: 'animalito' }),
-    ...buildHourlyDraws('MEGA_ANIMAL_40', 'Mega Animal 40', HOURS_9AM_TO_8PM_00, { maxNum: 40, type: 'animalito' }),
-    ...buildHourlyDraws('TROPI_GANA', 'Tropi Gana', HOURS_9AM_TO_7PM_00, { maxNum: 36, type: 'animalito' }),
-    ...buildHourlyDraws('TRIPLE_POPULAR_ANM', 'Triple Popular Animalitos', HOURS_9AM_TO_9PM_00, { maxNum: 36, type: 'animalito' }),
+    // Fruta Gana (0, 00 al 36 - 38 frutas)
+    ...buildHourlyDraws('FRUTA_GANA', 'Fruta Gana', HOURS_9AM_TO_7PM_00, { maxNum: 36, dictKey: 'FRUTA_GANA_38', type: 'animalito', isFruta: true }),
 
-    // Grupo 3: Sorteos a los :05 minutos
-    ...buildHourlyDraws('MONJE_MILLONARIO', 'Monje Millonario', HOURS_8AM_TO_7PM_05, { maxNum: 36, type: 'animalito' }),
+    // Otras operadoras en punto (:00)
+    ...buildHourlyDraws('GRANJA_MILLONARIA', 'Granja Millonaria', HOURS_9AM_TO_8PM_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
+    ...buildHourlyDraws('FIERAS_ORIENTE', 'Animalitos del Oriente - Fieras', HOURS_9AM_TO_6PM_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
+    ...buildHourlyDraws('CHANCE_ANIMALITOS', 'Chance con Animalitos', HOURS_9AM_TO_7PM_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
+    ...buildHourlyDraws('CHANCE_ANIMALITOS_B', 'Chance con Animalitos B', HOURS_9AM_TO_7PM_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
+    ...buildHourlyDraws('MEGA_ANIMAL_40', 'Mega Animal 40', HOURS_9AM_TO_8PM_00, { maxNum: 40, dictKey: 'MEGA_ANIMAL_42', type: 'animalito' }),
+    ...buildHourlyDraws('TROPI_GANA', 'Tropi Gana', HOURS_9AM_TO_7PM_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
+    ...buildHourlyDraws('TRIPLE_POPULAR_ANM', 'Triple Popular Animalitos', HOURS_9AM_TO_9PM_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
 
-    // Grupo 4: Sorteos a los :10 minutos
-    ...buildHourlyDraws('LOTTO_GATO', 'Lotto Gato', HOURS_9AM_TO_7PM_10, { maxNum: 36, type: 'animalito' }),
+    // Sorteos a los :05 minutos
+    ...buildHourlyDraws('MONJE_MILLONARIO', 'Monje Millonario', HOURS_8AM_TO_7PM_05, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
+    ...buildHourlyDraws('LA_RICACHONA_ANM', 'La Ricachona Animalitos', HOURS_8AM_TO_7PM_05, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
 
-    // Grupo 5: Sorteos a los :15 minutos
-    ...buildHourlyDraws('SELVA_PLUS', 'Selva Plus', HOURS_8AM_TO_8PM_15, { maxNum: 36, type: 'animalito' }),
-    ...buildHourlyDraws('BICHITOS_ORIENTE', 'Animalitos del Oriente - Bichitos', HOURS_9AM_TO_6PM_15, { maxNum: 36, type: 'animalito' }),
+    // Sorteos a los :10 minutos
+    ...buildHourlyDraws('LOTTO_GATO', 'Lotto Gato', HOURS_9AM_TO_7PM_10, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
 
-    // Grupo 6: Sorteos a los :30 minutos (Media hora)
-    ...buildHourlyDraws('GUACHARITO_MILL', 'El Guacharito Millonario', HOURS_8AM_TO_7PM_30, { maxNum: 36, type: 'animalito' }),
-    ...buildHourlyDraws('LOTTO_ACTIVO_RD', 'Lotto Activo RD', HOURS_8AM_TO_7PM_30, { maxNum: 36, type: 'animalito' }),
-    ...buildHourlyDraws('RULETA_ROYAL', 'Ruleta Royal', HOURS_8AM_TO_8PM_30, { maxNum: 36, type: 'animalito' }),
-    ...buildHourlyDraws('GRANJAZO', 'Granja Millonaria - Granjazo', HOURS_9AM_TO_8PM_30, { maxNum: 36, type: 'animalito' }),
-    ...buildHourlyDraws('MASCOTAS_ORIENTE', 'Animalitos del Oriente - Mascotas', HOURS_9AM_TO_6PM_30, { maxNum: 36, type: 'animalito' }),
+    // Sorteos a los :15 minutos (Selva Plus: 0, 00 al 99)
+    ...buildHourlyDraws('SELVA_PLUS', 'Selva Plus', HOURS_8AM_TO_8PM_15, { maxNum: 99, dictKey: 'SELVA_PLUS_101', type: 'animalito' }),
+    ...buildHourlyDraws('BICHITOS_ORIENTE', 'Animalitos del Oriente - Bichitos', HOURS_9AM_TO_6PM_15, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
 
-    // Grupo 7: Sorteos a los :40 minutos
-    ...buildHourlyDraws('GATAZO', 'Gatazo', HOURS_9AM_TO_7PM_40, { maxNum: 36, type: 'animalito' }),
+    // Sorteos a los :30 minutos (Guacharito Millonario: 0..99, Granjazo: 0..76)
+    ...buildHourlyDraws('GUACHARITO_MILL', 'El Guacharito Millonario', HOURS_8AM_TO_7PM_30, { maxNum: 99, dictKey: 'GUACHARITO_101', type: 'animalito' }),
+    ...buildHourlyDraws('LOTTO_ACTIVO_RD', 'Lotto Activo RD', HOURS_8AM_TO_7PM_30, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
+    ...buildHourlyDraws('RULETA_ROYAL', 'Ruleta Royal', HOURS_8AM_TO_8PM_30, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
+    ...buildHourlyDraws('GRANJAZO', 'GM El Granjazo', HOURS_9AM_TO_8PM_30, { maxNum: 76, dictKey: 'GRANJAZO_78', type: 'animalito' }),
+    ...buildHourlyDraws('MASCOTAS_ORIENTE', 'Animalitos del Oriente - Mascotas', HOURS_9AM_TO_6PM_30, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
 
-    // Grupo 8: Sorteos Especiales (5 sorteos al día)
-    ...buildHourlyDraws('ARREJUNTAO_ANM', 'El Arrejuntao Animalitos', ['10:00 AM', '1:00 PM', '4:00 PM', '7:00 PM', '11:00 PM'], { maxNum: 36, type: 'animalito' })
+    // Sorteos a los :40 minutos (El Gatazo: 0, 00 al 74)
+    ...buildHourlyDraws('GATAZO', 'El Gatazo', HOURS_9AM_TO_7PM_40, { maxNum: 74, dictKey: 'GATAZO_76', type: 'animalito' }),
+
+    // Sorteos Especiales
+    ...buildHourlyDraws('ARREJUNTAO_ANM', 'El Arrejuntao Animalitos', ['10:00 AM', '1:00 PM', '4:00 PM', '7:00 PM', '11:00 PM'], { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' })
   ]
 };
 
-// Calcula cuántos minutos faltan desde la hora actual hasta el sorteo
 function getRemainingMinutesForLottery(lot, nowDate = new Date()) {
   if (!lot || typeof lot.drawHour24 !== 'number') return 999;
   const drawTotalMinutes = lot.drawHour24 * 60 + (lot.drawMinute || 0);
@@ -502,22 +492,15 @@ function getRemainingMinutesForLottery(lot, nowDate = new Date()) {
   return drawTotalMinutes - currentTotalMinutes;
 }
 
-// Regla de Negocio Crítica:
-// 1. Filtra loterías por día de la semana (a menos que showAllWeekDays = true)
-// 2. Elimina cualquier sorteo cuando falten 5 minutos o menos (MinutosRestantes <= 5)
 function isLotteryOpenForSale(lot, nowDate = new Date(), showAllWeekDays = false) {
   if (!lot) return false;
-  const currentDay = nowDate.getDay(); // 0 = Domingo, 1 = Lunes ... 6 = Sábado
-
+  const currentDay = nowDate.getDay();
   if (!showAllWeekDays && Array.isArray(lot.daysOfWeek) && !lot.daysOfWeek.includes(currentDay)) {
     return false;
   }
-
-  // Si es una lotería de otro día mostrada por "Ver Todas las Loterías de la Semana", permitir preventa
   if (showAllWeekDays && Array.isArray(lot.daysOfWeek) && !lot.daysOfWeek.includes(currentDay)) {
     return true;
   }
-
   const remainingMinutes = getRemainingMinutesForLottery(lot, nowDate);
   if (remainingMinutes <= 5) {
     return false;
@@ -525,7 +508,6 @@ function isLotteryOpenForSale(lot, nowDate = new Date(), showAllWeekDays = false
   return true;
 }
 
-// Busca un sorteo por su ID en cualquiera de las 4 categorías
 function findLotteryById(lotteryId) {
   for (const cat of Object.keys(LOTTERY_CATALOGS)) {
     const found = (LOTTERY_CATALOGS[cat] || []).find(l => l.id === lotteryId);
@@ -539,10 +521,22 @@ const ANIMALITOS_DEFAULT_HOURS = HOURS_8AM_TO_7PM_00;
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     ZODIAC_SIGNS,
+    BASE_38,
+    GUACHARITO_101,
+    MEGA_ANIMAL_42,
+    GATAZO_76,
+    GUACHARO_77,
+    CONDOR_77,
+    GRANJAZO_78,
+    FRUTA_GANA_38,
+    OPERATOR_DICTIONARIES,
     ANIMALITOS_DICT,
     FRUTAS_DICT,
     LOTTERY_CATALOGS,
     ANIMALITOS_DEFAULT_HOURS,
+    normalizeAnimalCode,
+    getOperatorConfigForLottery,
+    validateAndResolveAnimalForLottery,
     getAnimalOrFruitInfo,
     getRemainingMinutesForLottery,
     isLotteryOpenForSale,

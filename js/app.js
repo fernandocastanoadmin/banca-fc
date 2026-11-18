@@ -578,32 +578,39 @@ document.addEventListener('DOMContentLoaded', () => {
     if (last) printerInstance.downloadTxtReceipt(last);
   });
 
-  // 12. Modal de Ruleta / Selector Rápido de Animalitos y Fruta Gana
+  // 12. Modal de Ruleta / Selector Rápido de Animalitos y Fruta Gana (Dinámico por Operadora)
   const setupAnimalitosGrid = () => {
     const grid = document.getElementById('animalitos-quick-grid');
+    const modalTitle = document.getElementById('modal-ruleta-title');
     if (!grid) return;
 
-    const selectedIds = Array.from(pos.selectedLotteries || []);
-    const isFrutaOnly = selectedIds.length > 0 && selectedIds.every(id => id.includes('FRUTA_GANA'));
-    const dict = (isFrutaOnly && typeof FRUTAS_DICT !== 'undefined') ? FRUTAS_DICT : ANIMALITOS_DICT;
+    const configs = typeof pos.getActiveAnimalitoOperatorConfigs === 'function'
+      ? pos.getActiveAnimalitoOperatorConfigs()
+      : [{ label: 'Clásico 38 Animalitos (0, 00 al 36)', maxNum: 36, dict: BASE_38 }];
+    const sorted = [...configs].sort((a, b) => b.maxNum - a.maxNum);
+    const primaryCfg = sorted[0];
+    const maxNum = primaryCfg.maxNum || 36;
+
+    if (modalTitle) {
+      modalTitle.textContent = `${primaryCfg.label} — ${maxNum + 2} Figuras Oficiales`;
+    }
 
     let html = '';
     const codes = ['0', '00'];
-    for (let i = 1; i <= 36; i++) {
+    for (let i = 1; i <= maxNum; i++) {
       codes.push(i < 10 ? `0${i}` : String(i));
     }
 
     codes.forEach(code => {
-      const info = dict[code] || { name: 'Item', emoji: '🐾' };
-      const fruitSub = (!isFrutaOnly && typeof FRUTAS_DICT !== 'undefined' && FRUTAS_DICT[code])
-        ? `<span style="font-size:9px;color:#64748b;display:block;">${FRUTAS_DICT[code].emoji} ${FRUTAS_DICT[code].name}</span>`
-        : '';
+      const name = primaryCfg.dict[code] || 'FIGURA';
+      const emoji = typeof getEmojiForFigureName === 'function'
+        ? getEmojiForFigureName(name, Boolean(primaryCfg.isFruta))
+        : '🐾';
       html += `
         <button type="button" class="animal-picker-btn" data-code="${code}">
           <span class="ap-code">${code}</span>
-          <span class="ap-emoji">${info.emoji}</span>
-          <span class="ap-name">${info.name}</span>
-          ${fruitSub}
+          <span class="ap-emoji">${emoji}</span>
+          <span class="ap-name">${name}</span>
         </button>
       `;
     });
@@ -617,6 +624,7 @@ document.addEventListener('DOMContentLoaded', () => {
           inputNumero.value = code;
           inputNumero.dispatchEvent(new Event('input'));
         }
+        pos.renderInlineAnimalitosGrid();
         modals.closeModal('modal-ruleta-animalitos');
         pos.focusMontoInput();
       });

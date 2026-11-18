@@ -124,6 +124,7 @@ class PosEngine {
 
     // Mostrar/ocultar campos condicionales
     const signoRow = document.getElementById('row-input-signo');
+    const inlineAnmPanel = document.getElementById('pos-inline-animalitos-panel');
     const animalitoBar = document.getElementById('animalito-command-bar');
     const normalCommandBar = document.getElementById('normal-command-bar');
     const balota5Container = document.getElementById('container-5ta-balota');
@@ -131,6 +132,9 @@ class PosEngine {
 
     if (signoRow) {
       signoRow.classList.toggle('hidden', categoryKey !== 'con_signo');
+    }
+    if (inlineAnmPanel) {
+      inlineAnmPanel.classList.toggle('hidden', categoryKey !== 'animalitos');
     }
     if (animalitoBar && normalCommandBar) {
       const isAnm = categoryKey === 'animalitos';
@@ -146,6 +150,8 @@ class PosEngine {
 
     const searchInput = document.getElementById('lottery-search-input');
     this.renderLotteriesList(searchInput?.value || '');
+    this.renderInlineAnimalitosGrid();
+    this.updateAnimalitoPreviewBadge();
     this.updateCounters();
     this.focusNumberInput();
   }
@@ -222,7 +228,80 @@ class PosEngine {
           e.target.closest('.lottery-item-row').classList.remove('selected');
         }
         this.updateCounters();
+        this.renderInlineAnimalitosGrid();
         this.updateAnimalitoPreviewBadge();
+      });
+    });
+  }
+
+  getActiveAnimalitoOperatorConfigs() {
+    const selectedIds = Array.from(this.selectedLotteries);
+    if (selectedIds.length === 0 || typeof getOperatorConfigForLottery !== 'function') {
+      return [typeof OPERATOR_DICTIONARIES !== 'undefined' ? OPERATOR_DICTIONARIES.BASE_38 : { key: 'BASE_38', label: 'Clásico 38 Animalitos (0, 00 al 36)', maxNum: 36, dict: BASE_38 }];
+    }
+    const map = new Map();
+    selectedIds.forEach(id => {
+      const cfg = getOperatorConfigForLottery(id);
+      if (cfg) map.set(cfg.key, cfg);
+    });
+    return map.size > 0 ? Array.from(map.values()) : [OPERATOR_DICTIONARIES.BASE_38];
+  }
+
+  renderInlineAnimalitosGrid() {
+    const gridEl = document.getElementById('pos-inline-animalitos-grid');
+    const titleEl = document.getElementById('pos-inline-animalitos-title');
+    const badgeEl = document.getElementById('pos-inline-animalitos-range-badge');
+    if (!gridEl || this.currentCategory !== 'animalitos') return;
+
+    const configs = this.getActiveAnimalitoOperatorConfigs();
+    // Ordenar por mayor rango para que si hay varias operadoras muestre hasta el máximo permitido
+    const sorted = [...configs].sort((a, b) => b.maxNum - a.maxNum);
+    const primaryCfg = sorted[0];
+    const maxNum = primaryCfg.maxNum || 36;
+    const totalFigures = maxNum + 2; // 0, 00 y 01..maxNum
+
+    if (titleEl) {
+      titleEl.textContent = configs.length === 1
+        ? `${primaryCfg.isFruta ? '🍉' : '🐾'} ${primaryCfg.label}`
+        : `🐾 Multi-Operadora (${configs.map(c => c.label.split(' (')[0]).join(' + ')})`;
+    }
+    if (badgeEl) {
+      badgeEl.textContent = `0, 00 al ${maxNum} (${totalFigures} figuras)`;
+    }
+
+    const codes = ['0', '00'];
+    for (let i = 1; i <= maxNum; i++) {
+      codes.push(String(i).padStart(2, '0'));
+    }
+
+    const currentTyped = typeof normalizeAnimalCode === 'function'
+      ? normalizeAnimalCode(document.getElementById('input-numero')?.value || '')
+      : '';
+
+    gridEl.innerHTML = codes.map(code => {
+      const name = primaryCfg.dict[code] || '';
+      const emoji = typeof getEmojiForFigureName === 'function'
+        ? getEmojiForFigureName(name, Boolean(primaryCfg.isFruta))
+        : '🐾';
+      const isSelected = currentTyped === code;
+      return `
+        <button type="button" class="animal-picker-btn ${isSelected ? 'selected' : ''}" data-code="${code}" style="padding: 3px 2px; ${isSelected ? 'border: 2px solid #0284c7; background: #e0f2fe;' : ''}">
+          <span class="ap-code" style="font-size: 11px;">${code}</span>
+          <span class="ap-emoji" style="font-size: 14px;">${emoji}</span>
+          <span class="ap-name" style="font-size: 9px; font-weight: bold;">${name}</span>
+        </button>
+      `;
+    }).join('');
+
+    gridEl.querySelectorAll('.animal-picker-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const numInput = document.getElementById('input-numero');
+        if (numInput) {
+          numInput.value = btn.dataset.code;
+          this.updateAnimalitoPreviewBadge();
+          this.renderInlineAnimalitosGrid();
+          this.focusMontoInput();
+        }
       });
     });
   }
@@ -240,23 +319,36 @@ class PosEngine {
       badge.classList.add('hidden');
       return;
     }
-    // Detectar si hay algún sorteo de Fruta Gana seleccionado
-    const selectedIds = Array.from(this.selectedLotteries);
-    const hasFrutaSelected = selectedIds.some(id => id.includes('FRUTA_GANA'));
-    const hasAnimalSelected = selectedIds.some(id => !id.includes('FRUTA_GANA'));
 
-    if (hasFrutaSelected && !hasAnimalSelected) {
-      const fInfo = getAnimalOrFruitInfo(val, 'FRUTA_GANA');
-      badge.textContent = `${fInfo.emoji} ${fInfo.name}`;
-      badge.classList.remove('hidden');
-    } else if (hasFrutaSelected && hasAnimalSelected) {
-      const aInfo = getAnimalOrFruitInfo(val, 'LOTTO_ACTIVO');
-      const fInfo = getAnimalOrFruitInfo(val, 'FRUTA_GANA');
-      badge.textContent = `${aInfo.emoji} ${aInfo.name} / ${fInfo.emoji} ${fInfo.name}`;
+    const selectedIds = Array.from(this.selectedLotteries);
+    const probeIds = selectedIds.length > 0 ? selectedIds : ['LOTTO_ACTIVO'];
+    const validLabels = new Set();
+    const outOfRangeOps = new Set();
+
+    probeIds.forEach(id => {
+      const res = typeof validateAndResolveAnimalForLottery === 'function'
+        ? validateAndResolveAnimalForLottery(val, id)
+        : null;
+      if (res && res.valid) {
+        validLabels.add(`${res.emoji} ${res.code} ${res.name}`);
+      } else if (res) {
+        outOfRangeOps.add(`máx. ${res.maxNum}`);
+      }
+    });
+
+    if (validLabels.size > 0) {
+      let text = Array.from(validLabels).join(' / ');
+      if (outOfRangeOps.size > 0) {
+        text += ` (⚠️ Omitido en ${Array.from(outOfRangeOps).join(', ')})`;
+      }
+      badge.textContent = text;
+      badge.style.color = '#15803d';
       badge.classList.remove('hidden');
     } else {
-      const aInfo = getAnimalOrFruitInfo(val, 'LOTTO_ACTIVO');
-      badge.textContent = `${aInfo.emoji} ${aInfo.name}`;
+      const configs = this.getActiveAnimalitoOperatorConfigs();
+      const maxAllowed = Math.max(...configs.map(c => c.maxNum || 36));
+      badge.textContent = `⛔ Nro ${val} fuera de rango (Permitido: 0, 00 al ${maxAllowed})`;
+      badge.style.color = '#b91c1c';
       badge.classList.remove('hidden');
     }
   }
@@ -270,6 +362,8 @@ class PosEngine {
       }
     });
     this.renderLotteriesList(document.getElementById('lottery-search-input')?.value || '');
+    this.renderInlineAnimalitosGrid();
+    this.updateAnimalitoPreviewBadge();
     this.updateCounters();
     this.playBeep('blip');
   }
@@ -280,6 +374,8 @@ class PosEngine {
     }
     this.selectedLotteries.clear();
     this.renderLotteriesList(document.getElementById('lottery-search-input')?.value || '');
+    this.renderInlineAnimalitosGrid();
+    this.updateAnimalitoPreviewBadge();
     this.updateCounters();
     this.playBeep('blip');
   }
@@ -294,6 +390,8 @@ class PosEngine {
         }
       });
       this.renderLotteriesList(document.getElementById('lottery-search-input')?.value || '');
+      this.renderInlineAnimalitosGrid();
+      this.updateAnimalitoPreviewBadge();
       this.updateCounters();
       this.playBeep('blip');
     }
@@ -335,6 +433,8 @@ class PosEngine {
     }
 
     let addedCount = 0;
+    const omittedLotteriesByRange = [];
+
     selectedLots.forEach(lot => {
       // Verificar que falten más de 5 minutos
       if (typeof isLotteryOpenForSale === 'function' && !isLotteryOpenForSale(lot, now, this.showAllWeekLotteries)) {
@@ -348,19 +448,32 @@ class PosEngine {
 
       if (this.currentCategory === 'animalitos') {
         playType = 'animalito';
-        const numInt = parseInt(cleanNumber, 10);
-        const maxAllowed = lot.maxNum || 36;
-        if (cleanNumber !== '0' && cleanNumber !== '00' && (isNaN(numInt) || numInt < 0 || numInt > maxAllowed)) {
-          return;
+        const resolved = typeof validateAndResolveAnimalForLottery === 'function'
+          ? validateAndResolveAnimalForLottery(cleanNumber, lot.id || lot.name)
+          : null;
+
+        if (resolved) {
+          if (!resolved.valid) {
+            omittedLotteriesByRange.push(`${lot.name} (máx. ${resolved.maxNum})`);
+            return;
+          }
+          cleanNumber = resolved.code;
+          animalName = resolved.name;
+        } else {
+          const numInt = parseInt(cleanNumber, 10);
+          const maxAllowed = lot.maxNum || 36;
+          if (cleanNumber !== '0' && cleanNumber !== '00' && (isNaN(numInt) || numInt < 0 || numInt > maxAllowed)) {
+            omittedLotteriesByRange.push(`${lot.name} (máx. ${maxAllowed})`);
+            return;
+          }
+          if (cleanNumber !== '0' && cleanNumber !== '00' && cleanNumber.length === 1) {
+            cleanNumber = '0' + cleanNumber;
+          }
+          const info = typeof getAnimalOrFruitInfo === 'function'
+            ? getAnimalOrFruitInfo(cleanNumber, lot.id || lot.name)
+            : (ANIMALITOS_DICT[cleanNumber] || { name: 'Animalito' });
+          animalName = info.name;
         }
-        // Normalizar 1..9 a 01..09 manteniendo 0 y 00 intactos
-        if (cleanNumber !== '0' && cleanNumber !== '00' && cleanNumber.length === 1) {
-          cleanNumber = '0' + cleanNumber;
-        }
-        const info = typeof getAnimalOrFruitInfo === 'function'
-          ? getAnimalOrFruitInfo(cleanNumber, lot.id || lot.name)
-          : (ANIMALITOS_DICT[cleanNumber] || { name: 'Animalito' });
-        animalName = info.name;
       } else if (this.currentCategory === 'con_signo') {
         playType = lot.type === 'astro' ? 'astro' : 'zodiac';
       } else if (this.currentCategory === 'cuatro_cifras') {
@@ -389,9 +502,20 @@ class PosEngine {
     });
 
     if (addedCount === 0) {
-      alert('Verifique el número ingresado para los sorteos seleccionados (Animalitos/Frutas: 0, 00 al 36 o 40 en Mega Animal).');
+      const configs = this.getActiveAnimalitoOperatorConfigs();
+      const rangesText = configs.map(c => `${c.label}`).join(' | ');
+      alert(`⛔ Número "${numberStr}" fuera del límite oficial para la operadora seleccionada.\n\nRango permitido: ${rangesText}`);
       this.playBeep('error');
       return false;
+    }
+
+    if (omittedLotteriesByRange.length > 0) {
+      alert(
+        `ℹ️ VALIDACIÓN MULTI-OPERADORA:\n` +
+        `El número "${numberStr}" se cargó en ${addedCount} sorteo(s) válido(s), pero se ignoró en:\n` +
+        `• ${omittedLotteriesByRange.join('\n• ')}\n` +
+        `por no existir en el diccionario oficial de esa operadora.`
+      );
     }
 
     this.lastNumberPlayed = numberStr;

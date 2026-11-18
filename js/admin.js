@@ -1756,12 +1756,17 @@ class BancaFcAdminController {
       const val = (numInput?.value || '').trim();
       if (catSelect?.value === 'animalitos' && val !== '') {
         const lotId = lotSelect?.value || '';
-        const normalizedCode = (val !== '0' && val !== '00' && val.length === 1) ? `0${val}` : val;
-        const info = typeof getAnimalOrFruitInfo === 'function'
-          ? getAnimalOrFruitInfo(normalizedCode, lotId)
-          : (ANIMALITOS_DICT[normalizedCode] || ANIMALITOS_DICT[val]);
-        if (info && animalPreview && animalLabel) {
-          animalLabel.textContent = `${info.emoji} ${normalizedCode} - ${String(info.name).toUpperCase()}`;
+        const res = typeof validateAndResolveAnimalForLottery === 'function'
+          ? validateAndResolveAnimalForLottery(val, lotId)
+          : null;
+        if (res && animalPreview && animalLabel) {
+          if (res.valid) {
+            animalLabel.textContent = `${res.emoji} ${res.code} - ${res.name} [${res.operatorLabel}]`;
+            animalLabel.style.color = '';
+          } else {
+            animalLabel.textContent = `⛔ Nro "${val}" fuera de rango oficial para ${res.operatorLabel}`;
+            animalLabel.style.color = '#f87171';
+          }
           animalPreview.classList.remove('hidden');
           return;
         }
@@ -1799,13 +1804,25 @@ class BancaFcAdminController {
 
       let animalName = null;
       if (document.getElementById('res-admin-category')?.value === 'animalitos') {
-        if (number !== '0' && number !== '00' && number.length === 1) {
-          number = '0' + number;
+        const resolved = typeof validateAndResolveAnimalForLottery === 'function'
+          ? validateAndResolveAnimalForLottery(number, lotteryId)
+          : null;
+        if (resolved) {
+          if (!resolved.valid) {
+            alert(`⛔ El número "${number}" no existe en el diccionario oficial de esta operadora (${resolved.operatorLabel}).`);
+            return;
+          }
+          number = resolved.code;
+          animalName = resolved.name;
+        } else {
+          if (number !== '0' && number !== '00' && number.length === 1) {
+            number = '0' + number;
+          }
+          const info = typeof getAnimalOrFruitInfo === 'function'
+            ? getAnimalOrFruitInfo(number, lotteryId)
+            : (ANIMALITOS_DICT[number] || ANIMALITOS_DICT['0' + number]);
+          if (info) animalName = info.name;
         }
-        const info = typeof getAnimalOrFruitInfo === 'function'
-          ? getAnimalOrFruitInfo(number, lotteryId)
-          : (ANIMALITOS_DICT[number] || ANIMALITOS_DICT['0' + number]);
-        if (info) animalName = info.name;
       }
 
       const now = new Date();
