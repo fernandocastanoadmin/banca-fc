@@ -319,6 +319,17 @@
           </button>
         </div>
 
+        <!-- Grilla Visual Dinámica en Vivo para Animalitos / Frutas (Cambia según Operadora Seleccionada) -->
+        <div id="pos-inline-animalitos-panel" class="hidden" style="background: #f8fafc; border: 2px inset #94a3b8; padding: 6px; display: flex; flex-direction: column; gap: 4px; max-height: 220px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; background: #0f172a; color: #f8fafc; padding: 3px 8px; font-size: 11px; font-weight: bold;">
+            <span id="pos-inline-animalitos-title">🐾 Grilla Dinámica por Operadora (0, 00 al 36)</span>
+            <span id="pos-inline-animalitos-range-badge" style="color: #fbbf24;">38 figuras</span>
+          </div>
+          <div id="pos-inline-animalitos-grid" class="animal-picker-grid" style="overflow-y: auto; flex: 1; padding: 2px;">
+            <!-- Generado dinámicamente según la operadora seleccionada -->
+          </div>
+        </div>
+
         <!-- Barra Inferior Especial para Animalitos -->
         <div id="animalito-command-bar" class="animalitos-fast-bar hidden">
           <button type="button" class="anm-action-btn" id="btn-anm-borrar">Borrar Pantalla (A)</button>
@@ -326,7 +337,7 @@
           <button type="button" class="anm-action-btn" id="btn-anm-repetir">Repetir Ticket (T)</button>
           <button type="button" class="anm-action-btn" id="btn-anm-anular">Anular Tickets (M)</button>
           <button type="button" class="anm-action-btn" id="btn-anm-pagar">Pagar Ticket</button>
-          <button type="button" class="anm-action-btn" id="btn-anm-ruleta-rapida" style="background: #e0f2fe; color: #0369a1;">Ruleta 0-36 (Grid)</button>
+          <button type="button" class="anm-action-btn" id="btn-anm-ruleta-rapida" style="background: #e0f2fe; color: #0369a1;">Ampliar Grilla</button>
           <button type="button" class="anm-action-btn" id="btn-anm-imprimir" style="grid-column: span 2; background: #dcfce7; font-weight: 900;">Imprimir (/ , +)</button>
         </div>
       </section>
@@ -811,12 +822,12 @@
 
   <!-- 10. Modal Ruleta y Selector Visual Rápido de Animalitos -->
   <div id="modal-ruleta-animalitos" class="modal-overlay hidden">
-    <div class="modal-container" style="width: 620px;">
+    <div class="modal-container" style="width: 680px; max-width: 95vw;">
       <div class="modal-header">
-        <span>Ruleta de Animalitos (0 al 36 y Ballena 00)</span>
+        <span id="modal-ruleta-title">Grilla Oficial de Animalitos / Frutas por Operadora</span>
         <button type="button" class="win-ctrl-btn close" data-close-modal="modal-ruleta-animalitos">×</button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
         <div id="animalitos-quick-grid" class="animal-picker-grid">
           <!-- Botones rápidos generados dinámicamente -->
         </div>
