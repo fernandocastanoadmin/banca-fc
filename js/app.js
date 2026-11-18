@@ -299,6 +299,12 @@ document.addEventListener('DOMContentLoaded', () => {
       modals.openModal('modal-reporte-numeros');
     });
     document.getElementById('menu-item-cuadre-caja')?.addEventListener('click', () => {
+      // Siempre abrir con la fecha de HOY para que el cuadre incluya los tickets recién emitidos
+      const cuadreDate = document.getElementById('input-cuadre-fecha');
+      if (cuadreDate) {
+        const d = new Date();
+        cuadreDate.value = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+      }
       modals.calculateAndRenderCuadre();
       modals.openModal('modal-cuadre-caja');
     });
@@ -559,23 +565,40 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 11. Modal de Impresión Térmica y Botones de Compartir
+  // Cada acción (WhatsApp / Imprimir / Descargar) fuerza una sincronización inmediata con Firebase y refresca los reportes
+  const forceSyncAfterTicketAction = async () => {
+    try {
+      if (window.bancaFcCloud && window.bancaFcCloud.isConfigured()) {
+        await window.bancaFcCloud.pushMasterData(storageInstance.getMasterData());
+      } else {
+        await storageInstance.pullFromRemoteServer();
+      }
+    } catch (e) {}
+    modals.refreshOpenReports?.();
+    window.dispatchEvent(new CustomEvent('banca_fc_ticket_emitted'));
+  };
+
   document.getElementById('btn-close-print-preview')?.addEventListener('click', () => {
     document.getElementById('modal-print-preview')?.classList.add('hidden');
+    forceSyncAfterTicketAction();
     pos.focusNumberInput();
   });
 
   document.getElementById('btn-trigger-window-print')?.addEventListener('click', () => {
+    forceSyncAfterTicketAction();
     window.print();
   });
 
   document.getElementById('btn-share-whatsapp')?.addEventListener('click', () => {
     const last = storageInstance.getLastPrintedTicket();
+    forceSyncAfterTicketAction();
     if (last) printerInstance.shareViaWhatsApp(last);
   });
 
-  document.getElementById('btn-download-ticket-txt')?.addEventListener('click', () => {
+  document.getElementById('btn-download-ticket-img')?.addEventListener('click', () => {
     const last = storageInstance.getLastPrintedTicket();
-    if (last) printerInstance.downloadTxtReceipt(last);
+    forceSyncAfterTicketAction();
+    if (last) printerInstance.downloadImageReceipt(last);
   });
 
   // 12. Modal de Ruleta / Selector Rápido de Animalitos y Fruta Gana (Dinámico por Operadora)

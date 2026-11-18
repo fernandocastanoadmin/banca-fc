@@ -1261,10 +1261,12 @@ class StorageManager {
     const master = this.getMasterData();
     if (!Array.isArray(master.tickets)) master.tickets = [];
 
-    // Asegurar código de agencia normalizado
+    // Asegurar código de agencia normalizado y fecha de creación (para no perder tickets nuevos en sincronizaciones)
     if (!ticket.agencyCode) {
       ticket.agencyCode = this.extractAgencyCodeFromTicket(ticket);
     }
+    if (!ticket.createdAt) ticket.createdAt = new Date().toISOString();
+    if (!ticket.dateIso) ticket.dateIso = getTodayIso();
 
     // Evaluar de inmediato si ya hay resultados cargados para ese sorteo
     const evalRes = this.evaluateTicket(ticket);

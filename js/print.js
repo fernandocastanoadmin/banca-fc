@@ -281,6 +281,75 @@ class ThermalPrinter {
     window.open(url, '_blank');
   }
 
+  // Genera y descarga el ticket como imagen PNG (dibujado en canvas, sin librerías externas)
+  downloadImageReceipt(ticket) {
+    const cfg = this.storage.getConfig();
+    const currency = ticket.moneda || cfg.currency || 'COP';
+    const W = 420, PAD = 20, LH = 20;
+    const rows = [];
+    const add = (text, o = {}) => rows.push({ text: String(text), bold: !!o.bold, center: !!o.center, size: o.size || 14, gap: o.gap || 0 });
+    const sep = () => add('-'.repeat(38), { center: true });
+
+    add('BANCA FC', { bold: true, center: true, size: 26 });
+    add('FERNANDO CASTAÑO', { bold: true, center: true, size: 18 });
+    add('SEGURO TE PAGA (1000 SORTEOS)', { center: true, size: 12 });
+    sep();
+    add(`AGENCIA: ${ticket.agencia || ''}`);
+    add(`FECHA/HORA: ${ticket.fechaHora || ''}`);
+    add(`TICKET NRO: #${ticket.ticketId}`, { bold: true, size: 16 });
+    add(`SERIAL: ${ticket.serialSeguridad || ''}`);
+    add(`ESTADO: ${ticket.estado || 'ACTIVO'}`, { bold: true });
+    sep();
+    const grouped = this.groupPlaysByLottery(ticket.items || []);
+    for (const [lot, plays] of Object.entries(grouped)) {
+      add(`*** ${lot.toUpperCase()} ***`, { bold: true, gap: 4 });
+      plays.forEach(p => {
+        let n = String(p.number);
+        if (p.sign) n += `-${p.sign}`;
+        if (p.animalName) n += ` ${String(p.animalName).toUpperCase()}`;
+        if (p.is5ta) n += ' [5ta]';
+        if (p.isCombinado) n += ' [Comb]';
+        rows.push({ left: n, right: this.formatCurrency(p.amount, currency), size: 14 });
+      });
+    }
+    sep();
+    add(`JUGADAS: ${(ticket.items || []).length}`);
+    rows.push({ left: 'TOTAL:', right: this.formatCurrency(ticket.total, currency), size: 18, bold: true });
+    sep();
+    add('Verifique su ticket antes de retirarse.', { center: true, size: 12 });
+    add('Los premios caducan a los 3 días.', { center: true, size: 12 });
+    add('¡BUENA SUERTE!', { bold: true, center: true, size: 16 });
+
+    const H = PAD * 2 + rows.reduce((s, r) => s + (r.size || 14) + 6 + (r.gap || 0), 0);
+    const canvas = document.createElement('canvas');
+    canvas.width = W * 2; canvas.height = H * 2;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(2, 2);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#111111'; ctx.textBaseline = 'top';
+    let y = PAD;
+    rows.forEach(r => {
+      y += r.gap || 0;
+      ctx.font = `${r.bold ? 'bold ' : ''}${r.size}px "Courier New", monospace`;
+      if (r.left !== undefined) {
+        ctx.textAlign = 'left'; ctx.fillText(r.left, PAD, y);
+        ctx.textAlign = 'right'; ctx.fillText(r.right, W - PAD, y);
+      } else if (r.center) {
+        ctx.textAlign = 'center'; ctx.fillText(r.text, W / 2, y);
+      } else {
+        ctx.textAlign = 'left'; ctx.fillText(r.text, PAD, y);
+      }
+      y += (r.size || 14) + 6;
+    });
+
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = `Ticket_${ticket.ticketId}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
   downloadTxtReceipt(ticket) {
     const text = this.generatePlainTextReceipt(ticket);
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });

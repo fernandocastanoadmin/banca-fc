@@ -916,6 +916,7 @@ class PosEngine {
 
     // Guardar en base de datos local y sincronizar inmediatamente con Firebase y el Panel Administrativo
     this.storage.saveTicket(ticket);
+    window.dispatchEvent(new CustomEvent('banca_fc_ticket_emitted', { detail: ticket }));
 
     // Reproducir sonido de éxito de taquilla
     this.playBeep('success');

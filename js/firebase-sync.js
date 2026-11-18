@@ -302,10 +302,18 @@ class BancaFcFirebaseSync {
   // Fusiona los datos de Firebase y los locales respetando reinicios en cero y nuevos tickets
   mergeLocalAndCloud(localDb, cloudDb) {
     if (cloudDb.lastResetTimestamp && (!localDb.lastResetTimestamp || cloudDb.lastResetTimestamp > localDb.lastResetTimestamp)) {
+      // Reinicio en cero publicado: se descartan tickets viejos, pero se CONSERVAN los creados después del reinicio
+      const resetTs = cloudDb.lastResetTimestamp;
+      const cloudKeys = new Set((cloudDb.tickets || []).map(t => `${t.serialSeguridad || t.ticketId}_${t.agencyCode || t.usuario || '1000'}`));
+      const freshLocal = (localDb.tickets || []).filter(t => {
+        const k = `${t.serialSeguridad || t.ticketId}_${t.agencyCode || t.usuario || '1000'}`;
+        const created = t.createdAt || '';
+        return !cloudKeys.has(k) && created && created > resetTs;
+      });
       return {
         ...localDb,
         ...cloudDb,
-        tickets: cloudDb.tickets || [],
+        tickets: [...freshLocal, ...(cloudDb.tickets || [])].sort((a, b) => Number(b.ticketId || 0) - Number(a.ticketId || 0)),
         agencies: cloudDb.agencies || localDb.agencies || [],
         collectors: cloudDb.collectors || localDb.collectors || [],
         results: cloudDb.results || {}
@@ -338,9 +346,8 @@ class BancaFcFirebaseSync {
       const key = getKey(t);
       const inCloud = ticketMap.get(key);
       if (!inCloud) {
-        if (!cloudDb.lastResetTimestamp) {
-          ticketMap.set(key, t);
-        }
+        // Ticket nuevo de esta taquilla aún no subido: SIEMPRE se conserva (nunca se pierde por un reinicio previo)
+        ticketMap.set(key, t);
       } else {
         // Si uno de los dos tickets fue actualizado más recientemente (ej. re-liquidación o corrección del Admin), respetar el más reciente
         if (inCloud.updatedAt && t.updatedAt && inCloud.updatedAt !== t.updatedAt) {

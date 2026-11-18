@@ -529,10 +529,19 @@ class ModalManager {
       const activeAgencyCode = String(cfg.agencyCode || '1000').trim();
 
       // 1. Filtrar los tickets de esta agencia en la fecha consultada (sin mezclar monedas)
+      //    Fecha normalizada: acepta DD/MM/YYYY, D/M/YYYY o YYYY-MM-DD
+      const toIso = (s) => {
+        const raw = String(s || '').trim();
+        const m1 = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (m1) return `${m1[3]}-${m1[2].padStart(2, '0')}-${m1[1].padStart(2, '0')}`;
+        const m2 = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        return m2 ? `${m2[1]}-${m2[2]}-${m2[3]}` : raw;
+      };
+      const targetIso = toIso(targetDate);
       const agencyDateTickets = tickets.filter(t => {
         const tAgency = String(this.storage.extractAgencyCodeFromTicket(t)).trim();
-        const tDate = (t.fechaHora || '').split(' ')[0];
-        return tAgency === activeAgencyCode && tDate === targetDate;
+        const tIso = toIso(this.storage.extractTicketDateIso(t));
+        return tAgency === activeAgencyCode && tIso === targetIso;
       });
 
       // 2. Calcular simultáneamente las 3 Cajas Independientes (COP, USD, VES) con CERO conversión
@@ -726,6 +735,19 @@ class ModalManager {
     }
 
     this.calculateAndRenderCuadre = calculateAndRenderCuadre;
+
+    // Refresco en vivo: si el Cuadre de Caja o el Reporte por Números están abiertos, se actualizan al instante
+    // cuando se emite un ticket, se anula, se paga o llegan cambios desde la nube / otras taquillas / admin.
+    this.refreshOpenReports = () => {
+      const cuadreEl = document.getElementById('modal-cuadre-caja');
+      if (cuadreEl && !cuadreEl.classList.contains('hidden')) calculateAndRenderCuadre();
+      const repEl = document.getElementById('modal-reporte-numeros');
+      if (repEl && !repEl.classList.contains('hidden') && typeof this.renderReporteNumeros === 'function') {
+        this.renderReporteNumeros();
+      }
+    };
+    window.addEventListener('banca_fc_data_updated', () => this.refreshOpenReports());
+    window.addEventListener('banca_fc_ticket_emitted', () => this.refreshOpenReports());
   }
 
   // 6. MODAL REPORTE POR NÚMEROS (RIESGO / TOPES - SEPARADO POR MONEDA NATIVA)
