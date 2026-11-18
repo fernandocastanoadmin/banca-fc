@@ -326,10 +326,14 @@ class AppCloudSync {
 
   mergeLocalAndCloud(localDb, cloudDb) {
     if (cloudDb.lastResetTimestamp && (!localDb.lastResetTimestamp || cloudDb.lastResetTimestamp > localDb.lastResetTimestamp)) {
+      const resetTs = cloudDb.lastResetTimestamp;
+      const keyOf = (t) => `${t.serialSeguridad || t.ticketId}_${t.agencyCode || t.usuario || '1000'}`;
+      const cloudKeys = new Set((cloudDb.tickets || []).map(keyOf));
+      const freshLocal = (localDb.tickets || []).filter(t => !cloudKeys.has(keyOf(t)) && t.createdAt && t.createdAt > resetTs);
       return {
         ...localDb,
         ...cloudDb,
-        tickets: cloudDb.tickets || [],
+        tickets: [...freshLocal, ...(cloudDb.tickets || [])].sort((a, b) => Number(b.ticketId || 0) - Number(a.ticketId || 0)),
         agencies: cloudDb.agencies || localDb.agencies || [],
         collectors: cloudDb.collectors || localDb.collectors || [],
         results: cloudDb.results || {}
@@ -361,7 +365,7 @@ class AppCloudSync {
       const key = getKey(t);
       const inCloud = ticketMap.get(key);
       if (!inCloud) {
-        if (!cloudDb.lastResetTimestamp) ticketMap.set(key, t);
+        ticketMap.set(key, t);
       } else if (inCloud.updatedAt && t.updatedAt && inCloud.updatedAt !== t.updatedAt) {
         ticketMap.set(key, inCloud.updatedAt > t.updatedAt ? { ...t, ...inCloud } : { ...inCloud, ...t });
       } else {
@@ -749,6 +753,7 @@ class AppCloudSync {
       estado: 'ACTIVO',
       premioCalculado: 0,
       origenApp: 'APP-MOVIL-TOUCH',
+      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
