@@ -1,0 +1,19 @@
+{
+  "name": "Banca FC Taquilla App",
+  "short_name": "Banca FC App",
+  "description": "App Móvil y Tablet de Taquilla POS Banca FC Fernando Castaño conectada en vivo a Firebase.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0B1410",
+  "theme_color": "#07110C",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

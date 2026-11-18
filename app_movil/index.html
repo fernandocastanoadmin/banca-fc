@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#07110C" />
+  <title>Banca FC Taquilla App • Fernando Castaño</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+  <link rel="stylesheet" href="./app.css" />
+</head>
+<body class="sim-mode-phone">
+  <!-- BARRA DE SIMULADOR DE DISPOSITIVO ANDROID (SOLO VISIBLE EN PC) -->
+  <div id="device-simulator-toolbar" class="device-simulator-toolbar">
+    <span class="sim-toolbar-title">🤖 Vista Previa Dispositivo Android:</span>
+    <button type="button" class="sim-mode-btn active" data-sim="phone">📱 Teléfono Android (412×860)</button>
+    <button type="button" class="sim-mode-btn" data-sim="tablet">📟 Tablet Android (980×720)</button>
+    <button type="button" class="sim-mode-btn" data-sim="full">🖥️ Pantalla Completa</button>
+  </div>
+
+  <!-- CONTENEDOR DE PANTALLA ANDROID -->
+  <div id="android-device-viewport">
+    <!-- Barra de Estado Superior de Android 15 -->
+    <div class="android-status-bar">
+      <span id="android-status-clock">12:00</span>
+      <span class="android-camera-hole" title="Cámara frontal"></span>
+      <span>5G 📶 🔋 100%</span>
+    </div>
+
+    <div class="android-screen-body">
+      <!-- PANTALLA DE LOGIN TÁCTIL -->
+      <div id="app-login-screen" class="login-overlay">
+        <div class="login-card">
+          <div class="login-top-row">
+            <span id="login-cloud-pill" class="cloud-pill connecting">⏳ Conectando Nube...</span>
+            <button type="button" id="btn-login-cloud-cfg" class="mini-btn" title="Configurar URL Firebase">☁️ URL</button>
+          </div>
+          <div class="fc-logo-lg">FC</div>
+          <h1 class="login-title">BANCA FC - FERNANDO CASTAÑO</h1>
+          <p class="login-sub">App Móvil & Tablet POS • Enlazada en vivo a Firebase</p>
+
+          <div class="app-field">
+            <label for="app-login-code">Código de Agencia / Taquilla</label>
+            <input type="text" id="app-login-code" class="app-input" placeholder="Ingrese su código asignado" inputmode="numeric" autocomplete="off" />
+          </div>
+          <div class="app-field">
+            <label for="app-login-pass">Contraseña POS</label>
+            <input type="password" id="app-login-pass" class="app-input" placeholder="Ingrese su contraseña" autocomplete="off" />
+          </div>
+          <div id="app-login-error" class="error-banner hidden"></div>
+          <button type="button" id="btn-app-login" class="btn-primary-lg">INGRESAR A TAQUILLA</button>
+        </div>
+      </div>
+
+  <!-- SHELL PRINCIPAL DE LA APP -->
+  <div id="app-main-shell" class="app-shell hidden">
+    <header class="app-header">
+      <div class="fc-badge-sm">FC</div>
+      <div class="header-meta">
+        <div id="app-header-agency" class="header-agency">AGENCIA 1000 • COP</div>
+        <div id="app-header-sub" class="header-sub">Ticket #00010926 • --:--:--</div>
+      </div>
+      <button type="button" id="btn-header-cloud" class="cloud-pill connecting">⏳ SYNC</button>
+    </header>
+
+    <main class="app-content">
+      <!-- PESTAÑA 1: VENDER -->
+      <section id="view-vender" class="tab-view">
+        <div class="category-tabs">
+          <button type="button" class="cat-pill active" data-cat="sin_signo"><span>3️⃣</span><span>SIN SIGNO</span></button>
+          <button type="button" class="cat-pill" data-cat="con_signo"><span>♈</span><span>CON SIGNO</span></button>
+          <button type="button" class="cat-pill" data-cat="cuatro_cifras"><span>4️⃣</span><span>4 CIFRAS</span></button>
+          <button type="button" class="cat-pill" data-cat="animalitos"><span>🦁</span><span>ANIMALITOS</span></button>
+        </div>
+
+        <div class="pos-workspace">
+          <div class="pos-col">
+            <div class="panel-card">
+              <div class="search-row">
+                <input type="text" id="app-lottery-search" class="app-input" style="padding: 9px 12px; font-size: 13.5px;" placeholder="Buscar sorteo abierto..." />
+                <span id="app-open-count" class="open-count-tag">0 abiertos</span>
+              </div>
+              <div class="actions-wrap">
+                <button type="button" id="btn-app-lot-all" class="mini-btn">✓ Todos</button>
+                <button type="button" id="btn-app-lot-clear" class="mini-btn">✕ Limpiar</button>
+                <button type="button" id="btn-app-lot-repeat" class="mini-btn">↻ Rep. Lotería</button>
+                <span id="app-selected-lot-badge" class="mini-btn hidden" style="background: #fbbf24; color: #111827;"></span>
+              </div>
+              <div id="app-lotteries-grid" class="lotteries-grid"></div>
+            </div>
+
+            <!-- Panel Condicional: Signos Zodiacales -->
+            <div id="panel-app-zodiac" class="panel-card hidden">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <strong style="font-size:13px;">Signo Zodiacal</strong>
+                <button type="button" id="btn-app-all-signs" class="mini-btn" style="background:#064e3b; color:#6ee7b7;">♈ Todos los Signos (12x)</button>
+              </div>
+              <div id="app-zodiac-chips" class="actions-wrap" style="margin-bottom:0;"></div>
+            </div>
+
+            <!-- Panel Condicional: Opciones 4 Cifras -->
+            <div id="panel-app-4cifras" class="panel-card hidden">
+              <div class="actions-wrap" style="margin-bottom:0;">
+                <button type="button" id="btn-toggle-5ta" class="chip-btn">🎯 La 5ta Balota</button>
+                <button type="button" id="btn-toggle-comb" class="chip-btn">🔀 Combinado (4c)</button>
+                <button type="button" id="btn-toggle-week" class="chip-btn">📅 Toda la Semana</button>
+              </div>
+            </div>
+
+            <!-- Panel Condicional: Tablero Visual Animalitos / Frutas -->
+            <div id="panel-app-animalitos" class="panel-card hidden">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <strong id="animalitos-grid-title" style="font-size:13px;">🦁 Tablero Visual de Animalitos</strong>
+                <span style="font-size:11px; color:#9ca3af;">Toque para elegir</span>
+              </div>
+              <div id="app-animalitos-grid" class="animalitos-grid"></div>
+            </div>
+          </div>
+
+          <div class="pos-col">
+            <div class="panel-card">
+              <div class="lcd-pair">
+                <div id="lcd-box-num" class="lcd-box active-num">
+                  <div class="lcd-label">NÚMERO / JUGADA</div>
+                  <input type="text" id="app-input-num" class="lcd-input" maxlength="4" inputmode="numeric" placeholder="000" />
+                  <div id="app-animal-live" class="animal-preview-live"></div>
+                </div>
+                <div id="lcd-box-monto" class="lcd-box">
+                  <div id="lcd-monto-label" class="lcd-label">MONTO (COP)</div>
+                  <input type="number" id="app-input-monto" class="lcd-input gold" value="1000" inputmode="numeric" />
+                </div>
+              </div>
+
+              <div id="app-quick-amounts" class="quick-amounts-row"></div>
+
+              <div class="keypad-grid">
+                <button type="button" class="key-btn" data-key="1">1</button>
+                <button type="button" class="key-btn" data-key="2">2</button>
+                <button type="button" class="key-btn" data-key="3">3</button>
+                <button type="button" class="key-btn action-del" data-key="BACK">⌫</button>
+                <button type="button" class="key-btn" data-key="4">4</button>
+                <button type="button" class="key-btn" data-key="5">5</button>
+                <button type="button" class="key-btn" data-key="6">6</button>
+                <button type="button" class="key-btn action-del" data-key="CLEAR">C</button>
+                <button type="button" class="key-btn" data-key="7">7</button>
+                <button type="button" class="key-btn" data-key="8">8</button>
+                <button type="button" class="key-btn" data-key="9">9</button>
+                <button type="button" class="key-btn" data-key="00">00</button>
+                <button type="button" class="key-btn" data-key="0">0</button>
+                <button type="button" id="btn-switch-field" class="key-btn action-mode">MONTO</button>
+                <button type="button" id="btn-app-add-play" class="key-btn action-play">+ JUGAR</button>
+                <button type="button" id="btn-app-emit-quick" class="key-btn action-emit">EMITIR</button>
+              </div>
+
+              <div class="actions-wrap" style="margin-bottom:0;">
+                <button type="button" id="btn-cmd-permutas" class="mini-btn">P Permutas</button>
+                <button type="button" id="btn-cmd-series" class="mini-btn">S Series 0-9</button>
+                <button type="button" id="btn-cmd-rep-term" class="mini-btn">R Rep. Term.</button>
+                <button type="button" id="btn-cmd-rep-ticket" class="mini-btn">T Rep. Ticket</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="preticket-bar">
+          <button type="button" id="btn-open-preticket" class="preticket-summary-btn">
+            <span class="preticket-count-badge" id="app-preticket-count">0</span>
+            <span style="font-size:11.5px; color:#9ca3af; font-weight:700;">VER PRE-TICKET ▲</span>
+            <span class="preticket-total-lcd" id="app-preticket-total">$ 0</span>
+          </button>
+          <button type="button" id="btn-emit-bar" class="btn-emit-bar" disabled>EMITIR</button>
+        </div>
+      </section>
+
+      <!-- PESTAÑA 2: TICKETS -->
+      <section id="view-tickets" class="tab-view hidden">
+        <div class="screen-pad">
+          <input type="text" id="app-tickets-search" class="app-input" placeholder="Buscar por Ticket # o Serial..." />
+          <div id="app-tickets-filters" class="actions-wrap" style="margin-bottom:0;"></div>
+          <div id="app-tickets-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+      </section>
+
+      <!-- PESTAÑA 3: PREMIOS Y RESULTADOS -->
+      <section id="view-premios" class="tab-view hidden">
+        <div class="screen-pad">
+          <div class="panel-card">
+            <strong style="display:block; margin-bottom:8px; color:var(--gold);">🏆 Verificar y Pagar Ticket Ganador</strong>
+            <div style="display:flex; gap:8px;">
+              <input type="text" id="app-verify-input" class="app-input" placeholder="Ticket # o Serial..." />
+              <button type="button" id="btn-app-verify" class="mini-btn" style="background:var(--emerald); color:#03150e; padding:0 16px;">VERIFICAR</button>
+            </div>
+            <div id="app-verify-result" style="margin-top:10px;"></div>
+          </div>
+
+          <div class="panel-card">
+            <strong style="display:block; margin-bottom:8px;">🎟️ Premiados de la Agencia</strong>
+            <div id="app-agency-winners-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+          </div>
+
+          <div class="panel-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+              <strong>📋 Resultados Oficiales</strong>
+              <input type="date" id="app-results-date" class="app-input" style="width:auto; padding:6px 10px; font-size:12.5px;" />
+            </div>
+            <input type="text" id="app-results-filter" class="app-input" style="margin-bottom:8px; padding:8px 12px; font-size:13px;" placeholder="Filtrar lotería..." />
+            <div id="app-results-list" style="display:flex; flex-direction:column; gap:6px;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PESTAÑA 4: CUADRE DE CAJA -->
+      <section id="view-caja" class="tab-view hidden">
+        <div class="screen-pad">
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <input type="date" id="app-caja-date" class="app-input" style="width:auto; padding:8px 12px; font-size:13px;" />
+            <div id="app-caja-currency-chips" class="actions-wrap" style="margin-bottom:0;"></div>
+          </div>
+          <div id="app-caja-content" style="display:flex; flex-direction:column; gap:10px;"></div>
+        </div>
+      </section>
+
+      <!-- PESTAÑA 5: NUBE Y CONFIGURACIÓN -->
+      <section id="view-nube" class="tab-view hidden">
+        <div class="screen-pad">
+          <div class="panel-card">
+            <strong style="color:var(--gold); display:block; margin-bottom:6px;">☁️ Nube Compartida Firebase</strong>
+            <p id="app-cloud-detail" style="font-size:12px; color:var(--text-muted); margin:0 0 10px;">Estado: Conectando...</p>
+            <input type="text" id="app-firebase-url" class="app-input" style="margin-bottom:10px;" placeholder="https://banca-fc-castano-default-rtdb.firebaseio.com" />
+            <div style="display:flex; gap:8px;">
+              <button type="button" id="btn-save-firebase-url" class="btn-primary-lg" style="padding:11px; flex:1;">Guardar URL</button>
+              <button type="button" id="btn-sync-now" class="mini-btn" style="padding:0 16px;">🔄 Sincronizar</button>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <strong id="app-cfg-agency-name" style="display:block; margin-bottom:4px;">Taquilla Activa</strong>
+            <p id="app-cfg-agency-meta" style="font-size:12px; color:var(--text-muted); margin:0 0 10px;"></p>
+            <div style="font-size:12px; color:var(--text-muted); margin-bottom:6px;">Moneda autorizada:</div>
+            <div id="app-cfg-currency-chips" class="actions-wrap" style="margin-bottom:0;"></div>
+          </div>
+
+          <div class="panel-card">
+            <strong style="display:block; margin-bottom:8px;">📨 Mensajes de la Central</strong>
+            <div id="app-messages-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+          </div>
+
+          <button type="button" id="btn-app-logout" class="mini-btn" style="padding:14px; border-color:var(--danger); color:var(--danger); font-size:13.5px;">🚪 Cerrar Sesión de Taquilla</button>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav">
+      <button type="button" class="nav-item active" data-tab="vender"><span>🛒</span><span>Vender</span></button>
+      <button type="button" class="nav-item" data-tab="tickets"><span>🧾</span><span>Tickets</span></button>
+      <button type="button" class="nav-item" data-tab="premios"><span>🏆</span><span>Premios</span></button>
+      <button type="button" class="nav-item" data-tab="caja"><span>💰</span><span>Caja</span></button>
+      <button type="button" class="nav-item" data-tab="nube"><span>☁️</span><span>Nube</span></button>
+    </nav>
+  </div>
+
+  <!-- MODAL / BOTTOM SHEET: PRE-TICKET -->
+  <div id="sheet-preticket" class="sheet-backdrop hidden">
+    <div class="sheet-box">
+      <div style="padding:14px 16px; border-bottom:1px solid var(--border-card); display:flex; align-items:center; justify-content:space-between;">
+        <strong id="sheet-preticket-title">Pre-Ticket (0 jugadas)</strong>
+        <div style="display:flex; gap:8px;">
+          <button type="button" id="btn-clear-preticket" class="mini-btn" style="color:var(--danger);">Limpiar</button>
+          <button type="button" id="btn-close-preticket" class="mini-btn">✕</button>
+        </div>
+      </div>
+      <div id="sheet-preticket-list" style="padding:12px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:8px;"></div>
+      <div style="padding:12px 16px; background:var(--bg-bar); border-top:1px solid var(--border-card); display:flex; align-items:center; justify-content:space-between;">
+        <div>
+          <div style="font-size:10.5px; color:var(--text-muted);">TOTAL A COBRAR</div>
+          <div id="sheet-preticket-total" class="preticket-total-lcd">$ 0</div>
+        </div>
+        <button type="button" id="btn-sheet-emit" class="btn-emit-bar">EMITIR TICKET</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: RECIBO TÉRMICO -->
+  <div id="modal-app-receipt" class="sheet-backdrop center-desktop hidden">
+    <div class="sheet-box">
+      <div style="background:var(--emerald-deep); padding:12px 16px; display:flex; justify-content:space-between; align-items:center;">
+        <strong id="receipt-modal-title" style="color:#fff;">Ticket Emitido</strong>
+        <button type="button" id="btn-close-receipt" class="mini-btn">✕</button>
+      </div>
+      <div id="receipt-paper-body" class="thermal-paper"></div>
+      <div class="receipt-actions">
+        <button type="button" id="btn-receipt-wa" class="btn-wa">💬 WhatsApp</button>
+        <button type="button" id="btn-receipt-print" class="btn-sec-light">🖨️ Imprimir</button>
+        <button type="button" id="btn-receipt-copy" class="btn-sec-light">📋 Copiar</button>
+        <button type="button" id="btn-receipt-txt" class="btn-sec-light">📄 .TXT</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="app-print-area" class="hidden"></div>
+  <div id="app-toast" class="hidden"></div>
+    </div><!-- Fin .android-screen-body -->
+
+    <!-- Barra de Navegación Inferior Nativa de Android (Atrás, Inicio, Recientes) -->
+    <div class="android-nav-bar">
+      <button type="button" id="btn-android-back" class="android-sys-btn" title="Atrás (Android)">◁</button>
+      <button type="button" id="btn-android-home" class="android-sys-btn" title="Inicio (Vender)">○</button>
+      <button type="button" id="btn-android-recent" class="android-sys-btn" title="Ver Pre-Ticket / Recientes">▢</button>
+    </div>
+  </div>
+
+  <script src="./app_catalogs.js"></script>
+  <script src="./app_cloud.js"></script>
+  <script src="./app_main.js"></script>
+  <script>
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>
