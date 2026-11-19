@@ -1,0 +1,541 @@
+{
+  "bancaName": "BANCA EL CASTAÑO",
+  "updatedAt": "2026-11-08T19:47:57.133Z",
+  "consolidationCurrency": "COP",
+  "rates": {
+    "copPerUsd": 4200,
+    "vesPerUsd": 45,
+    "copPerVes": 93.33
+  },
+  "collectors": [
+    "Raúl Zambrano",
+    "Maikol Sánchez",
+    "Daniel Ramírez",
+    "Marco Mojica"
+  ],
+  "config": {
+    "agencyCode": "1000",
+    "agencyName": "EL CASTAÑO",
+    "terminalId": "1000",
+    "terminalSerial": "61526296531000",
+    "agentName": "El Castaño",
+    "bancaName": "Banca El Castaño",
+    "currency": "COP",
+    "paperWidth": "58mm",
+    "agencyCommissionPct": 15,
+    "nextTicketNumber": 10926,
+    "adminResetPassword": "1000",
+    "multipliers": {
+      "triple": 500,
+      "terminal": 60,
+      "aproximacion": 5,
+      "animalito": 30,
+      "cuatroCifrasDirecto": 4500,
+      "cuatroCifrasCombinado": 208,
+      "la5ta": 25000,
+      "astro4": 40000,
+      "astro3": 1000
+    },
+    "topes": {
+      "terminal": 50000,
+      "triple": 20000,
+      "animalito": 30000,
+      "cuatroCifras": 10000
+    },
+    "rates": {
+      "copPerUsd": 4200,
+      "vesPerUsd": 45,
+      "copPerVes": 93.33
+    }
+  },
+  "agencies": [
+    {
+      "code": "1000",
+      "terminalSerial": "61526296531000",
+      "name": "AG PRINCIPAL EL CASTAÑO",
+      "manager": "El Castaño",
+      "whatsapp": "+573105551000",
+      "zone": "San Cristóbal - Centro (VEN)",
+      "collector": "Raúl Zambrano",
+      "currency": "COP",
+      "commissionPct": 15,
+      "maxBetLimit": 100000,
+      "creditLimit": 5000000,
+      "password": "1000",
+      "status": "ACTIVA"
+    },
+    {
+      "code": "7336",
+      "terminalSerial": "61526296537336",
+      "name": "AG BARRIO SUCRE",
+      "manager": "Carlos Andrés Méndez",
+      "whatsapp": "+584147007336",
+      "zone": "San Cristóbal - Barrio Sucre (VEN)",
+      "collector": "Raúl Zambrano",
+      "currency": "COP",
+      "commissionPct": 15,
+      "maxBetLimit": 50000,
+      "creditLimit": 2500000,
+      "password": "7336",
+      "status": "ACTIVA"
+    },
+    {
+      "code": "7337",
+      "terminalSerial": "61526296537337",
+      "name": "AG CENTRO QUINTA AVENIDA",
+      "manager": "María Eugenia Chacón",
+      "whatsapp": "+584247117337",
+      "zone": "San Cristóbal - 5ta Av (VEN)",
+      "collector": "Maikol Sánchez",
+      "currency": "VES",
+      "commissionPct": 15,
+      "maxBetLimit": 800,
+      "creditLimit": 35000,
+      "password": "7337",
+      "status": "ACTIVA"
+    },
+    {
+      "code": "7338",
+      "terminalSerial": "61526296537338",
+      "name": "AG CAPACHO INDEPENDENCIA",
+      "manager": "José Gregorio Roa",
+      "whatsapp": "+584127227338",
+      "zone": "Capacho Nuevo, Táchira (VEN)",
+      "collector": "Daniel Ramírez",
+      "currency": "COP",
+      "commissionPct": 15,
+      "maxBetLimit": 60000,
+      "creditLimit": 3000000,
+      "password": "7338",
+      "status": "ACTIVA"
+    },
+    {
+      "code": "7339",
+      "terminalSerial": "61526296537339",
+      "name": "AG CÚCUTA CENTRO ALEJANDRÍA",
+      "manager": "Luz Marina Peñaloza",
+      "whatsapp": "+573158887339",
+      "zone": "Cúcuta - Centro (COL)",
+      "collector": "Marco Mojica",
+      "currency": "COP",
+      "commissionPct": 15,
+      "maxBetLimit": 120000,
+      "creditLimit": 6000000,
+      "password": "7339",
+      "status": "ACTIVA"
+    },
+    {
+      "code": "7340",
+      "terminalSerial": "61526296537340",
+      "name": "AG TÁRIBA PLAZA BOLÍVAR",
+      "manager": "Pedro Luis Contreras",
+      "whatsapp": "+584149997340",
+      "zone": "Táriba, Cárdenas (VEN)",
+      "collector": "Maikol Sánchez",
+      "currency": "VES",
+      "commissionPct": 14,
+      "maxBetLimit": 600,
+      "creditLimit": 25000,
+      "password": "7340",
+      "status": "ACTIVA"
+    },
+    {
+      "code": "7341",
+      "terminalSerial": "61526296537341",
+      "name": "AG VILLA DEL ROSARIO LA PARADA",
+      "manager": "Jorge Eliécer Gómez",
+      "whatsapp": "+573204447341",
+      "zone": "Villa del Rosario (COL)",
+      "collector": "Marco Mojica",
+      "currency": "COP",
+      "commissionPct": 12,
+      "maxBetLimit": 50000,
+      "creditLimit": 2000000,
+      "password": "7341",
+      "status": "SUSPENDIDA"
+    }
+  ],
+  "tickets": [
+    {
+      "ticketId": "00010917",
+      "serialSeguridad": "5821-4902-1108",
+      "fechaHora": "08/11/2026 09:15:30 am",
+      "agencyCode": "1000",
+      "agencia": "1000 - AG PRINCIPAL EL CASTAÑO",
+      "usuario": "1000",
+      "moneda": "COP",
+      "items": [
+        {
+          "lotteryId": "TACHIRA_4A",
+          "lotteryName": "Táchira 4:00 PM A",
+          "number": "745",
+          "type": "triple",
+          "amount": 15000
+        },
+        {
+          "lotteryId": "TACHIRA_4A",
+          "lotteryName": "Táchira 4:00 PM A",
+          "number": "45",
+          "type": "terminal",
+          "amount": 5000
+        },
+        {
+          "lotteryId": "ZULIA_4A",
+          "lotteryName": "Zulia 4:00 PM A",
+          "number": "845",
+          "type": "triple",
+          "amount": 25000
+        }
+      ],
+      "total": 45000,
+      "estado": "PAGADO",
+      "premioCalculado": 300000,
+      "premioPagado": 300000,
+      "fechaPago": "08/11/2026 04:20:00 pm",
+      "winningPlays": [
+        {
+          "lotteryId": "TACHIRA_4A",
+          "lotteryName": "Táchira 4:00 PM A",
+          "number": "45",
+          "type": "terminal",
+          "amount": 5000,
+          "winType": "TERMINAL DERECHO",
+          "multiplier": 60,
+          "prize": 300000,
+          "resultNumber": "845"
+        }
+      ]
+    },
+    {
+      "ticketId": "00010918",
+      "serialSeguridad": "9312-3011-8842",
+      "fechaHora": "08/11/2026 10:05:12 am",
+      "agencyCode": "1000",
+      "agencia": "1000 - AG PRINCIPAL EL CASTAÑO",
+      "usuario": "1000",
+      "moneda": "COP",
+      "items": [
+        {
+          "lotteryId": "LOTTO_ACTIVO",
+          "lotteryName": "Lotto Activo (Horas 9am-7pm)",
+          "number": "12",
+          "animalName": "Caballo",
+          "type": "animalito",
+          "amount": 40000
+        },
+        {
+          "lotteryId": "LA_GRANJITA",
+          "lotteryName": "La Granjita (Horas 9am-7pm)",
+          "number": "27",
+          "animalName": "Perro",
+          "type": "animalito",
+          "amount": 35000
+        },
+        {
+          "lotteryId": "DORADO_TARDE",
+          "lotteryName": "Dorado Tarde",
+          "number": "3814",
+          "type": "cuatro_cifras",
+          "is5ta": true,
+          "amount": 25000
+        }
+      ],
+      "total": 100000,
+      "estado": "ACTIVO",
+      "premioCalculado": 0
+    },
+    {
+      "ticketId": "00010919",
+      "serialSeguridad": "4410-8821-7731",
+      "fechaHora": "08/11/2026 10:22:45 am",
+      "agencyCode": "7336",
+      "agencia": "7336 - AG BARRIO SUCRE",
+      "usuario": "7336",
+      "moneda": "COP",
+      "items": [
+        {
+          "lotteryId": "TACHIRA_4A",
+          "lotteryName": "Táchira 4:00 PM A",
+          "number": "529",
+          "type": "triple",
+          "amount": 20000
+        },
+        {
+          "lotteryId": "T_ZODIACAL_4",
+          "lotteryName": "Táchira Zodiacal 4:00 PM",
+          "number": "529",
+          "sign": "LEO",
+          "type": "zodiac",
+          "amount": 30000
+        },
+        {
+          "lotteryId": "LOTTO_ACTIVO",
+          "lotteryName": "Lotto Activo (Horas 9am-7pm)",
+          "number": "05",
+          "animalName": "León",
+          "type": "animalito",
+          "amount": 2000
+        }
+      ],
+      "total": 52000,
+      "estado": "GANADOR",
+      "premioCalculado": 60000,
+      "winningPlays": [
+        {
+          "lotteryId": "LOTTO_ACTIVO",
+          "lotteryName": "Lotto Activo (Horas 9am-7pm)",
+          "number": "05",
+          "animalName": "León",
+          "type": "animalito",
+          "amount": 2000,
+          "winType": "ANIMALITO GANADOR",
+          "multiplier": 30,
+          "prize": 60000,
+          "resultNumber": "05"
+        }
+      ]
+    },
+    {
+      "ticketId": "00010920",
+      "serialSeguridad": "7719-2044-6190",
+      "fechaHora": "08/11/2026 10:45:10 am",
+      "agencyCode": "7336",
+      "agencia": "7336 - AG BARRIO SUCRE",
+      "usuario": "7336",
+      "moneda": "COP",
+      "items": [
+        {
+          "lotteryId": "CULONA_DIA",
+          "lotteryName": "Culona Día",
+          "number": "9042",
+          "type": "cuatro_cifras",
+          "amount": 15000
+        }
+      ],
+      "total": 15000,
+      "estado": "ANULADO",
+      "fechaAnulacion": "08/11/2026 10:47:00 am",
+      "premioCalculado": 0
+    },
+    {
+      "ticketId": "00010921",
+      "serialSeguridad": "6602-9183-3341",
+      "fechaHora": "08/11/2026 11:12:00 am",
+      "agencyCode": "7337",
+      "agencia": "7337 - AG CENTRO QUINTA AVENIDA",
+      "usuario": "7337",
+      "moneda": "VES",
+      "items": [
+        {
+          "lotteryId": "TACHIRA_4A",
+          "lotteryName": "Táchira 4:00 PM A",
+          "number": "318",
+          "type": "triple",
+          "amount": 450
+        },
+        {
+          "lotteryId": "CARACAS_4A",
+          "lotteryName": "Caracas 4:00 PM A",
+          "number": "77",
+          "type": "terminal",
+          "amount": 300
+        },
+        {
+          "lotteryId": "GUACHARO_ACTIVO",
+          "lotteryName": "Guácharo Activo",
+          "number": "10",
+          "animalName": "Tigre",
+          "type": "animalito",
+          "amount": 500
+        }
+      ],
+      "total": 1250,
+      "estado": "ACTIVO",
+      "premioCalculado": 0
+    },
+    {
+      "ticketId": "00010922",
+      "serialSeguridad": "8129-5540-9012",
+      "fechaHora": "08/11/2026 11:30:19 am",
+      "agencyCode": "7337",
+      "agencia": "7337 - AG CENTRO QUINTA AVENIDA",
+      "usuario": "7337",
+      "moneda": "VES",
+      "items": [
+        {
+          "lotteryId": "LOTTO_ACTIVO",
+          "lotteryName": "Lotto Activo (Horas 9am-7pm)",
+          "number": "05",
+          "animalName": "León",
+          "type": "animalito",
+          "amount": 10
+        }
+      ],
+      "total": 10,
+      "estado": "PAGADO",
+      "premioCalculado": 300,
+      "premioPagado": 300,
+      "fechaPago": "08/11/2026 12:15:00 pm",
+      "winningPlays": [
+        {
+          "lotteryId": "LOTTO_ACTIVO",
+          "lotteryName": "Lotto Activo (Horas 9am-7pm)",
+          "number": "05",
+          "animalName": "León",
+          "type": "animalito",
+          "amount": 10,
+          "winType": "ANIMALITO GANADOR",
+          "multiplier": 30,
+          "prize": 300,
+          "resultNumber": "05"
+        }
+      ]
+    },
+    {
+      "ticketId": "00010923",
+      "serialSeguridad": "3391-7823-1904",
+      "fechaHora": "08/11/2026 11:50:44 am",
+      "agencyCode": "7338",
+      "agencia": "7338 - AG CAPACHO INDEPENDENCIA",
+      "usuario": "7338",
+      "moneda": "COP",
+      "items": [
+        {
+          "lotteryId": "TACHIRA_10A",
+          "lotteryName": "Táchira 10:00 PM A",
+          "number": "912",
+          "type": "triple",
+          "amount": 30000
+        },
+        {
+          "lotteryId": "ZULIA_7A",
+          "lotteryName": "Zulia 7:00 PM A",
+          "number": "44",
+          "type": "terminal",
+          "amount": 25000
+        },
+        {
+          "lotteryId": "LA_GRANJITA",
+          "lotteryName": "La Granjita (Horas 9am-7pm)",
+          "number": "21",
+          "animalName": "Gallo",
+          "type": "animalito",
+          "amount": 30000
+        }
+      ],
+      "total": 85000,
+      "estado": "ACTIVO",
+      "premioCalculado": 0
+    },
+    {
+      "ticketId": "00010924",
+      "serialSeguridad": "1190-4482-6721",
+      "fechaHora": "08/11/2026 12:10:05 pm",
+      "agencyCode": "7339",
+      "agencia": "7339 - AG CÚCUTA CENTRO ALEJANDRÍA",
+      "usuario": "7339",
+      "moneda": "COP",
+      "items": [
+        {
+          "lotteryId": "ASTRO_LUNA",
+          "lotteryName": "Super Astro Luna (Col)",
+          "number": "7742",
+          "sign": "ARI",
+          "type": "astro",
+          "amount": 50000
+        },
+        {
+          "lotteryId": "DORADO_NOCHE",
+          "lotteryName": "Dorado Noche",
+          "number": "1984",
+          "is5ta": true,
+          "type": "cuatro_cifras",
+          "amount": 60000
+        },
+        {
+          "lotteryId": "CHONTICO_NOCHE",
+          "lotteryName": "Chontico Noche",
+          "number": "5510",
+          "isCombinado": true,
+          "type": "cuatro_cifras",
+          "amount": 40000
+        }
+      ],
+      "total": 150000,
+      "estado": "ACTIVO",
+      "premioCalculado": 0
+    },
+    {
+      "ticketId": "00010925",
+      "serialSeguridad": "2201-6734-8910",
+      "fechaHora": "08/11/2026 12:25:33 pm",
+      "agencyCode": "7340",
+      "agencia": "7340 - AG TÁRIBA PLAZA BOLÍVAR",
+      "usuario": "7340",
+      "moneda": "VES",
+      "items": [
+        {
+          "lotteryId": "T_ZODIACAL_10",
+          "lotteryName": "Táchira Zodiacal 10:00 PM",
+          "number": "604",
+          "sign": "TAU",
+          "type": "zodiac",
+          "amount": 350
+        },
+        {
+          "lotteryId": "SELVA_PLUS",
+          "lotteryName": "Selva Plus",
+          "number": "00",
+          "animalName": "Ballena",
+          "type": "animalito",
+          "amount": 400
+        }
+      ],
+      "total": 750,
+      "estado": "ACTIVO",
+      "premioCalculado": 0
+    }
+  ],
+  "results": {
+    "2026-11-08": {
+      "TACHIRA_4A": {
+        "number": "845",
+        "sign": "ARI",
+        "timestamp": "04:05:00 pm"
+      },
+      "ZULIA_4A": {
+        "number": "123",
+        "sign": "LEO",
+        "timestamp": "04:10:00 pm"
+      },
+      "LOTTO_ACTIVO": {
+        "number": "05",
+        "animalName": "León",
+        "timestamp": "12:02:00 pm"
+      },
+      "DORADO_MANANA": {
+        "number": "4729",
+        "ball5": "3",
+        "timestamp": "11:05:00 am"
+      }
+    }
+  },
+  "messages": [
+    {
+      "id": 1,
+      "date": "08/11/2026 08:30 AM",
+      "from": "BANCA EL CASTAÑO - CENTRAL",
+      "subject": "Sincronización En Vivo Activa con Panel Central",
+      "body": "Todas las taquillas están conectadas en tiempo real con el Panel Central de Banca El Castaño. Recuerde verificar topes por número y animalito.",
+      "read": false
+    },
+    {
+      "id": 2,
+      "date": "08/11/2026 09:15 AM",
+      "from": "AUDITORÍA DE RIESGO FC",
+      "subject": "Multiplicadores Oficiales Banca El Castaño",
+      "body": "Triple: 500x | Terminal: 60x | Aproximación: 5x | Animalitos: 30x | 4 Cifras: 4500x | Astro: 40000x.",
+      "read": true
+    }
+  ]
+}

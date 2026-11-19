@@ -1,0 +1,21 @@
+{
+  "name": "banca-fc-pos-loterias",
+  "version": "1.0.0",
+  "description": "Sistema POS de Loterías de alta velocidad - Banca El Castaño",
+  "main": "main.js",
+  "scripts": {
+    "start": "node server.js",
+    "electron": "electron ."
+  },
+  "keywords": [
+    "pos",
+    "loteria",
+    "chance",
+    "animalitos",
+    "electron",
+    "thermal-printer",
+    "banca-fc"
+  ],
+  "author": "Banca El Castaño",
+  "license": "ISC"
+}

@@ -1,5 +1,5 @@
 // server.js - Servidor Central Multiequipo (LAN / Wi-Fi / Red Local) + API REST de Sincronización
-// Sistema "Banca FC - Fernando Castaño (Seguro Te Paga)"
+// Sistema "Banca El Castaño (Seguro Te Paga)"
 
 const http = require('http');
 const https = require('https');
@@ -297,7 +297,7 @@ server.listen(PORT, '0.0.0.0', () => {
   const ips = getLocalNetworkIPs();
   const mainIp = ips[0];
   console.log('========================================================================');
-  console.log('  BANCA FC FERNANDO CASTAÑO - SERVIDOR CENTRAL MULTIEQUIPO ACTIVO');
+  console.log('  BANCA EL CASTAÑO - SERVIDOR CENTRAL MULTIEQUIPO ACTIVO');
   console.log('========================================================================');
   console.log(`💻 EN ESTA LAPTOP (ADMINISTRADOR):`);
   console.log(`   👉 Panel Central: http://localhost:${PORT}/admin.html`);
