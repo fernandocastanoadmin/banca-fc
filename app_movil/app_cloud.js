@@ -298,6 +298,9 @@ class AppCloudSync {
       }
 
       this.handleIncomingCloudData(cloudData, isInitial);
+      if (isInitial) {
+        this.fetchOfficialResultsForDate(this.getTodayIso()).catch(() => {});
+      }
       return true;
     } catch (err) {
       this.lastError = err.message || 'Error de conexión con Firebase';
@@ -404,6 +407,36 @@ class AppCloudSync {
     return merged;
   }
 
+  async fetchOfficialResultsForDate(dateKey) {
+    const cleanDate = String(dateKey || this.getTodayIso()).trim();
+    const endpoint = this.getEndpoint(`/banca_fc_resultados_oficiales/${cleanDate}.json`);
+    if (!endpoint) return { ok: false, count: 0, results: {} };
+
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(endpoint, { cache: 'no-store', signal: controller.signal });
+      clearTimeout(timer);
+      if (!res.ok) return { ok: false, count: 0, results: {} };
+
+      const data = await res.json();
+      if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+        if (!this.masterData.results) this.masterData.results = {};
+        const prev = JSON.stringify(this.masterData.results[cleanDate] || {});
+        const next = JSON.stringify(data);
+        if (prev !== next) {
+          this.masterData.results[cleanDate] = data;
+          this.persistMasterCache();
+          this.emitChange();
+        }
+        return { ok: true, count: Object.keys(data).length, results: data };
+      }
+      return { ok: true, count: Object.keys((this.masterData.results && this.masterData.results[cleanDate]) || {}).length, results: (this.masterData.results && this.masterData.results[cleanDate]) || {} };
+    } catch (err) {
+      return { ok: false, count: 0, results: (this.masterData.results && this.masterData.results[cleanDate]) || {} };
+    }
+  }
+
   async pushMasterData(localData, forceOverwriteCloud = false) {
     const endpoint = this.getEndpoint();
     if (!endpoint) return false;
@@ -420,10 +453,6 @@ class AppCloudSync {
             const currentCloud = await getRes.json();
             if (currentCloud && Array.isArray(currentCloud.tickets)) {
               dataToSave = this.mergeLocalAndCloud(localData, currentCloud);
-              dataToSave.agencies = localData.agencies;
-              dataToSave.collectors = localData.collectors;
-              dataToSave.results = localData.results;
-              dataToSave.config = localData.config;
             }
           }
         } catch (_) {}

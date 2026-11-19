@@ -122,7 +122,7 @@
               <div class="lcd-pair">
                 <div id="lcd-box-num" class="lcd-box active-num">
                   <div class="lcd-label">NÚMERO / JUGADA</div>
-                  <input type="text" id="app-input-num" class="lcd-input" maxlength="4" inputmode="numeric" placeholder="000" />
+                  <input type="text" id="app-input-num" class="lcd-input" maxlength="5" inputmode="numeric" placeholder="000" />
                   <div id="app-animal-live" class="animal-preview-live"></div>
                 </div>
                 <div id="lcd-box-monto" class="lcd-box">
@@ -181,7 +181,7 @@
         </div>
       </section>
 
-      <!-- PESTAÑA 3: PREMIOS Y RESULTADOS -->
+      <!-- PESTAÑA 3: PREMIOS Y PAGOS -->
       <section id="view-premios" class="tab-view hidden">
         <div class="screen-pad">
           <div class="panel-card">
@@ -197,19 +197,29 @@
             <strong style="display:block; margin-bottom:8px;">🎟️ Premiados de la Agencia</strong>
             <div id="app-agency-winners-list" style="display:flex; flex-direction:column; gap:8px;"></div>
           </div>
+        </div>
+      </section>
 
+      <!-- PESTAÑA 4: RESULTADOS OFICIALES -->
+      <section id="view-resultados" class="tab-view hidden">
+        <div class="screen-pad">
           <div class="panel-card">
             <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
-              <strong>📋 Resultados Oficiales</strong>
-              <input type="date" id="app-results-date" class="app-input" style="width:auto; padding:6px 10px; font-size:12.5px;" />
+              <strong style="color:var(--gold); font-size:14px;">📋 Resultados Oficiales (Sincronización Automática)</strong>
             </div>
-            <input type="text" id="app-results-filter" class="app-input" style="margin-bottom:8px; padding:8px 12px; font-size:13px;" placeholder="Filtrar lotería..." />
+            <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+              <input type="date" id="app-results-date" class="app-input" style="flex:1; padding:8px 10px; font-size:13px;" />
+              <button type="button" id="btn-app-refresh-results" class="mini-btn" style="background:var(--emerald); color:#03150e; padding:9px 14px; font-weight:800;">🔄 Actualizar</button>
+            </div>
+            <div id="app-results-status" style="font-size:11.5px; color:#4ade80; font-weight:700; margin-bottom:8px;">✔ Sincronizado con Panel Administrativo • 0 sorteos oficiales</div>
+            <div id="app-results-cat-chips" class="actions-wrap" style="margin-bottom:8px;"></div>
+            <input type="text" id="app-results-filter" class="app-input" style="margin-bottom:10px; padding:9px 12px; font-size:13px;" placeholder="Filtrar lotería, número o animalito..." />
             <div id="app-results-list" style="display:flex; flex-direction:column; gap:6px;"></div>
           </div>
         </div>
       </section>
 
-      <!-- PESTAÑA 4: CUADRE DE CAJA -->
+      <!-- PESTAÑA 5: CUADRE DE CAJA -->
       <section id="view-caja" class="tab-view hidden">
         <div class="screen-pad">
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
@@ -254,6 +264,7 @@
       <button type="button" class="nav-item active" data-tab="vender"><span>🛒</span><span>Vender</span></button>
       <button type="button" class="nav-item" data-tab="tickets"><span>🧾</span><span>Tickets</span></button>
       <button type="button" class="nav-item" data-tab="premios"><span>🏆</span><span>Premios</span></button>
+      <button type="button" class="nav-item" data-tab="resultados" title="Resultados Oficiales"><span>📋</span><span>Resultados</span></button>
       <button type="button" class="nav-item" data-tab="caja"><span>💰</span><span>Caja</span></button>
       <button type="button" class="nav-item" data-tab="nube"><span>☁️</span><span>Nube</span></button>
     </nav>

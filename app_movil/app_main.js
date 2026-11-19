@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     lastNumberPlayed: '',
     lastMontoPlayed: 1000,
     ticketStatusFilter: 'TODOS',
+    resultsCategoryFilter: 'ALL',
     cashierCurrency: cloud.session.currency || 'COP',
     currentReceiptTicket: null,
     submitting: false
@@ -166,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.nav-item').forEach(b => {
       b.classList.toggle('active', b.dataset.tab === tabName);
     });
-    ['vender', 'tickets', 'premios', 'caja', 'nube'].forEach(t => {
+    ['vender', 'tickets', 'premios', 'resultados', 'caja', 'nube'].forEach(t => {
       document.getElementById(`view-${t}`)?.classList.toggle('hidden', t !== tabName);
     });
     renderActiveTab();
@@ -180,7 +181,9 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (state.activeTab === 'tickets') {
       renderTicketsTab();
     } else if (state.activeTab === 'premios') {
-      renderWinnersAndResultsTab();
+      renderWinnersTab();
+    } else if (state.activeTab === 'resultados') {
+      renderOfficialResultsTab(true);
     } else if (state.activeTab === 'caja') {
       renderCashierTab();
     } else if (state.activeTab === 'nube') {
@@ -398,6 +401,76 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function validateNonAnimalitoNumber(cleanNum, category, lot, is5taActive = false) {
+    if (!/^\d+$/.test(cleanNum)) {
+      return { valid: false, reason: '⛔ Ingrese solo dígitos numéricos válidos.' };
+    }
+    if (category === 'sin_signo') {
+      if (lot && lot.type === 'terminal') {
+        if (!/^\d{2}$/.test(cleanNum)) {
+          return {
+            valid: false,
+            reason: `⛔ En ${lot.name} (Terminal) debe ingresar exactamente 2 cifras (ej: 08). No se permite 1 solo dígito.`
+          };
+        }
+        return { valid: true };
+      }
+      if (!/^\d{2,3}$/.test(cleanNum)) {
+        return {
+          valid: false,
+          reason: '⛔ No está permitido jugar 1 solo número. Ingrese 2 cifras para Terminal (ej: 08) o 3 cifras para Triple (ej: 008).'
+        };
+      }
+      return { valid: true };
+    }
+    if (category === 'con_signo') {
+      if (lot && lot.type === 'astro') {
+        if (!/^\d{3,4}$/.test(cleanNum)) {
+          return {
+            valid: false,
+            reason: `⛔ En ${lot.name} debe ingresar 3 cifras (ej: 008) o 4 cifras (ej: 0008). No se permite 1 ni 2 dígitos.`
+          };
+        }
+        return { valid: true };
+      }
+      if (!/^\d{3}$/.test(cleanNum)) {
+        return {
+          valid: false,
+          reason: `⛔ No está permitido jugar menos de 3 cifras en Con Signo (${lot?.name || 'Zodiacal'}). Ingrese exactamente 3 cifras (ej: 008).`
+        };
+      }
+      return { valid: true };
+    }
+    if (category === 'cuatro_cifras') {
+      if (lot && (lot.id === 'CASH_THREE_DIA' || lot.id === 'CASH_THREE_NOCHE')) {
+        if (!/^\d{3}$/.test(cleanNum)) {
+          return {
+            valid: false,
+            reason: `⛔ En ${lot.name} debe ingresar exactamente 3 cifras (ej: 008).`
+          };
+        }
+        return { valid: true };
+      }
+      if (is5taActive && lot && lot.has5ta) {
+        if (!/^\d{4,5}$/.test(cleanNum)) {
+          return {
+            valid: false,
+            reason: '⛔ Con La 5ta activa ingrese 4 cifras (ej: 0008) o 5 cifras (ej: 00085).'
+          };
+        }
+        return { valid: true };
+      }
+      if (!/^\d{4}$/.test(cleanNum)) {
+        return {
+          valid: false,
+          reason: `⛔ No está permitido jugar menos de 4 cifras en ${lot?.name || '4 Cifras / Colombia'}. Ingrese exactamente 4 cifras (ej: 0008).`
+        };
+      }
+      return { valid: true };
+    }
+    return { valid: true };
+  }
+
   function addPlayItem(numberStr, amountVal, signOverride = null, silent = false) {
     if (state.selectedLotteries.size === 0) {
       if (!silent) showToast('Seleccione al menos un sorteo abierto');
@@ -424,11 +497,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let added = 0;
     const omittedByRange = [];
+    const digitErrors = [];
     selectedLots.forEach(lot => {
       if (!appIsLotteryOpen(lot, now, state.showAllWeek)) return;
       let playType = 'triple';
       let animalName = null;
       let cleanNum = cleanInput;
+      const itemIs5ta = state.category === 'cuatro_cifras' && Boolean(lot.has5ta) && state.is5ta;
 
       if (state.category === 'animalitos') {
         playType = 'animalito';
@@ -439,12 +514,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         cleanNum = resolved.code;
         animalName = resolved.name;
-      } else if (state.category === 'con_signo') {
-        playType = lot.type === 'astro' ? 'astro' : 'zodiac';
-      } else if (state.category === 'cuatro_cifras') {
-        playType = 'cuatro_cifras';
       } else {
-        playType = (lot.type === 'terminal' || cleanNum.length === 2) ? 'terminal' : 'triple';
+        const chk = validateNonAnimalitoNumber(cleanNum, state.category, lot, itemIs5ta);
+        if (!chk.valid) {
+          digitErrors.push({ lotName: lot.name, reason: chk.reason });
+          return;
+        }
+        if (state.category === 'con_signo') {
+          playType = lot.type === 'astro' ? 'astro' : 'zodiac';
+        } else if (state.category === 'cuatro_cifras') {
+          playType = 'cuatro_cifras';
+        } else {
+          playType = (lot.type === 'terminal' || cleanNum.length === 2) ? 'terminal' : 'triple';
+        }
       }
 
       state.preTicketItems.push({
@@ -456,7 +538,7 @@ document.addEventListener('DOMContentLoaded', () => {
         type: playType,
         sign: state.category === 'con_signo' ? (signOverride || state.selectedSign) : null,
         animalName,
-        is5ta: state.category === 'cuatro_cifras' && Boolean(lot.has5ta) && state.is5ta,
+        is5ta: itemIs5ta,
         isCombinado: state.category === 'cuatro_cifras' && state.isCombinado,
         amount: monto
       });
@@ -464,12 +546,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     if (added === 0) {
-      if (!silent) showToast(`⛔ Número ${cleanInput} fuera del rango oficial de la operadora`);
+      if (!silent) {
+        if (digitErrors.length > 0) {
+          showToast(digitErrors[0].reason);
+        } else {
+          showToast(`⛔ Número ${cleanInput} fuera del rango oficial de la operadora`);
+        }
+      }
       return false;
     }
 
     if (omittedByRange.length > 0 && !silent) {
       showToast(`Cargado en ${added} sorteo(s). Ignorado en: ${omittedByRange.join(', ')}`);
+    } else if (digitErrors.length > 0 && !silent) {
+      showToast(`Cargado en ${added} sorteo(s). Omitido en: ${digitErrors.map(e => e.lotName).join(', ')}`);
     }
 
     state.lastNumberPlayed = cleanInput;
@@ -631,7 +721,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const monto = Number(montoEl?.value || state.lastMontoPlayed || 1000);
     if (!num) return showToast('Ingrese un número para los 12 signos');
     if (state.selectedLotteries.size === 0) return showToast('Seleccione un sorteo con signo');
-    APP_ZODIAC_SIGNS.forEach(s => addPlayItem(num, monto, s.code, true));
+    if (!addPlayItem(num, monto, APP_ZODIAC_SIGNS[0].code, false)) return;
+    APP_ZODIAC_SIGNS.slice(1).forEach(s => addPlayItem(num, monto, s.code, true));
     if (numEl) numEl.value = '';
     renderPreTicketBar();
     showToast('12 signos agregados');
@@ -675,7 +766,8 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (key === 'BACK') {
         target.value = target.value.slice(0, -1);
       } else {
-        if (!state.editingAmount && target.value.length >= 4) return;
+        const maxNumDigits = (state.category === 'cuatro_cifras' && state.is5ta) ? 5 : 4;
+        if (!state.editingAmount && target.value.length >= maxNumDigits) return;
         target.value = (state.editingAmount && target.value === '0') ? key : `${target.value}${key}`;
       }
       updateAnimalPreview();
@@ -729,10 +821,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     };
     perm(numStr.split(''));
-    res.forEach(p => addPlayItem(p, monto, null, true));
+    const permList = Array.from(res);
+    if (permList.length === 0 || !addPlayItem(permList[0], monto, null, false)) return;
+    permList.slice(1).forEach(p => { addPlayItem(p, monto, null, true); });
     if (numInput) numInput.value = '';
     renderPreTicketBar();
-    showToast(`${res.size} permutas agregadas`);
+    showToast(`${permList.length} permutas agregadas`);
   });
 
   document.getElementById('btn-cmd-series')?.addEventListener('click', () => {
@@ -741,7 +835,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (numStr.length !== 2 && numStr.length !== 3) return showToast('Ingrese 2 o 3 cifras para serie');
     if (state.selectedLotteries.size === 0) return showToast('Seleccione al menos un sorteo');
     const term = numStr.slice(-2);
-    for (let i = 0; i <= 9; i++) addPlayItem(`${i}${term}`, monto, null, true);
+    if (!addPlayItem(`0${term}`, monto, null, false)) return;
+    for (let i = 1; i <= 9; i++) addPlayItem(`${i}${term}`, monto, null, true);
     if (numInput) numInput.value = '';
     renderPreTicketBar();
     showToast(`Serie 0-9 generada (${term})`);
@@ -855,7 +950,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cloud.session.agencyCode) {
       renderHeader();
       if (state.activeTab === 'tickets') renderTicketsTab();
-      if (state.activeTab === 'premios') renderWinnersAndResultsTab();
+      if (state.activeTab === 'premios') renderWinnersTab();
+      if (state.activeTab === 'resultados') renderOfficialResultsTab(false);
       if (state.activeTab === 'caja') renderCashierTab();
     }
   }
@@ -1095,7 +1191,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function renderWinnersAndResultsTab() {
+  // ==================== PESTAÑA PREMIOS Y PESTAÑA RESULTADOS OFICIALES ====================
+  function findLotteryMetaWithCategory(lotId) {
+    const cats = [
+      { key: 'sin_signo', label: 'SIN SIGNO' },
+      { key: 'con_signo', label: 'CON SIGNO' },
+      { key: 'cuatro_cifras', label: '4 CIFRAS' },
+      { key: 'animalitos', label: 'ANIMALITOS' }
+    ];
+    for (const c of cats) {
+      const found = (APP_LOTTERY_CATALOGS[c.key] || []).find(l => l.id === lotId);
+      if (found) return { ...found, categoryKey: c.key, categoryLabel: c.label };
+    }
+    return null;
+  }
+
+  function renderWinnersTab() {
     const winEl = document.getElementById('app-agency-winners-list');
     const winners = cloud.getTickets(cloud.session.agencyCode).filter(t => t.estado === 'GANADOR' || t.estado === 'PAGADO');
     if (winEl) {
@@ -1116,44 +1227,97 @@ document.addEventListener('DOMContentLoaded', () => {
         b.addEventListener('click', () => verifyWinnerTicket(b.dataset.id));
       });
     }
+  }
 
+  async function renderOfficialResultsTab(pullCloudFirst = false) {
     const dateInp = document.getElementById('app-results-date');
     if (dateInp && !dateInp.value) dateInp.value = cloud.getTodayIso();
     const dateKey = dateInp?.value || cloud.getTodayIso();
+    const statusEl = document.getElementById('app-results-status');
+    const chipsEl = document.getElementById('app-results-cat-chips');
+    const resList = document.getElementById('app-results-list');
+
+    if (chipsEl) {
+      const catOpts = [
+        { k: 'ALL', lbl: 'TODAS' },
+        { k: 'sin_signo', lbl: 'SIN SIGNO' },
+        { k: 'con_signo', lbl: 'CON SIGNO' },
+        { k: 'cuatro_cifras', lbl: '4 CIFRAS' },
+        { k: 'animalitos', lbl: 'ANIMALITOS' }
+      ];
+      chipsEl.innerHTML = catOpts.map(c => `
+        <button type="button" class="chip-btn ${state.resultsCategoryFilter === c.k ? 'active' : ''}" data-rcat="${c.k}">${c.lbl}</button>
+      `).join('');
+      chipsEl.querySelectorAll('[data-rcat]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.resultsCategoryFilter = btn.dataset.rcat;
+          renderOfficialResultsTab(false);
+        });
+      });
+    }
+
+    if (pullCloudFirst) {
+      if (statusEl) {
+        statusEl.textContent = '⏳ Consultando resultados oficiales en Firebase...';
+        statusEl.style.color = '#fbbf24';
+      }
+      await cloud.fetchOfficialResultsForDate(dateKey);
+    }
+
     const filterQ = (document.getElementById('app-results-filter')?.value || '').trim().toLowerCase();
     const dayRes = (cloud.masterData.results && cloud.masterData.results[dateKey]) || {};
-    const resList = document.getElementById('app-results-list');
     if (!resList) return;
 
-    const entries = Object.entries(dayRes).filter(([lotId]) => {
+    const rows = Object.entries(dayRes).map(([lotId, r]) => {
+      const meta = findLotteryMetaWithCategory(lotId);
+      return {
+        lotId,
+        name: meta?.name || lotId,
+        categoryKey: meta?.categoryKey || 'sin_signo',
+        categoryLabel: meta?.categoryLabel || 'OFICIAL',
+        sortMinutes: meta ? (Number(meta.drawHour24 || 12) * 60 + Number(meta.drawMinute || 0)) : 720,
+        r
+      };
+    }).filter(item => {
+      if (state.resultsCategoryFilter !== 'ALL' && item.categoryKey !== state.resultsCategoryFilter) return false;
       if (!filterQ) return true;
-      const lot = appFindLotteryById(lotId);
-      return (lot?.name || lotId).toLowerCase().includes(filterQ);
+      const hay = `${item.name} ${item.categoryLabel} ${item.r?.number || ''} ${item.r?.animalName || ''} ${item.r?.sign || ''}`.toLowerCase();
+      return hay.includes(filterQ);
     });
 
-    resList.innerHTML = entries.length === 0
-      ? '<div style="font-size:12.5px; color:#9ca3af;">No hay resultados publicados para esta fecha.</div>'
-      : entries.map(([lotId, r]) => {
-          const lot = appFindLotteryById(lotId);
+    rows.sort((a, b) => b.sortMinutes - a.sortMinutes || a.name.localeCompare(b.name));
+
+    if (statusEl) {
+      statusEl.textContent = `✔ Sincronizado con Panel Administrativo (${cloud.lastSyncClock || 'En vivo'}) • ${rows.length} sorteos oficiales`;
+      statusEl.style.color = rows.length > 0 ? '#4ade80' : '#fbbf24';
+    }
+
+    resList.innerHTML = rows.length === 0
+      ? '<div style="font-size:12.5px; color:#9ca3af; text-align:center; padding:18px;">No hay resultados oficiales publicados para esta fecha o filtro.</div>'
+      : rows.map(({ name, categoryLabel, r }) => {
           let val = esc(r.number || '');
           if (r.sign) val += ` • ${esc(r.sign)}`;
           if (r.animalName) val += ` (${esc(r.animalName)})`;
           if (r.ball5) val += ` [5ta: ${esc(r.ball5)}]`;
           return `
-            <div style="background:var(--bg-input); border:1px solid var(--border-card); border-radius:10px; padding:9px 12px; display:flex; justify-content:space-between; align-items:center;">
+            <div style="background:var(--bg-input); border:1px solid var(--border-card); border-radius:10px; padding:9px 12px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
               <div>
-                <div style="font-weight:700; font-size:13px;">${esc(lot?.name || lotId)}</div>
-                <div style="font-size:11px; color:#9ca3af;">${esc(r.timestamp || '')} • ${esc(r.origen || 'OFICIAL')}</div>
+                <div style="font-weight:700; font-size:13px;">${esc(name)}</div>
+                <div style="font-size:11px; color:#9ca3af;">${esc(categoryLabel)} • ${esc(r.timestamp || '')} • ${esc(r.origen || 'OFICIAL')}</div>
               </div>
-              <span style="background:var(--emerald-deep); color:#4ade80; padding:5px 10px; border-radius:8px; font-weight:900;">${val}</span>
+              <span style="background:var(--emerald-deep); color:#4ade80; padding:5px 10px; border-radius:8px; font-weight:900; white-space:nowrap;">${val}</span>
             </div>
           `;
         }).join('');
   }
 
   document.getElementById('btn-app-verify')?.addEventListener('click', () => verifyWinnerTicket());
-  document.getElementById('app-results-date')?.addEventListener('change', renderWinnersAndResultsTab);
-  document.getElementById('app-results-filter')?.addEventListener('input', renderWinnersAndResultsTab);
+  document.getElementById('app-results-date')?.addEventListener('change', () => renderOfficialResultsTab(true));
+  document.getElementById('app-results-filter')?.addEventListener('input', () => renderOfficialResultsTab(false));
+  document.getElementById('btn-app-refresh-results')?.addEventListener('click', async () => {
+    await renderOfficialResultsTab(true);
+    showToast('Resultados oficiales actualizados');
+  });
 
   // ==================== PESTAÑA CUADRE DE CAJA ====================
   function renderCashierTab() {
@@ -1269,7 +1433,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cloud.session.agencyCode) {
       renderHeader();
       if (state.activeTab === 'tickets') renderTicketsTab();
-      if (state.activeTab === 'premios') renderWinnersAndResultsTab();
+      if (state.activeTab === 'premios') renderWinnersTab();
+      if (state.activeTab === 'resultados') renderOfficialResultsTab(false);
       if (state.activeTab === 'caja') renderCashierTab();
       if (state.activeTab === 'nube') renderCloudTab();
     } else {
