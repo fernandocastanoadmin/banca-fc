@@ -1,5 +1,5 @@
 // js/firebase-sync.js - Motor de Sincronización en Tiempo Real con Google Firebase
-// Sistema "Banca FC - Fernando Castaño (Seguro Te Paga)"
+// Sistema "Banca El Castaño (Seguro Te Paga)"
 // Conectado por defecto a: https://banca-fc-castano-default-rtdb.firebaseio.com
 
 const DEFAULT_FIREBASE_CONFIG = {
@@ -410,10 +410,12 @@ class BancaFcFirebaseSync {
             const currentCloud = await getRes.json();
             if (currentCloud && Array.isArray(currentCloud.tickets)) {
               dataToSave = this.mergeLocalAndCloud(localMasterData, currentCloud);
-              dataToSave.agencies = localMasterData.agencies;
-              dataToSave.collectors = localMasterData.collectors;
-              dataToSave.results = localMasterData.results;
-              dataToSave.config = localMasterData.config;
+              if (typeof window !== 'undefined' && window.BANCA_FC_ROLE === 'ADMIN') {
+                dataToSave.agencies = localMasterData.agencies;
+                dataToSave.collectors = localMasterData.collectors;
+                dataToSave.results = localMasterData.results;
+                dataToSave.config = localMasterData.config;
+              }
             }
           }
         } catch (e) {}

@@ -1,5 +1,5 @@
 // js/pos.js - Motor de Taquilla de Alta Velocidad, Horarios 12h AM/PM y Cierre Automático (-5 Minutos)
-// Sistema "Banca FC - Fernando Castaño (Seguro Te Paga)"
+// Sistema "Banca El Castaño (Seguro Te Paga)"
 
 class PosEngine {
   constructor(storageMgr, printerMgr) {
@@ -413,11 +413,85 @@ class PosEngine {
     }
   }
 
+  validateNonAnimalitoNumber(cleanNumber, lot, options = {}) {
+    if (!/^\d+$/.test(cleanNumber)) {
+      return { valid: false, reason: '⛔ Ingrese solo dígitos numéricos válidos.' };
+    }
+    if (this.currentCategory === 'sin_signo') {
+      if (lot && lot.type === 'terminal') {
+        if (!/^\d{2}$/.test(cleanNumber)) {
+          return {
+            valid: false,
+            reason: `⛔ En ${lot.name} (Terminal) debe ingresar exactamente 2 cifras (ej: 08). No se permite 1 solo número.`
+          };
+        }
+        return { valid: true };
+      }
+      if (!/^\d{2,3}$/.test(cleanNumber)) {
+        return {
+          valid: false,
+          reason: '⛔ No está permitido jugar un solo número. En SIN SIGNO ingrese 2 cifras para Terminal (ej: 08) o 3 cifras para Triple (ej: 008).'
+        };
+      }
+      return { valid: true };
+    }
+    if (this.currentCategory === 'con_signo') {
+      if (lot && lot.type === 'astro') {
+        if (!/^\d{3,4}$/.test(cleanNumber)) {
+          return {
+            valid: false,
+            reason: `⛔ En ${lot.name} debe ingresar 3 cifras (ej: 008) o 4 cifras (ej: 0008). No se permite 1 ni 2 dígitos.`
+          };
+        }
+        return { valid: true };
+      }
+      if (!/^\d{3}$/.test(cleanNumber)) {
+        return {
+          valid: false,
+          reason: `⛔ No está permitido jugar menos de 3 cifras en Con Signo (${lot?.name || 'Zodiacal'}). Ingrese exactamente 3 cifras (ej: 008).`
+        };
+      }
+      return { valid: true };
+    }
+    if (this.currentCategory === 'cuatro_cifras') {
+      if (lot && (lot.id === 'CASH_THREE_DIA' || lot.id === 'CASH_THREE_NOCHE')) {
+        if (!/^\d{3}$/.test(cleanNumber)) {
+          return {
+            valid: false,
+            reason: `⛔ En ${lot.name} debe ingresar exactamente 3 cifras (ej: 008).`
+          };
+        }
+        return { valid: true };
+      }
+      const is5ta = Boolean(options.is5ta) && Boolean(lot && lot.has5ta);
+      if (is5ta) {
+        if (!/^\d{4,5}$/.test(cleanNumber)) {
+          return {
+            valid: false,
+            reason: '⛔ Con La 5ta activa ingrese 4 cifras (ej: 0008) o 5 cifras (ej: 00085).'
+          };
+        }
+        return { valid: true };
+      }
+      if (!/^\d{4}$/.test(cleanNumber)) {
+        return {
+          valid: false,
+          reason: `⛔ No está permitido jugar menos de 4 cifras en ${lot?.name || '4 Cifras / Colombia'}. Ingrese exactamente 4 cifras (ej: 0008).`
+        };
+      }
+      return { valid: true };
+    }
+    return { valid: true };
+  }
+
   // Agrega una jugada individual al pre-ticket validando que el sorteo no haya cerrado (-5 min)
   addPlayItem(numberStr, amountVal, options = {}) {
+    const silent = Boolean(options.silent);
     if (this.selectedLotteries.size === 0) {
-      alert('¡Debe seleccionar al menos un sorteo abierto en el panel izquierdo!');
-      this.playBeep('error');
+      if (!silent) {
+        alert('¡Debe seleccionar al menos un sorteo abierto en el panel izquierdo!');
+        this.playBeep('error');
+      }
       return false;
     }
 
@@ -427,13 +501,16 @@ class PosEngine {
 
     if (selectedLots.length === 0) {
       this.renderLotteriesList(document.getElementById('lottery-search-input')?.value || '');
-      alert('⛔ Los sorteos seleccionados ya cerraron ventas (5 minutos antes de la hora oficial).');
-      this.playBeep('error');
+      if (!silent) {
+        alert('⛔ Los sorteos seleccionados ya cerraron ventas (5 minutos antes de la hora oficial).');
+        this.playBeep('error');
+      }
       return false;
     }
 
     let addedCount = 0;
     const omittedLotteriesByRange = [];
+    const digitValidationErrors = [];
 
     selectedLots.forEach(lot => {
       // Verificar que falten más de 5 minutos
@@ -474,13 +551,20 @@ class PosEngine {
             : (ANIMALITOS_DICT[cleanNumber] || { name: 'Animalito' });
           animalName = info.name;
         }
-      } else if (this.currentCategory === 'con_signo') {
-        playType = lot.type === 'astro' ? 'astro' : 'zodiac';
-      } else if (this.currentCategory === 'cuatro_cifras') {
-        playType = 'cuatro_cifras';
       } else {
-        // Sin signo: si el sorteo es de terminal (ej. Ñapa Gana) o tiene 2 dígitos es terminal
-        playType = (lot.type === 'terminal' || cleanNumber.length === 2) ? 'terminal' : 'triple';
+        const chk = this.validateNonAnimalitoNumber(cleanNumber, lot, options);
+        if (!chk.valid) {
+          digitValidationErrors.push({ lotName: lot.name, reason: chk.reason });
+          return;
+        }
+        if (this.currentCategory === 'con_signo') {
+          playType = lot.type === 'astro' ? 'astro' : 'zodiac';
+        } else if (this.currentCategory === 'cuatro_cifras') {
+          playType = 'cuatro_cifras';
+        } else {
+          // Sin signo: si el sorteo es de terminal (ej. Ñapa Gana) o tiene 2 dígitos es terminal
+          playType = (lot.type === 'terminal' || cleanNumber.length === 2) ? 'terminal' : 'triple';
+        }
       }
 
       const item = {
@@ -492,7 +576,7 @@ class PosEngine {
         type: playType,
         sign: options.sign || null,
         animalName: animalName,
-        is5ta: options.is5ta || false,
+        is5ta: Boolean(options.is5ta) && Boolean(lot.has5ta),
         isCombinado: options.isCombinado || false,
         amount: Number(amountVal)
       };
@@ -502,19 +586,31 @@ class PosEngine {
     });
 
     if (addedCount === 0) {
-      const configs = this.getActiveAnimalitoOperatorConfigs();
-      const rangesText = configs.map(c => `${c.label}`).join(' | ');
-      alert(`⛔ Número "${numberStr}" fuera del límite oficial para la operadora seleccionada.\n\nRango permitido: ${rangesText}`);
-      this.playBeep('error');
+      if (!silent) {
+        if (digitValidationErrors.length > 0) {
+          alert(digitValidationErrors[0].reason);
+        } else {
+          const configs = this.getActiveAnimalitoOperatorConfigs();
+          const rangesText = configs.map(c => `${c.label}`).join(' | ');
+          alert(`⛔ Número "${numberStr}" fuera del límite oficial para la operadora seleccionada.\n\nRango permitido: ${rangesText}`);
+        }
+        this.playBeep('error');
+      }
       return false;
     }
 
-    if (omittedLotteriesByRange.length > 0) {
+    if (omittedLotteriesByRange.length > 0 && !silent) {
       alert(
         `ℹ️ VALIDACIÓN MULTI-OPERADORA:\n` +
         `El número "${numberStr}" se cargó en ${addedCount} sorteo(s) válido(s), pero se ignoró en:\n` +
         `• ${omittedLotteriesByRange.join('\n• ')}\n` +
         `por no existir en el diccionario oficial de esa operadora.`
+      );
+    } else if (digitValidationErrors.length > 0 && !silent) {
+      alert(
+        `ℹ️ VALIDACIÓN DE CIFRAS:\n` +
+        `El número "${numberStr}" se cargó en ${addedCount} sorteo(s) válido(s), pero se omitió en:\n` +
+        `• ${digitValidationErrors.map(e => e.lotName).join('\n• ')}`
       );
     }
 
@@ -524,7 +620,7 @@ class PosEngine {
 
     this.renderPreTicket();
     this.updateCounters();
-    this.playBeep('blip');
+    if (!silent) this.playBeep('blip');
     return true;
   }
 
@@ -586,12 +682,16 @@ class PosEngine {
     }
 
     const perms = this.generatePermutas(numStr);
-    perms.forEach(permNum => {
-      this.addPlayItem(permNum, monto);
+    if (perms.length === 0 || !this.addPlayItem(perms[0], monto, { silent: false })) {
+      return;
+    }
+    perms.slice(1).forEach(permNum => {
+      this.addPlayItem(permNum, monto, { silent: true });
     });
 
     if (numInput) numInput.value = '';
     this.focusNumberInput();
+    this.playBeep('blip');
     alert(`Se generaron ${perms.length} permutas para el número ${numStr}`);
   }
 
@@ -626,12 +726,16 @@ class PosEngine {
       }
     }
 
-    series.forEach(itemNum => {
-      this.addPlayItem(itemNum, monto);
+    if (!this.addPlayItem(series[0], monto, { silent: false })) {
+      return;
+    }
+    series.slice(1).forEach(itemNum => {
+      this.addPlayItem(itemNum, monto, { silent: true });
     });
 
     if (numInput) numInput.value = '';
     this.focusNumberInput();
+    this.playBeep('blip');
     alert(`Se generó la serie de 10 números para el terminal ${numStr.slice(-2)}`);
   }
 
@@ -658,12 +762,16 @@ class PosEngine {
       return;
     }
 
-    ZODIAC_SIGNS.forEach(sign => {
-      this.addPlayItem(numStr, monto, { sign: sign.code });
+    if (!this.addPlayItem(numStr, monto, { sign: ZODIAC_SIGNS[0].code, silent: false })) {
+      return;
+    }
+    ZODIAC_SIGNS.slice(1).forEach(sign => {
+      this.addPlayItem(numStr, monto, { sign: sign.code, silent: true });
     });
 
     if (numInput) numInput.value = '';
     this.focusNumberInput();
+    this.playBeep('blip');
     alert(`Se agregaron 12 jugadas correspondientes a todos los signos zodiacales.`);
   }
 
@@ -867,7 +975,7 @@ class PosEngine {
     const cfg = this.storage.getConfig();
     const agencyInfo = this.storage.getAgencyByCode(cfg.agencyCode);
     if (agencyInfo && agencyInfo.status === 'SUSPENDIDA') {
-      alert(`⛔ ACCESO DENEGADO: La Agencia ${agencyInfo.code} (${agencyInfo.name}) se encuentra SUSPENDIDA en el Panel Central de Banca FC Fernando Castaño. Comuníquese con administración.`);
+      alert(`⛔ ACCESO DENEGADO: La Agencia ${agencyInfo.code} (${agencyInfo.name}) se encuentra SUSPENDIDA en el Panel Central de Banca El Castaño. Comuníquese con administración.`);
       this.playBeep('error');
       return;
     }
@@ -889,7 +997,7 @@ class PosEngine {
         });
         if (currentNumberAccum + play.amount > agencyInfo.maxBetLimit) {
           const disponible = Math.max(0, agencyInfo.maxBetLimit - currentNumberAccum);
-          alert(`⚠️ TOPE DE RIESGO EXCEDIDO EN BANCA FC:\nSorteo: ${play.lotteryName}\nNúmero/Animalito: ${play.number}\nTope Máximo Agencia: ${this.printer.formatCurrency(agencyInfo.maxBetLimit, cfg.currency)}\nDisponible para este número: ${this.printer.formatCurrency(disponible, cfg.currency)}`);
+          alert(`⚠️ TOPE DE RIESGO EXCEDIDO EN BANCA EL CASTAÑO:\nSorteo: ${play.lotteryName}\nNúmero/Animalito: ${play.number}\nTope Máximo Agencia: ${this.printer.formatCurrency(agencyInfo.maxBetLimit, cfg.currency)}\nDisponible para este número: ${this.printer.formatCurrency(disponible, cfg.currency)}`);
           this.playBeep('error');
           return;
         }

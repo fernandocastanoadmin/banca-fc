@@ -1,5 +1,5 @@
 // js/print.js - Módulo de Impresión Térmica POS (58mm / 80mm) y Compartir
-// Sistema "Banca FC - Fernando Castaño (Seguro Te Paga)"
+// Sistema "Banca El Castaño (Seguro Te Paga)"
 
 class ThermalPrinter {
   constructor(storageMgr) {
@@ -112,7 +112,7 @@ class ThermalPrinter {
     const printMode = options.printMode || cfg.printMode || 'TEXT_ONLY';
     const printerName = cfg.printerName || 'Generic / Text Only';
     const barcodeSvg = printMode === 'TEXT_ONLY' ? '' : this.generateSvgBarcode(ticket.serialSeguridad || ticket.ticketId);
-    const agenciaDisplay = ticket.agencia || `${cfg.agencyCode || '1000'} - ${cfg.agencyName || 'FERNANDO CASTAÑO'}`;
+    const agenciaDisplay = ticket.agencia || `${cfg.agencyCode || '1000'} - ${cfg.agencyName || 'EL CASTAÑO'}`;
 
     return `
       <div class="thermal-receipt paper-${paperWidth} ${ticket.estado === 'ANULADO' ? 'is-anulado' : ''}" data-printer="${printerName}">
@@ -120,8 +120,7 @@ class ThermalPrinter {
         ${isCopy ? '<div class="watermark-copia">*** COPIA DE TICKET ***</div>' : ''}
         
         <div class="ticket-center-block header-brand">
-          <div class="banca-title">BANCA FC</div>
-          <div class="banca-subtitle">FERNANDO CASTAÑO</div>
+          <div class="banca-title">BANCA EL CASTAÑO</div>
           <div class="banca-slogan">SEGURO TE PAGA (1000 SORTEOS)</div>
         </div>
 
@@ -225,7 +224,7 @@ class ThermalPrinter {
       ticketId: '00000000',
       serialSeguridad: 'TEST-PRNT-0001',
       fechaHora: `${dd}/${mm}/${yyyy} ${hr}:${min}:${sec} ${ampm}`,
-      agencia: `${cfg.agencyCode || '1000'} - ${cfg.agencyName || 'FERNANDO CASTAÑO'}`,
+      agencia: `${cfg.agencyCode || '1000'} - ${cfg.agencyName || 'EL CASTAÑO'}`,
       usuario: cfg.terminalId || '1000',
       moneda: cfg.currency || 'COP',
       estado: 'PRUEBA IMPRESORA',
@@ -249,9 +248,9 @@ class ThermalPrinter {
     const cfg = this.storage.getConfig();
     const currency = ticket.moneda || cfg.currency;
     const grouped = this.groupPlaysByLottery(ticket.items);
-    const agenciaDisplay = ticket.agencia || `${cfg.agencyCode || '1000'} - ${cfg.agencyName || 'FERNANDO CASTAÑO'}`;
+    const agenciaDisplay = ticket.agencia || `${cfg.agencyCode || '1000'} - ${cfg.agencyName || 'EL CASTAÑO'}`;
 
-    let text = `🎟️ *BANCA FC - FERNANDO CASTAÑO*\n`;
+    let text = `🎟️ *BANCA EL CASTAÑO*\n`;
     text += `📍 *AGENCIA:* ${agenciaDisplay}\n`;
     text += `🕒 *FECHA:* ${ticket.fechaHora}\n`;
     text += `🔢 *TICKET:* #${ticket.ticketId}\n`;
@@ -290,8 +289,7 @@ class ThermalPrinter {
     const add = (text, o = {}) => rows.push({ text: String(text), bold: !!o.bold, center: !!o.center, size: o.size || 14, gap: o.gap || 0 });
     const sep = () => add('-'.repeat(38), { center: true });
 
-    add('BANCA FC', { bold: true, center: true, size: 26 });
-    add('FERNANDO CASTAÑO', { bold: true, center: true, size: 18 });
+    add('BANCA EL CASTAÑO', { bold: true, center: true, size: 22 });
     add('SEGURO TE PAGA (1000 SORTEOS)', { center: true, size: 12 });
     sep();
     add(`AGENCIA: ${ticket.agencia || ''}`);

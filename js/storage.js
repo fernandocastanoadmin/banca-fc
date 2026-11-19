@@ -1,5 +1,5 @@
 // js/storage.js - Persistencia Unificada y Sincronización en Tiempo Real (POS <-> Panel Central)
-// Sistema "Banca FC - Fernando Castaño (Seguro Te Paga)"
+// Sistema "Banca El Castaño (Seguro Te Paga)"
 
 const _localStoreMock = {};
 const safeLocalStorage = (typeof window !== 'undefined' && window.localStorage) ? window.localStorage : {
@@ -20,11 +20,11 @@ const STORAGE_KEYS = {
 
 const DEFAULT_CONFIG = {
   agencyCode: '1000',
-  agencyName: 'FERNANDO CASTAÑO',
+  agencyName: 'EL CASTAÑO',
   terminalId: '1000',
   terminalSerial: '61526296531000',
-  agentName: 'Fernando Castaño',
-  bancaName: 'Banca FC Fernando Castaño',
+  agentName: 'El Castaño',
+  bancaName: 'Banca El Castaño',
   currency: 'COP', // 'COP', 'VES', 'USD'
   paperWidth: '58mm', // '58mm', '80mm'
   agencyCommissionPct: 15,
@@ -60,16 +60,16 @@ const DEFAULT_MESSAGES = [
   {
     id: 1,
     date: '08/11/2026 08:30 AM',
-    from: 'BANCA FC - CENTRAL',
+    from: 'BANCA EL CASTAÑO - CENTRAL',
     subject: 'Sincronización En Vivo Activa con Panel Central',
-    body: 'Todas las taquillas están conectadas en tiempo real con el Panel Central de Banca FC Fernando Castaño. Recuerde verificar topes por número y animalito.',
+    body: 'Todas las taquillas están conectadas en tiempo real con el Panel Central de Banca El Castaño. Recuerde verificar topes por número y animalito.',
     read: false
   },
   {
     id: 2,
     date: '08/11/2026 09:15 AM',
     from: 'AUDITORÍA DE RIESGO FC',
-    subject: 'Multiplicadores Oficiales Banca FC',
+    subject: 'Multiplicadores Oficiales Banca El Castaño',
     body: 'Triple: 500x | Terminal: 60x | Aproximación: 5x | Animalitos: 30x | 4 Cifras: 4500x | Astro: 40000x.',
     read: true
   }
@@ -90,8 +90,8 @@ function getDefaultAgencies() {
     {
       code: '1000',
       terminalSerial: '61526296531000',
-      name: 'AG PRINCIPAL FERNANDO CASTAÑO',
-      manager: 'Fernando Castaño',
+      name: 'AG PRINCIPAL EL CASTAÑO',
+      manager: 'El Castaño',
       whatsapp: '+573105551000',
       zone: 'San Cristóbal - Centro (VEN)',
       collector: 'Raúl Zambrano',
@@ -203,7 +203,7 @@ function getDemoSeedTickets() {
       serialSeguridad: '5821-4902-1108',
       fechaHora: `${dateStr} 09:15:30 am`,
       agencyCode: '1000',
-      agencia: '1000 - AG PRINCIPAL FERNANDO CASTAÑO',
+      agencia: '1000 - AG PRINCIPAL EL CASTAÑO',
       usuario: '1000',
       moneda: 'COP',
       items: [
@@ -225,7 +225,7 @@ function getDemoSeedTickets() {
       serialSeguridad: '9312-3011-8842',
       fechaHora: `${dateStr} 10:05:12 am`,
       agencyCode: '1000',
-      agencia: '1000 - AG PRINCIPAL FERNANDO CASTAÑO',
+      agencia: '1000 - AG PRINCIPAL EL CASTAÑO',
       usuario: '1000',
       moneda: 'COP',
       items: [
@@ -477,7 +477,7 @@ class StorageManager {
     }
 
     const masterData = {
-      bancaName: 'BANCA FC FERNANDO CASTAÑO',
+      bancaName: 'BANCA EL CASTAÑO',
       updatedAt: new Date().toISOString(),
       consolidationCurrency: 'COP',
       collectors: [...DEFAULT_COLLECTORS],
@@ -502,7 +502,7 @@ class StorageManager {
     } catch (e) {
       console.error('Error leyendo banca_fc_data:', e);
       return {
-        bancaName: 'BANCA FC FERNANDO CASTAÑO',
+        bancaName: 'BANCA EL CASTAÑO',
         consolidationCurrency: 'COP',
         collectors: [...DEFAULT_COLLECTORS],
         config: { ...DEFAULT_CONFIG },
@@ -621,7 +621,7 @@ class StorageManager {
   importAndMergeSyncPackage(jsonString) {
     const incoming = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
     if (!incoming || (!Array.isArray(incoming.tickets) && !Array.isArray(incoming.agencies))) {
-      throw new Error('El archivo no es un respaldo válido de Banca FC.');
+      throw new Error('El archivo no es un respaldo válido de Banca El Castaño.');
     }
 
     const current = this.getMasterData();
@@ -1185,7 +1185,7 @@ class StorageManager {
       if (agency.status === 'SUSPENDIDA') {
         return {
           success: false,
-          reason: `La Agencia ${agency.code} (${agency.name}) se encuentra SUSPENDIDA por la Administración Central de Banca FC.`
+          reason: `La Agencia ${agency.code} (${agency.name}) se encuentra SUSPENDIDA por la Administración Central de Banca El Castaño.`
         };
       }
       // Si se ingresó contraseña y la agencia tiene clave configurada, validarla
@@ -1403,7 +1403,7 @@ class StorageManager {
     master.messages.unshift({
       id: Date.now(),
       date: new Date().toLocaleString('es-VE'),
-      from: msgObj.from || 'BANCA FC - CENTRAL',
+      from: msgObj.from || 'BANCA EL CASTAÑO - CENTRAL',
       subject: msgObj.subject || 'Circular Operativa',
       body: msgObj.body || '',
       read: false

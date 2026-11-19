@@ -1,5 +1,5 @@
 // js/modals.js - Controladores de Modales, Reportes, Premiación y Configuración
-// Sistema "Banca FC - Fernando Castaño (Seguro Te Paga)"
+// Sistema "Banca El Castaño (Seguro Te Paga)"
 
 class ModalManager {
   constructor(storageMgr, printerMgr, posEngineMgr) {
@@ -698,8 +698,8 @@ class ModalManager {
         const text = [
           `--------------------------------`,
           `RELACION FINAL - CUADRE DE CAJA`,
-          `BANCA FC - FERNANDO CASTANO`,
-          `AGENCIA: ${cfg.agencyCode || '1000'} - ${cfg.agencyName || 'FERNANDO CASTANO'}`,
+          `BANCA EL CASTAÑO`,
+          `AGENCIA: ${cfg.agencyCode || '1000'} - ${cfg.agencyName || 'EL CASTAÑO'}`,
           `FECHA: ${d.date}`,
           `--------------------------------`,
           sections,
@@ -814,7 +814,7 @@ class ModalManager {
       const summaryBox = document.getElementById('cfg-readonly-summary');
 
       if (codeEl) codeEl.value = cfg.agencyCode || '1000';
-      if (nameEl) nameEl.value = cfg.agencyName || 'FERNANDO CASTAÑO';
+      if (nameEl) nameEl.value = cfg.agencyName || 'EL CASTAÑO';
       if (userEl) userEl.value = cfg.terminalId || '1000';
 
       this.populateAllowedCurrencySelect(curSelect, allowedCurrencies, cfg.currency || allowedCurrencies[0]);

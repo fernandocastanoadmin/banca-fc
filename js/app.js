@@ -1,5 +1,5 @@
 // js/app.js - Inicializador Principal, Autenticación y Mapeo Global de Eventos
-// Sistema "Banca FC - Fernando Castaño (Seguro Te Paga)"
+// Sistema "Banca El Castaño (Seguro Te Paga)"
 
 document.addEventListener('DOMContentLoaded', () => {
   // 1. Inicializar Motores y Servicios
@@ -45,11 +45,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   const headerAgencyInit = document.getElementById('header-agency-label');
   if (headerAgencyInit) {
-    headerAgencyInit.textContent = `AGENCIA: ${cfg.agencyCode || '1000'} - ${cfg.agencyName || 'FERNANDO CASTAÑO'}`;
+    headerAgencyInit.textContent = `AGENCIA: ${cfg.agencyCode || '1000'} - ${cfg.agencyName || 'EL CASTAÑO'}`;
   }
   const headerTitleInit = document.getElementById('window-title-bar-text');
   if (headerTitleInit) {
-    headerTitleInit.textContent = `Agencia ${cfg.agencyCode || '1000'}: AG ${cfg.agentName || cfg.agencyName || 'Fernando Castaño'} | Usuario: 1000 - [Ventas]`;
+    headerTitleInit.textContent = `Agencia ${cfg.agencyCode || '1000'}: AG ${cfg.agentName || cfg.agencyName || 'El Castaño'} | Usuario: 1000 - [Ventas]`;
   }
 
   // 4. Módulo de Autenticación y Pantalla de Login
@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const userVal = loginUser?.value.trim() || '1000';
     const passVal = loginPass?.value.trim() || '';
 
-    // Autenticar contra las agencias creadas en el Panel Administrativo de Banca FC
+    // Autenticar contra las agencias creadas en el Panel Administrativo de Banca El Castaño
     const authRes = storageInstance.authenticatePosAgency(userVal, passVal);
     if (!authRes.success) {
       alert(authRes.reason);
@@ -93,11 +93,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Actualizar título y cabecera con la agencia activa
     const headerTitle = document.getElementById('window-title-bar-text');
     if (headerTitle) {
-      headerTitle.textContent = `Agencia ${updatedCfg.agencyCode || userVal}: ${updatedCfg.agencyName || 'FERNANDO CASTAÑO'} | Usuario: ${userVal} - [Ventas]`;
+      headerTitle.textContent = `Agencia ${updatedCfg.agencyCode || userVal}: ${updatedCfg.agencyName || 'EL CASTAÑO'} | Usuario: ${userVal} - [Ventas]`;
     }
     const headerAgencyLabel = document.getElementById('header-agency-label');
     if (headerAgencyLabel) {
-      headerAgencyLabel.textContent = `AGENCIA: ${updatedCfg.agencyCode || userVal} - ${updatedCfg.agencyName || 'FERNANDO CASTAÑO'}`;
+      headerAgencyLabel.textContent = `AGENCIA: ${updatedCfg.agencyCode || userVal} - ${updatedCfg.agencyName || 'EL CASTAÑO'}`;
     }
     const headerCur = document.getElementById('header-active-currency');
     if (headerCur) {
@@ -381,7 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const promptConfigureFirebasePos = async () => {
       const currentFb = (window.bancaFcCloud && window.bancaFcCloud.databaseURL) || '';
       const inputUrl = prompt(
-        '☁️ CONEXIÓN EN TIEMPO REAL CON GOOGLE FIREBASE (BANCA FC):\n\n' +
+        '☁️ CONEXIÓN EN TIEMPO REAL CON GOOGLE FIREBASE (BANCA EL CASTAÑO):\n\n' +
         'Pegue aquí la URL de su Firebase Realtime Database (ej: https://banca-fc-default-rtdb.firebaseio.com) para que todos los tickets de esta taquilla se sincronicen automáticamente en vivo con el Panel Administrativo:\n\n' +
         '(Deje vacío para desconectar)',
         currentFb || 'https://banca-fc-castano-default-rtdb.firebaseio.com'
@@ -412,7 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const curCfg = storageInstance.getConfig();
       const headerAgencyLabel = document.getElementById('header-agency-label');
       if (headerAgencyLabel) {
-        headerAgencyLabel.textContent = `AGENCIA: ${curCfg.agencyCode || '1000'} - ${curCfg.agencyName || 'FERNANDO CASTAÑO'}`;
+        headerAgencyLabel.textContent = `AGENCIA: ${curCfg.agencyCode || '1000'} - ${curCfg.agencyName || 'EL CASTAÑO'}`;
       }
       pos.updateCounters();
       pos.renderPreTicket();
@@ -667,7 +667,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Inicializar estado de la taquilla
   pos.setCategory('sin_signo');
 
-  // Escuchar cambios en vivo desde el Panel Administrativo Central de Banca FC
+  // Escuchar cambios en vivo desde el Panel Administrativo Central de Banca El Castaño
   window.addEventListener('storage', (e) => {
     if (e.key === 'banca_fc_data') {
       const updatedCfg = storageInstance.getConfig();

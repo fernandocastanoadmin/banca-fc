@@ -1,4 +1,4 @@
-// js/admin.js - Controlador Central de Banca FC Fernando Castaño
+// js/admin.js - Controlador Central de Banca El Castaño
 // Sincronización en tiempo real con el POS mediante localStorage ('banca_fc_data')
 
 class BancaFcAdminController {
@@ -54,7 +54,7 @@ class BancaFcAdminController {
         loginModal.classList.add('hidden');
         errEl?.classList.add('hidden');
         if (passInput) passInput.value = '';
-        this.showToast('Bienvenido al Panel Central de Banca FC Fernando Castaño.', '🔓');
+        this.showToast('Bienvenido al Panel Central de Banca El Castaño.', '🔓');
       } else {
         errEl?.classList.remove('hidden');
         passInput?.select();
@@ -334,7 +334,7 @@ class BancaFcAdminController {
 
     // Restaurar Demo
     document.getElementById('btn-restore-demo')?.addEventListener('click', () => {
-      if (confirm('¿Desea restaurar los datos de demostración de Banca FC Fernando Castaño (agencias, ventas y premios precargados)?')) {
+      if (confirm('¿Desea restaurar los datos de demostración de Banca El Castaño (agencias, ventas y premios precargados)?')) {
         this.storage.restoreDemoData();
         this.populateCollectorDropdowns();
         this.refreshAllViews();
@@ -346,7 +346,7 @@ class BancaFcAdminController {
     document.getElementById('btn-reset-zero')?.addEventListener('click', () => {
       this.openPasswordResetModal({
         mode: 'GLOBAL',
-        title: '🔐 Reiniciar Banca FC en Cero (Producción)',
+        title: '🔐 Reiniciar Banca El Castaño en Cero (Producción)',
         description: '⚠️ Se eliminarán TODOS los tickets y resultados del sistema, manteniendo las agencias configuradas listas para vender desde el Ticket #00000001. Ingrese la contraseña maestra para autorizar.'
       });
     });
@@ -1291,7 +1291,7 @@ class BancaFcAdminController {
     }).join('\n----------------------------------\n');
 
     const text = [
-      `🏦 *BANCA FC FERNANDO CASTAÑO*`,
+      `🏦 *BANCA EL CASTAÑO*`,
       `📋 *CORTE Y RELACIÓN DE TAQUILLA (CAJAS INDEPENDIENTES)*`,
       `----------------------------------`,
       `🏪 *Agencia:* ${ag.code} - ${ag.name}`,
@@ -1716,7 +1716,7 @@ class BancaFcAdminController {
         btnSyncWeb.disabled = true;
         btnSyncWeb.innerHTML = '<span>⏳</span> Extrayendo Resultados desde Web Oficial...';
         if (syncStatusEl) {
-          syncStatusEl.textContent = '⏳ Consultando páginas oficiales (TuAzar / Resultados Colombia) y sincronizando con Firebase...';
+          syncStatusEl.textContent = '⏳ Consultando páginas oficiales (Lotería de Hoy Venezuela / Loterías de Hoy Colombia) y sincronizando con Firebase...';
           syncStatusEl.className = 'text-[11px] font-mono text-sky-400 font-bold';
         }
 
@@ -1727,16 +1727,24 @@ class BancaFcAdminController {
         const totalPublished = (syncOutcome && syncOutcome.results) ? syncOutcome.results.length : 0;
         const extractedNow = (syncOutcome && syncOutcome.extractedCount) || 0;
         const syncTime = window.bancaFcAutoResults.lastSyncTime || 'Ahora';
+        const warningMsg = window.bancaFcAutoResults.lastSyncWarning || null;
 
         if (syncStatusEl) {
-          syncStatusEl.textContent = `✔ Sincronización Web completada (${syncTime}) • ${totalPublished} sorteos publicados (${extractedNow} nuevos extraídos de la web) • Cero simulados.`;
-          syncStatusEl.className = 'text-[11px] font-mono text-emerald-400 font-bold';
+          if (warningMsg && totalPublished === 0) {
+            syncStatusEl.textContent = `⚠️ ${warningMsg} (${syncTime}) • 0 sorteos publicados.`;
+            syncStatusEl.className = 'text-[11px] font-mono text-amber-400 font-bold';
+          } else {
+            syncStatusEl.textContent = `✔ Sincronización Web completada (${syncTime}) • ${totalPublished} sorteos publicados (${extractedNow} nuevos extraídos de la web) • Cero simulados.`;
+            syncStatusEl.className = 'text-[11px] font-mono text-emerald-400 font-bold';
+          }
         }
 
         this.refreshAllViews();
         this.showToast(
-          `Sincronización Web Oficial completada (${totalPublished} sorteos publicados en fecha ${dateKey}).`,
-          '🔄'
+          warningMsg && totalPublished === 0
+            ? `Aviso sincronización (${dateKey}): ${warningMsg}`
+            : `Sincronización Web Oficial completada (${totalPublished} sorteos publicados en fecha ${dateKey}).`,
+          warningMsg && totalPublished === 0 ? '⚠️' : '🔄'
         );
       });
     }
@@ -1744,10 +1752,18 @@ class BancaFcAdminController {
     // Escuchar actualizaciones automáticas del ciclo de 3 minutos
     window.addEventListener('banca_fc_official_results_synced', (e) => {
       if (syncStatusEl && e.detail && e.detail.timestamp) {
-        const dateKey = document.getElementById('res-admin-date')?.value || new Date().toISOString().split('T')[0];
+        const now = new Date();
+        const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const dateKey = document.getElementById('res-admin-date')?.value || todayLocal;
         const count = Object.keys(this.storage.getResults(dateKey) || {}).length;
-        syncStatusEl.textContent = `✔ Sincronizado con Nube Central (${e.detail.timestamp}) • ${count} sorteos oficiales publicados • Cero números simulados.`;
-        syncStatusEl.className = 'text-[11px] font-mono text-emerald-400 font-bold';
+        const warn = e.detail.warning || (window.bancaFcAutoResults && window.bancaFcAutoResults.lastSyncWarning);
+        if (warn && count === 0) {
+          syncStatusEl.textContent = `⚠️ ${warn} (${e.detail.timestamp}) • 0 sorteos oficiales publicados.`;
+          syncStatusEl.className = 'text-[11px] font-mono text-amber-400 font-bold';
+        } else {
+          syncStatusEl.textContent = `✔ Sincronizado con Nube Central (${e.detail.timestamp}) • ${count} sorteos oficiales publicados • Cero números simulados.`;
+          syncStatusEl.className = 'text-[11px] font-mono text-emerald-400 font-bold';
+        }
       }
       this.refreshAllViews();
     });
@@ -2106,7 +2122,7 @@ class BancaFcAdminController {
       input.value = '';
       this.populateCollectorDropdowns();
       this.refreshAllViews();
-      this.showToast(`Cobrador "${name}" agregado a las rutas de Banca FC.`, '🛵');
+      this.showToast(`Cobrador "${name}" agregado a las rutas de Banca El Castaño.`, '🛵');
     });
 
     const formMult = document.getElementById('form-global-multipliers');
@@ -2229,7 +2245,7 @@ class BancaFcAdminController {
         const assigned = agencies.filter(a => a.collector === colName);
         const routeTotals = { COP: 0, USD: 0, VES: 0 };
         const lines = [
-          `🏦 *BANCA FC FERNANDO CASTAÑO*`,
+          `🏦 *BANCA EL CASTAÑO*`,
           `🛵 *HOJA DE RUTA DE COBRADOR (CAJAS SEPARADAS):* ${colName}`,
           `----------------------------------`
         ];
@@ -2317,9 +2333,9 @@ class BancaFcAdminController {
     const agencies = this.storage.getAgencies();
 
     let csv = '\uFEFF'; // BOM para Excel UTF-8
-    csv += 'REPORTE MULTIMONEDA POR CAJAS INDEPENDIENTES - BANCA FC FERNANDO CASTANO\n';
+    csv += 'REPORTE MULTIMONEDA POR CAJAS INDEPENDIENTES - BANCA EL CASTAÑO\n';
     csv += `Fecha Generacion,${new Date().toLocaleString('es-VE')},Contabilidad,3 Cajas Separadas (Sin Conversion)\n\n`;
-    csv += 'Codigo,Agencia,Zona,Cobrador,Estado,Comision %,Caja Moneda,Tickets Activos,Tickets Anulados,Venta Bruta,Anulados,Venta Neta,Comision Agencia,Premios,Utilidad Banca FC\n';
+    csv += 'Codigo,Agencia,Zona,Cobrador,Estado,Comision %,Caja Moneda,Tickets Activos,Tickets Anulados,Venta Bruta,Anulados,Venta Neta,Comision Agencia,Premios,Utilidad Banca El Castaño\n';
 
     agencies.forEach(ag => {
       const m = this.calculateAgencyFinancials(ag, periodTickets);
@@ -2351,7 +2367,7 @@ class BancaFcAdminController {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Reporte_Banca_FC_Fernando_Castano_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `Reporte_Banca_El_Castano_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -2417,7 +2433,7 @@ class BancaFcAdminController {
     const ag = this.storage.getAgencyByCode(agencyCode);
     if (!ag) return;
 
-    const confirmMsg = `⚠️ ¿Está seguro de ELIMINAR la Agencia ${ag.code} - ${ag.name} y todos sus tickets asociados del sistema Banca FC Fernando Castaño?\n\nEsta acción no se puede deshacer.`;
+    const confirmMsg = `⚠️ ¿Está seguro de ELIMINAR la Agencia ${ag.code} - ${ag.name} y todos sus tickets asociados del sistema Banca El Castaño?\n\nEsta acción no se puede deshacer.`;
     if (!confirm(confirmMsg)) return;
 
     this.storage.deleteAgency(ag.code, true);
@@ -2476,7 +2492,7 @@ class BancaFcAdminController {
 
   handleDeleteCollector(collectorName) {
     if (!collectorName) return;
-    if (!confirm(`¿Desea eliminar al cobrador "${collectorName}" de la lista de rutas de Banca FC?`)) {
+    if (!confirm(`¿Desea eliminar al cobrador "${collectorName}" de la lista de rutas de Banca El Castaño?`)) {
       return;
     }
     this.storage.deleteCollector(collectorName);
@@ -2543,7 +2559,7 @@ class BancaFcAdminController {
     if (this.pendingResetAction.mode === 'GLOBAL') {
       this.storage.resetDatabaseToZero(true);
       this.refreshAllViews();
-      this.showToast('✅ Base de datos de Banca FC reiniciada en CERO con autorización.', '🔓');
+      this.showToast('✅ Base de datos de Banca El Castaño reiniciada en CERO con autorización.', '🔓');
     } else if (this.pendingResetAction.mode === 'AGENCY' && this.pendingResetAction.agencyCode) {
       const ag = this.storage.getAgencyByCode(this.pendingResetAction.agencyCode);
       this.storage.resetAgencyToZero(this.pendingResetAction.agencyCode);

@@ -1,6 +1,6 @@
 // js/catalogs.js - Parrilla Exacta de Sorteos (Venezuela y Colombia) en Formato 12h AM/PM
 // Con Motor de Diccionarios Dinámicos por Operadora (OPERATOR_DICTIONARIES) y Cierre (-5 min)
-// Sistema "Banca FC - Fernando Castaño (Seguro Te Paga)"
+// Sistema "Banca El Castaño (Seguro Te Paga)"
 
 const ZODIAC_SIGNS = [
   { code: 'ARI', name: 'Aries', icon: '♈' },
