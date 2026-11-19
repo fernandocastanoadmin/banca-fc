@@ -2,12 +2,67 @@
 // Sistema "Banca FC - Fernando Castaño (Seguro Te Paga)"
 
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { URL } = require('url');
 
 const PORT = process.env.PORT || 3000;
 const DB_FILE_PATH = path.join(__dirname, 'banca_fc_db.json');
+
+const ALLOWED_PROXY_HOSTS = new Set([
+  'loteriadehoy.com',
+  'www.loteriadehoy.com',
+  'lotoven.com',
+  'www.lotoven.com',
+  'loteriasdehoy.co',
+  'www.loteriasdehoy.co',
+  'chancesdehoy.com',
+  'www.chancesdehoy.com',
+  'resultadodelaloteria.com',
+  'www.resultadodelaloteria.com'
+]);
+
+function fetchOfficialUrlViaHttps(targetUrl, redirectsLeft = 3) {
+  return new Promise((resolve, reject) => {
+    let parsed;
+    try {
+      parsed = new URL(targetUrl);
+    } catch (e) {
+      return reject(new Error('URL inválida'));
+    }
+    if (parsed.protocol !== 'https:' || !ALLOWED_PROXY_HOSTS.has(parsed.hostname.toLowerCase())) {
+      return reject(new Error('Dominio no autorizado para proxy'));
+    }
+
+    const req = https.get(parsed, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,*/*'
+      },
+      timeout: 10000
+    }, (upstream) => {
+      if (upstream.statusCode >= 300 && upstream.statusCode < 400 && upstream.headers.location && redirectsLeft > 0) {
+        const nextUrl = new URL(upstream.headers.location, parsed).toString();
+        upstream.resume();
+        return resolve(fetchOfficialUrlViaHttps(nextUrl, redirectsLeft - 1));
+      }
+      if (upstream.statusCode < 200 || upstream.statusCode >= 300) {
+        upstream.resume();
+        return reject(new Error(`HTTP ${upstream.statusCode}`));
+      }
+      const chunks = [];
+      upstream.on('data', (c) => chunks.push(c));
+      upstream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    });
+
+    req.on('timeout', () => {
+      req.destroy(new Error('Timeout consultando página oficial'));
+    });
+    req.on('error', reject);
+  });
+}
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -183,6 +238,24 @@ const server = http.createServer((req, res) => {
       });
       return;
     }
+  }
+
+  if (reqPath === '/api/proxy' && req.method === 'GET') {
+    const reqUrlObj = new URL(req.url, `http://127.0.0.1:${PORT}`);
+    const targetUrl = reqUrlObj.searchParams.get('url') || '';
+    fetchOfficialUrlViaHttps(targetUrl)
+      .then((html) => {
+        res.writeHead(200, {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Cache-Control': 'no-store'
+        });
+        res.end(html);
+      })
+      .catch((err) => {
+        res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ok: false, error: err.message || 'Error consultando fuente oficial' }));
+      });
+    return;
   }
 
   if (reqPath === '/app' || reqPath === '/app/' || reqPath === '/app_movil' || reqPath === '/app_movil/') {
