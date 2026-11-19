@@ -1249,6 +1249,96 @@ body {
 }
 
 /* ==========================================================
+   TEMAS DE FONDO DINÁMICOS POR MONEDA ACTIVA (USD / VES / COP)
+   ========================================================== */
+body[data-currency="USD"] .pos-3panel-workspace {
+  background: #86efac;
+}
+
+body[data-currency="USD"] .panel-categories-lotteries,
+body[data-currency="USD"] .panel-capture-commands,
+body[data-currency="USD"] .panel-ticket-preview {
+  background: #dcfce7;
+}
+
+body[data-currency="USD"] .lottery-filter-box,
+body[data-currency="USD"] .command-keyboard-grid,
+body[data-currency="USD"] .animalitos-fast-bar,
+body[data-currency="USD"] .header-status-ribbon {
+  background: #d1fae5;
+}
+
+body[data-currency="USD"] .fast-entry-box,
+body[data-currency="USD"] .lottery-scroll-container,
+body[data-currency="USD"] .pre-ticket-paper-roll {
+  background: #f0fdf4;
+}
+
+body[data-currency="USD"] .pos-key-btn:not(.action-print):not(.action-clear) {
+  background: #ecfdf5;
+}
+
+body[data-currency="USD"] .status-badge-currency {
+  background: #047857;
+}
+
+body[data-currency="VES"] .pos-3panel-workspace {
+  background: #93c5fd;
+}
+
+body[data-currency="VES"] .panel-categories-lotteries,
+body[data-currency="VES"] .panel-capture-commands,
+body[data-currency="VES"] .panel-ticket-preview {
+  background: #dbeafe;
+}
+
+body[data-currency="VES"] .lottery-filter-box,
+body[data-currency="VES"] .command-keyboard-grid,
+body[data-currency="VES"] .animalitos-fast-bar,
+body[data-currency="VES"] .header-status-ribbon {
+  background: #bfdbfe;
+}
+
+body[data-currency="VES"] .fast-entry-box,
+body[data-currency="VES"] .lottery-scroll-container,
+body[data-currency="VES"] .pre-ticket-paper-roll {
+  background: #eff6ff;
+}
+
+body[data-currency="VES"] .pos-key-btn:not(.action-print):not(.action-clear) {
+  background: #eff6ff;
+}
+
+body[data-currency="VES"] .status-badge-currency {
+  background: #1d4ed8;
+}
+
+body[data-currency="COP"] .pos-3panel-workspace {
+  background: #e5e7eb;
+}
+
+body[data-currency="COP"] .panel-categories-lotteries,
+body[data-currency="COP"] .panel-capture-commands,
+body[data-currency="COP"] .panel-ticket-preview,
+body[data-currency="COP"] .lottery-filter-box,
+body[data-currency="COP"] .command-keyboard-grid,
+body[data-currency="COP"] .animalitos-fast-bar,
+body[data-currency="COP"] .header-status-ribbon,
+body[data-currency="COP"] .fast-entry-box,
+body[data-currency="COP"] .lottery-scroll-container,
+body[data-currency="COP"] .pre-ticket-paper-roll {
+  background: #ffffff;
+}
+
+body[data-currency="COP"] .pos-key-btn:not(.action-print):not(.action-clear) {
+  background: #f8fafc;
+}
+
+body[data-currency="COP"] .status-badge-currency {
+  background: #334155;
+}
+
+/* ==========================================================
    REGLAS EXCLUSIVAS DE IMPRESIÓN (@media print)
    ========================================================== */
 #print-dedicated-area {
