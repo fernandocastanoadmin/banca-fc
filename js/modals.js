@@ -846,6 +846,9 @@ class ModalManager {
       if (headerCur) {
         headerCur.textContent = validCurrency;
       }
+      if (typeof window.applyPosCurrencyTheme === 'function') {
+        window.applyPosCurrencyTheme(validCurrency);
+      }
 
       if (this.pos) {
         this.pos.renderPreTicket();

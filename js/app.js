@@ -36,6 +36,13 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(updateLiveClock, 1000);
   updateLiveClock();
 
+  // Aplicar tema de fondo según moneda activa (USD: verde pastel, VES: azul pastel, COP: blanco)
+  const applyPosCurrencyTheme = (currency) => {
+    const cur = String(currency || 'COP').toUpperCase();
+    document.body.dataset.currency = ['USD', 'VES', 'COP'].includes(cur) ? cur : 'COP';
+  };
+  window.applyPosCurrencyTheme = applyPosCurrencyTheme;
+
   // 3. Inicializar Correlativo en Cabecera
   const cfg = storageInstance.getConfig();
   const nextTicketEl = document.getElementById('header-ticket-correlativo');
@@ -100,9 +107,11 @@ document.addEventListener('DOMContentLoaded', () => {
       headerAgencyLabel.textContent = `AGENCIA: ${updatedCfg.agencyCode || userVal} - ${updatedCfg.agencyName || 'EL CASTAÑO'}`;
     }
     const headerCur = document.getElementById('header-active-currency');
+    const activeCur = updatedCfg.currency || 'COP';
     if (headerCur) {
-      headerCur.textContent = updatedCfg.currency || 'COP';
+      headerCur.textContent = activeCur;
     }
+    applyPosCurrencyTheme(activeCur);
 
     pos.renderPreTicket();
     // Iniciar con foco directo en la taquilla rápida
@@ -322,10 +331,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Selector rápido de Moneda en la Cinta Superior (restringido a las monedas autorizadas por el Admin)
     const headerCurBadge = document.getElementById('header-active-currency');
     const refreshHeaderCurrencyBadge = () => {
-      if (!headerCurBadge) return;
       const curCfg = storageInstance.getConfig();
       const allowed = curCfg.allowedCurrencies || ['COP'];
-      headerCurBadge.textContent = curCfg.currency || allowed[0];
+      const activeCur = curCfg.currency || allowed[0];
+      applyPosCurrencyTheme(activeCur);
+      if (!headerCurBadge) return;
+      headerCurBadge.textContent = activeCur;
       headerCurBadge.style.cursor = allowed.length > 1 ? 'pointer' : 'default';
       headerCurBadge.title = allowed.length > 1
         ? `Monedas autorizadas: ${allowed.join(' / ')} (Clic para alternar)`
@@ -675,6 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (nextNumEl) {
         nextNumEl.textContent = `Ticket #${String(updatedCfg.nextTicketNumber || 10926).padStart(8, '0')}`;
       }
+      applyPosCurrencyTheme(updatedCfg.currency || 'COP');
       pos.renderPreTicket();
     }
   });
