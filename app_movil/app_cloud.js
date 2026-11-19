@@ -1,5 +1,5 @@
 // app_movil/app_cloud.js - Motor Independiente de Sincronización Firebase + Reglas de Negocio
-// App Móvil & Tablet "Banca FC - Fernando Castaño (Seguro Te Paga)"
+// App Móvil & Tablet "Banca El Castaño (Seguro Te Paga)"
 
 const APP_DEFAULT_FIREBASE = {
   apiKey: '',
@@ -29,8 +29,8 @@ function appDefaultAgencies() {
   return [
     {
       code: '1000',
-      name: 'AG PRINCIPAL FERNANDO CASTAÑO',
-      manager: 'Fernando Castaño',
+      name: 'AG PRINCIPAL EL CASTAÑO',
+      manager: 'El Castaño',
       currency: 'COP',
       allowedCurrencies: ['COP', 'USD', 'VES'],
       commissionPct: 15,
@@ -123,10 +123,10 @@ class AppCloudSync {
       }
     } catch (_) {}
     return {
-      bancaName: 'BANCA FC FERNANDO CASTAÑO',
+      bancaName: 'BANCA EL CASTAÑO',
       config: {
         agencyCode: '1000',
-        agencyName: 'FERNANDO CASTAÑO',
+        agencyName: 'EL CASTAÑO',
         currency: 'COP',
         agencyCommissionPct: 15,
         nextTicketNumber: 10926,
@@ -774,7 +774,7 @@ class AppCloudSync {
       serialSeguridad: serial,
       fechaHora: this.formatDateTime12h(new Date()),
       agencyCode: String(agencyCode),
-      agencia: `${agencyCode} - ${agency?.name || 'FERNANDO CASTAÑO'}`,
+      agencia: `${agencyCode} - ${agency?.name || 'EL CASTAÑO'}`,
       usuario: String(agencyCode),
       moneda: currency,
       items: items.map(it => ({ ...it })),
@@ -936,7 +936,7 @@ class AppCloudSync {
       if (!grouped[k]) grouped[k] = [];
       grouped[k].push(it);
     });
-    let text = `🎟️ *BANCA FC - FERNANDO CASTAÑO*\n`;
+    let text = `🎟️ *BANCA EL CASTAÑO*\n`;
     text += `📍 *AGENCIA:* ${ticket.agencia}\n`;
     text += `🕒 *FECHA:* ${ticket.fechaHora}\n`;
     text += `🔢 *TICKET:* #${ticket.ticketId}\n`;

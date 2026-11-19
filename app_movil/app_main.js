@@ -1,4 +1,4 @@
-// app_movil/app_main.js - Controlador Completo de la App Móvil & Tablet POS Banca FC
+// app_movil/app_main.js - Controlador Completo de la App Móvil & Tablet POS Banca El Castaño
 // Código independiente enlazado en tiempo real con Firebase
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -915,8 +915,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const html = `
       ${ticket.estado === 'ANULADO' ? '<div style="text-align:center; border:2px solid red; color:red; font-weight:900; padding:4px; margin-bottom:8px;">*** ANULADO ***</div>' : ''}
       <div style="text-align:center;">
-        <div style="font-size:16px; font-weight:900;">BANCA FC</div>
-        <div style="font-weight:900;">FERNANDO CASTAÑO</div>
+        <div style="font-size:16px; font-weight:900;">BANCA EL CASTAÑO</div>
         <div style="font-size:10.5px;">SEGURO TE PAGA (1000 SORTEOS)</div>
       </div>
       <hr style="border:none; border-top:1px dashed #666;" />
@@ -989,8 +988,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const add = (text, o = {}) => rows.push({ text: String(text), bold: !!o.bold, center: !!o.center, size: o.size || 14, gap: o.gap || 0 });
     const sep = () => add('-'.repeat(38), { center: true });
 
-    add('BANCA FC', { bold: true, center: true, size: 26 });
-    add('FERNANDO CASTAÑO', { bold: true, center: true, size: 18 });
+    add('BANCA EL CASTAÑO', { bold: true, center: true, size: 22 });
     add('SEGURO TE PAGA (1000 SORTEOS)', { center: true, size: 12 });
     sep();
     add(`AGENCIA: ${ticket.agencia || ''}`);
@@ -1380,8 +1378,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const ag = cloud.getAgencyByCode(code);
     const nameEl = document.getElementById('app-cfg-agency-name');
     const metaEl = document.getElementById('app-cfg-agency-meta');
-    if (nameEl) nameEl.textContent = `Taquilla Activa: ${code} - ${ag?.name || 'FERNANDO CASTAÑO'}`;
-    if (metaEl) metaEl.textContent = `Encargado: ${ag?.manager || 'Fernando Castaño'} • Comisión: ${cloud.getEffectiveCommissionForAgency(code)}%`;
+    if (nameEl) nameEl.textContent = `Taquilla Activa: ${code} - ${ag?.name || 'EL CASTAÑO'}`;
+    if (metaEl) metaEl.textContent = `Encargado: ${ag?.manager || 'El Castaño'} • Comisión: ${cloud.getEffectiveCommissionForAgency(code)}%`;
 
     const curChips = document.getElementById('app-cfg-currency-chips');
     if (curChips) {

@@ -1,7 +1,7 @@
 {
-  "name": "Banca FC Taquilla App",
-  "short_name": "Banca FC App",
-  "description": "App Móvil y Tablet de Taquilla POS Banca FC Fernando Castaño conectada en vivo a Firebase.",
+  "name": "Banca El Castaño Taquilla App",
+  "short_name": "Banca El Castaño",
+  "description": "App Móvil y Tablet de Taquilla POS Banca El Castaño conectada en vivo a Firebase.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

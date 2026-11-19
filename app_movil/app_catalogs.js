@@ -1,5 +1,5 @@
 // app_movil/app_catalogs.js - Catálogo Independiente con Diccionarios Dinámicos por Operadora
-// App Móvil & Tablet "Banca FC - Fernando Castaño (Seguro Te Paga)"
+// App Móvil & Tablet "Banca El Castaño (Seguro Te Paga)"
 
 const APP_ZODIAC_SIGNS = [
   { code: 'ARI', name: 'Aries', icon: '♈' },

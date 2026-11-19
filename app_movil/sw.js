@@ -1,4 +1,4 @@
-// app_movil/sw.js - Service Worker para instalación PWA de Banca FC Taquilla App
+// app_movil/sw.js - Service Worker para instalación PWA de Banca El Castaño Taquilla App
 const CACHE_NAME = 'banca-fc-app-v1';
 const STATIC_ASSETS = [
   './',
