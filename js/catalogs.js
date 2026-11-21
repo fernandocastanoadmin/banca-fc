@@ -186,7 +186,7 @@ function getOperatorConfigForLottery(lotteryIdOrName = '') {
     return OPERATOR_DICTIONARIES.GATAZO_76;
   }
   if (raw.includes('MEGA_ANIMAL') || raw.includes('MEGA ANIMAL')) {
-    return OPERATOR_DICTIONARIES.MEGA_ANIMAL_42;
+    return OPERATOR_DICTIONARIES.BASE_38;
   }
   return OPERATOR_DICTIONARIES.BASE_38;
 }
@@ -455,7 +455,7 @@ const LOTTERY_CATALOGS = {
     ...buildHourlyDraws('FIERAS_ORIENTE', 'Animalitos del Oriente - Fieras', HOURS_9AM_TO_6PM_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
     ...buildHourlyDraws('CHANCE_ANIMALITOS', 'Chance con Animalitos', HOURS_9AM_TO_7PM_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
     ...buildHourlyDraws('CHANCE_ANIMALITOS_B', 'Chance con Animalitos B', HOURS_9AM_TO_7PM_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
-    ...buildHourlyDraws('MEGA_ANIMAL_40', 'Mega Animal 40', HOURS_9AM_TO_8PM_00, { maxNum: 40, dictKey: 'MEGA_ANIMAL_42', type: 'animalito' }),
+    ...buildHourlyDraws('MEGA_ANIMAL_40', 'Mega Animal 40', HOURS_9AM_TO_8PM_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
     ...buildHourlyDraws('TROPI_GANA', 'Tropi Gana', HOURS_9AM_TO_7PM_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
     ...buildHourlyDraws('TRIPLE_POPULAR_ANM', 'Triple Popular Animalitos', HOURS_9AM_TO_9PM_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
 

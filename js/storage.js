@@ -1417,6 +1417,63 @@ class StorageManager {
     this.saveMasterData(master);
   }
 
+  // Multiplicadores oficiales independientes por operadora de animalitos
+  getAnimalitoMultiplier(lotteryId, animalNum, officialResult = null, baseMult = 30) {
+    const lid = String(lotteryId || '').toUpperCase();
+    const rawNum = String(animalNum || '').trim();
+    const parsedNum = rawNum === '00' ? -1 : parseInt(rawNum, 10);
+    const comodinRaw = String(
+      (officialResult && (officialResult.comodin || officialResult.bonus || officialResult.sign || '')) || ''
+    ).toUpperCase().trim();
+    const animalText = String((officialResult && officialResult.animalName) || '').toUpperCase();
+
+    // Guácharo Activo: 60x base, 120x comodín Guácharo (75)
+    if (lid.startsWith('GUACHARO_ACTIVO') || lid.startsWith('GUACHARO_')) {
+      return parsedNum === 75
+        ? { multiplier: 120, winType: 'COMODÍN GUÁCHARO (75)' }
+        : { multiplier: 60, winType: 'ANIMALITO GANADOR' };
+    }
+    // El Guacharito Millonario: 70x base, 150x comodín Guacharito (99)
+    if (lid.startsWith('GUACHARITO_MILL') || lid.startsWith('GUACHARITO')) {
+      return parsedNum === 99
+        ? { multiplier: 150, winType: 'COMODÍN GUACHARITO (99)' }
+        : { multiplier: 70, winType: 'ANIMALITO GANADOR' };
+    }
+    // Cóndor Gana: 60x todos los aciertos (incluido 75 Cóndor)
+    if (lid.startsWith('CONDOR_GANA')) {
+      return { multiplier: 60, winType: 'ANIMALITO GANADOR' };
+    }
+    // Mega Animal 40: 30x base, 40x únicamente con modalidad/comodín MEGA
+    if (lid.startsWith('MEGA_ANIMAL')) {
+      const isMega = !!(officialResult && officialResult.isMega) ||
+        comodinRaw === 'MEGA' || comodinRaw.includes('MEGA') ||
+        animalText.includes('MEGA');
+      return isMega
+        ? { multiplier: 40, winType: 'ANIMALITO MEGA' }
+        : { multiplier: Number(baseMult || 30), winType: 'ANIMALITO GANADOR' };
+    }
+    // Selva Plus: 80x estándar, 160x Comodín A, 200x Comodín B
+    if (lid.startsWith('SELVA_PLUS')) {
+      if (
+        comodinRaw === 'COMODIN_B' || comodinRaw === 'B' ||
+        comodinRaw.includes('COMODIN B') || comodinRaw.includes('COMODÍN B') ||
+        animalText.includes('COMODIN B') || animalText.includes('COMODÍN B')
+      ) {
+        return { multiplier: 200, winType: 'SELVA PLUS COMODÍN B' };
+      }
+      if (
+        comodinRaw === 'COMODIN_A' || comodinRaw === 'A' ||
+        comodinRaw.includes('COMODIN A') || comodinRaw.includes('COMODÍN A') ||
+        animalText.includes('COMODIN A') || animalText.includes('COMODÍN A')
+      ) {
+        return { multiplier: 160, winType: 'SELVA PLUS COMODÍN A' };
+      }
+      return { multiplier: 80, winType: 'ANIMALITO GANADOR' };
+    }
+
+    return { multiplier: Number(baseMult || 30), winType: 'ANIMALITO GANADOR' };
+  }
+
   // Verifica si una jugada ganó comparando contra el resultado oficial
   checkPlayWinning(play, officialResult, multipliers) {
     if (!officialResult || !officialResult.number) return null;
@@ -1434,12 +1491,12 @@ class StorageManager {
         matched = parseInt(playNum, 10) === parseInt(winNum, 10);
       }
       if (matched) {
-        const mult = Number(multipliers.animalito || 30);
+        const rule = this.getAnimalitoMultiplier(play.lotteryId, playNum, officialResult, multipliers.animalito || 30);
         return {
           won: true,
-          type: 'ANIMALITO GANADOR',
-          multiplier: mult,
-          prize: play.amount * mult
+          type: rule.winType,
+          multiplier: rule.multiplier,
+          prize: play.amount * rule.multiplier
         };
       }
       return null;

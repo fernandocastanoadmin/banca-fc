@@ -618,7 +618,12 @@
             const lotId = `${prefix}_${timeCode}`;
             const lot = metaMap[lotId];
             if (!lot) continue;
-            const built = this.buildFormattedResultForLottery(lot, rawNum, null, null, 'AUTO-WEB');
+            const snippet = `${m[0]} ${chunk.slice(m.index + m[0].length, m.index + m[0].length + 60)}`;
+            let comodin = null;
+            if (prefix === 'MEGA_ANIMAL_40' && /\bMEGA\b/i.test(snippet)) comodin = 'MEGA';
+            else if (prefix === 'SELVA_PLUS' && /COMOD[IÍ]N\s*B/i.test(snippet)) comodin = 'COMODIN_B';
+            else if (prefix === 'SELVA_PLUS' && /COMOD[IÍ]N\s*A/i.test(snippet)) comodin = 'COMODIN_A';
+            const built = this.buildFormattedResultForLottery(lot, rawNum, null, null, 'AUTO-WEB', comodin);
             if (built) {
               targetMap[lotId] = built;
               added++;
@@ -667,7 +672,12 @@
           const lotId = `${prefix}_${timeCode}`;
           const lot = metaMap[lotId];
           if (!lot) continue;
-          const built = this.buildFormattedResultForLottery(lot, rawNum, null, null, 'AUTO-WEB');
+          const snippet = `${m[0]} ${chunk.slice(m.index + m[0].length, m.index + m[0].length + 80)}`;
+          let comodin = null;
+          if (prefix === 'MEGA_ANIMAL_40' && /\bMEGA\b/i.test(snippet)) comodin = 'MEGA';
+          else if (prefix === 'SELVA_PLUS' && /COMOD[IÍ]N\s*B/i.test(snippet)) comodin = 'COMODIN_B';
+          else if (prefix === 'SELVA_PLUS' && /COMOD[IÍ]N\s*A/i.test(snippet)) comodin = 'COMODIN_A';
+          const built = this.buildFormattedResultForLottery(lot, rawNum, null, null, 'AUTO-WEB', comodin);
           if (built) {
             targetMap[lotId] = built;
             added++;
@@ -896,7 +906,7 @@
     }
 
     // Construye un objeto de resultado oficial formateado según la categoría del sorteo
-    buildFormattedResultForLottery(lot, rawNum, rawSign = null, rawBall5 = null, origenTag = 'AUTO-WEB') {
+    buildFormattedResultForLottery(lot, rawNum, rawSign = null, rawBall5 = null, origenTag = 'AUTO-WEB', rawComodin = null) {
       const officialDrawTime12h = format12hFromLot(lot);
       const isManual = origenTag === 'MANUAL-ADMIN';
 
@@ -910,6 +920,8 @@
             number: resolved.code,
             sign: null,
             ball5: null,
+            comodin: rawComodin || null,
+            isMega: rawComodin === 'MEGA',
             animalName: resolved.name,
             timestamp: officialDrawTime12h,
             origen: origenTag,

@@ -1520,7 +1520,9 @@ class BancaFcAdminController {
             mult = cfg.multipliers.terminal || 60;
             maxTope = cfg.topes?.terminal || 50000;
           } else if (p.type === 'animalito') {
-            mult = cfg.multipliers.animalito || 30;
+            mult = typeof this.storage.getAnimalitoMultiplier === 'function'
+              ? this.storage.getAnimalitoMultiplier(p.lotteryId, p.number, null, cfg.multipliers.animalito || 30).multiplier
+              : (cfg.multipliers.animalito || 30);
             maxTope = cfg.topes?.animalito || 30000;
           } else if (p.type === 'astro') {
             mult = cfg.multipliers.astro4 || 40000;
@@ -1660,12 +1662,37 @@ class BancaFcAdminController {
       }
       document.getElementById('res-admin-sign-box')?.classList.toggle('hidden', cat !== 'con_signo');
       document.getElementById('res-admin-5ta-box')?.classList.toggle('hidden', cat !== 'cuatro_cifras');
+      this.updateAdminComodinBox();
+    };
+
+    this.updateAdminComodinBox = () => {
+      const box = document.getElementById('res-admin-comodin-box');
+      const sel = document.getElementById('res-admin-comodin');
+      if (!box || !sel) return;
+      const cat = catSelect?.value || 'sin_signo';
+      const lotId = String(lotSelect?.value || '').toUpperCase();
+      if (cat === 'animalitos' && lotId.startsWith('MEGA_ANIMAL')) {
+        const prev = sel.value;
+        sel.innerHTML = '<option value="">Estándar (30x)</option><option value="MEGA">Comodín MEGA (40x)</option>';
+        if (prev === 'MEGA') sel.value = prev;
+        box.classList.remove('hidden');
+      } else if (cat === 'animalitos' && lotId.startsWith('SELVA_PLUS')) {
+        const prev = sel.value;
+        sel.innerHTML = '<option value="">Estándar (80x)</option><option value="COMODIN_A">Comodín A (160x)</option><option value="COMODIN_B">Comodín B (200x)</option>';
+        if (prev === 'COMODIN_A' || prev === 'COMODIN_B') sel.value = prev;
+        box.classList.remove('hidden');
+      } else {
+        sel.innerHTML = '<option value="">Estándar</option>';
+        sel.value = '';
+        box.classList.add('hidden');
+      }
     };
 
     if (!this._resultsSelectBound) {
       this._resultsSelectBound = true;
       catSelect?.addEventListener('change', () => this.updateAdminLotteriesDropdown());
       filterInput?.addEventListener('input', () => this.updateAdminLotteriesDropdown());
+      lotSelect?.addEventListener('change', () => this.updateAdminComodinBox());
     }
     this.updateAdminLotteriesDropdown(preserveLotteryId);
   }
@@ -1847,10 +1874,15 @@ class BancaFcAdminController {
       const ampm = hr >= 12 ? 'PM' : 'AM';
       hr = hr % 12 || 12;
 
+      const catVal = document.getElementById('res-admin-category')?.value;
+      const comodinVal = catVal === 'animalitos' ? (document.getElementById('res-admin-comodin')?.value || null) : null;
+
       const resultObj = {
         number,
-        sign: document.getElementById('res-admin-category')?.value === 'con_signo' ? sign : null,
-        ball5: document.getElementById('res-admin-category')?.value === 'cuatro_cifras' ? ball5 : null,
+        sign: catVal === 'con_signo' ? sign : null,
+        ball5: catVal === 'cuatro_cifras' ? ball5 : null,
+        comodin: comodinVal,
+        isMega: comodinVal === 'MEGA',
         animalName,
         timestamp: `${hr}:${min} ${ampm}`,
         origen: 'MANUAL-ADMIN',
@@ -1865,6 +1897,8 @@ class BancaFcAdminController {
       }
       document.getElementById('res-admin-number').value = '';
       document.getElementById('res-admin-ball5').value = '';
+      const comodinSel = document.getElementById('res-admin-comodin');
+      if (comodinSel) comodinSel.value = '';
       animalPreview?.classList.add('hidden');
       editBanner?.classList.add('hidden');
 
@@ -1901,6 +1935,9 @@ class BancaFcAdminController {
       this.updateAdminLotteriesDropdown(lotteryId);
     }
     if (lotSelect) lotSelect.value = lotteryId;
+    if (this.updateAdminComodinBox) this.updateAdminComodinBox();
+    const comodinSel = document.getElementById('res-admin-comodin');
+    if (comodinSel) comodinSel.value = r.comodin || (r.isMega ? 'MEGA' : '');
     if (numInput) numInput.value = r.number || '';
     if (signSelect) signSelect.value = r.sign || '';
     if (ball5Input) ball5Input.value = r.ball5 || '';
@@ -1954,6 +1991,9 @@ class BancaFcAdminController {
           let detail = r.number;
           if (r.sign) detail += ` - ${r.sign}`;
           if (r.animalName) detail += ` (${r.animalName})`;
+          if (r.comodin === 'MEGA' || r.isMega) detail += ` [MEGA]`;
+          else if (r.comodin === 'COMODIN_A') detail += ` [COMODÍN A]`;
+          else if (r.comodin === 'COMODIN_B') detail += ` [COMODÍN B]`;
           if (r.ball5) detail += ` [5ta: ${r.ball5}]`;
 
           // Contar cuántos tickets ganaron en este sorteo por cada moneda nativa (CERO conversión)
