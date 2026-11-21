@@ -1,0 +1,26 @@
+pluginManagement {
+    def props = new Properties()
+    def localPropsFile = new File(rootDir, "local.properties")
+    if (localPropsFile.exists()) {
+        localPropsFile.withInputStream { props.load(it) }
+    }
+    def sdkPath = props.getProperty("flutter.sdk") ?: System.getenv("FLUTTER_ROOT")
+    if (sdkPath == null) {
+        throw new GradleException("Configure flutter.sdk en android/local.properties o ejecute 'flutter pub get'.")
+    }
+    includeBuild("${sdkPath}/packages/flutter_tools/gradle")
+
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    id "dev.flutter.flutter-plugin-loader" version "1.0.0"
+    id "com.android.application" version "8.2.2" apply false
+    id "org.jetbrains.kotlin.android" version "1.9.22" apply false
+}
+
+include ":app"

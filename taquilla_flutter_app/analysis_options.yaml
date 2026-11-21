@@ -1,0 +1,4 @@
+# Reglas de análisis estático para Banca El Castaño Taquilla App
+linter:
+  rules:
+    avoid_print: false
