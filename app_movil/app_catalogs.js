@@ -149,7 +149,7 @@ function appGetOperatorConfig(lotteryIdOrName = '') {
   if (raw.includes('GUACHARO_ACTIVO') || raw.includes('GUÁCHARO ACTIVO')) return APP_OPERATOR_DICTIONARIES.GUACHARO_77;
   if (raw.includes('CONDOR_GANA') || raw.includes('CÓNDOR GANA')) return APP_OPERATOR_DICTIONARIES.CONDOR_77;
   if (raw.includes('GATAZO')) return APP_OPERATOR_DICTIONARIES.GATAZO_76;
-  if (raw.includes('MEGA_ANIMAL') || raw.includes('MEGA ANIMAL')) return APP_OPERATOR_DICTIONARIES.MEGA_ANIMAL_42;
+  if (raw.includes('MEGA_ANIMAL') || raw.includes('MEGA ANIMAL')) return APP_OPERATOR_DICTIONARIES.BASE_38;
   return APP_OPERATOR_DICTIONARIES.BASE_38;
 }
 
@@ -386,7 +386,7 @@ const APP_LOTTERY_CATALOGS = {
     ..._appBuildDraws('FIERAS_ORIENTE', 'Animalitos del Oriente - Fieras', _APP_H9_18_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
     ..._appBuildDraws('CHANCE_ANIMALITOS', 'Chance con Animalitos', _APP_H9_19_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
     ..._appBuildDraws('CHANCE_ANIMALITOS_B', 'Chance con Animalitos B', _APP_H9_19_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
-    ..._appBuildDraws('MEGA_ANIMAL_40', 'Mega Animal 40', _APP_H9_20_00, { maxNum: 40, dictKey: 'MEGA_ANIMAL_42', type: 'animalito' }),
+    ..._appBuildDraws('MEGA_ANIMAL_40', 'Mega Animal 40', _APP_H9_20_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
     ..._appBuildDraws('TROPI_GANA', 'Tropi Gana', _APP_H9_19_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
     ..._appBuildDraws('TRIPLE_POPULAR_ANM', 'Triple Popular Animalitos', _APP_H9_21_00, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
     ..._appBuildDraws('MONJE_MILLONARIO', 'Monje Millonario', _APP_H8_19_05, { maxNum: 36, dictKey: 'BASE_38', type: 'animalito' }),
