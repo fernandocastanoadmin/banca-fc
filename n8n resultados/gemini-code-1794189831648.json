@@ -1,0 +1,260 @@
+{
+  "name": "Banca El Castaño - Sincronizador Oficial de Resultados",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/5 8-23 * * *"
+            }
+          ]
+        }
+      },
+      "id": "1a2b3c4d-0001-4000-8000-000000000001",
+      "name": "Cada 5 Min (8AM a 11PM)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "resultados-banca-fc",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "1a2b3c4d-0002-4000-8000-000000000002",
+      "name": "Webhook Consulta POS",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 420],
+      "webhookId": "banca-fc-resultados-oficiales"
+    },
+    {
+      "parameters": {
+        "url": "https://tuazar.com/loteria/resultados/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "1a2b3c4d-0003-4000-8000-000000000003",
+      "name": "1. TuAzar Triples y Signos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 120],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "https://tuazar.com/loteria/animalitos/resultados/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "1a2b3c4d-0004-4000-8000-000000000004",
+      "name": "2. TuAzar Animalitos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [740, 120],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "https://tuazar.com/loteria/frutas/resultados/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "1a2b3c4d-0005-4000-8000-000000000005",
+      "name": "3. TuAzar Fruta Gana",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 120],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "https://resultadodelaloteria.com/colombia/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "1a2b3c4d-0006-4000-8000-000000000006",
+      "name": "4. Loterias Colombia (4 Cifras y 5ta)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1180, 120],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// PARSER CENTRAL DE RESULTADOS OFICIALES - BANCA EL CASTAÑO\n// Extrae, limpia y clasifica en: SIN SIGNO, CON SIGNO, 4 CIFRAS y ANIMALITOS\n// ============================================================================\n\nconst now = new Date();\nconst fechaISO = now.toISOString().split('T')[0];\n\nconst htmlTriples = $('1. TuAzar Triples y Signos').first()?.json?.data || '';\nconst htmlAnimalitos = $('2. TuAzar Animalitos').first()?.json?.data || '';\nconst htmlFrutas = $('3. TuAzar Fruta Gana').first()?.json?.data || '';\nconst htmlColombia = $('4. Loterias Colombia (4 Cifras y 5ta)').first()?.json?.data || '';\n\nconst resultados = [];\n\n// Diccionario auxiliar de signos zodiacales\nconst signosRegex = /\\b(ARI|TAU|GEM|CAN|LEO|VIR|LIB|ESC|SAG|CAP|ACU|PIS|ARIES|TAURO|GEMINIS|GÉMINIS|CANCER|CÁNCER|VIRGO|LIBRA|ESCORPIO|SAGITARIO|CAPRICORNIO|ACUARIO|PISCIS)\\b/i;\n\n// Función para limpiar etiquetas HTML\nconst cleanText = (str) => str.replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim();\n\n// 1. PARSEAR ANIMALITOS Y FRUTA GANA\nfunction parseBlocks(html, defaultCategory, isFruit = false) {\n  if (!html) return;\n  // Busca bloques de horario (ej: 8:00 AM, 10:30 AM, 12:05 PM) y su número/nombre cercano\n  const regexHora = /(\\d{1,2}:\\d{2}\\s*(?:AM|PM))/gi;\n  let match;\n  while ((match = regexHora.exec(html)) !== null) {\n    const hora = match[1].toUpperCase().replace(/\\s+/g, ' ');\n    const start = Math.max(0, match.index - 350);\n    const end = Math.min(html.length, match.index + 350);\n    const snippet = cleanText(html.substring(start, end));\n\n    // Detectar operadora en el contexto\n    let operadora = isFruit ? 'Fruta Gana' : null;\n    const ops = [\n      'Lotto Activo RD', 'Lotto Activo', 'La Granjita', 'Monje Millonario',\n      'Guacharito Millonario', 'Guácharo Activo', 'Guacharo Activo',\n      'Selva Plus', 'Ruleta Royal', 'Loto Chaima', 'Granjazo',\n      'Granja Millonaria', 'Fieras', 'Bichitos', 'Mascotas',\n      'Chance con Animalitos B', 'Chance con Animalitos', 'Gatazo',\n      'Lotto Gato', 'Mega Animal 40', 'Triple Popular', 'Tropi Gana',\n      'El Arrejuntao'\n    ];\n    if (!operadora) {\n      for (const op of ops) {\n        if (snippet.toUpperCase().includes(op.toUpperCase())) {\n          operadora = op;\n          break;\n        }\n      }\n    }\n\n    // Buscar patrón de resultado tipo \"00 - BALLENA\" o \"28 COCO\"\n    const numMatch = snippet.match(/\\b(00|\\d{1,2})\\s*[-–:]?\\s*([A-ZÁÉÍÓÚÑ]{3,14})\\b/i);\n    if (operadora && numMatch && !['HORA', 'SORTEO', 'RESULTADO', 'AYER', 'HOY'].includes(numMatch[2].toUpperCase())) {\n      const codigo = numMatch[1];\n      const figura = numMatch[2].toUpperCase();\n      const idUnico = `${operadora}_${hora}`.replace(/\\s+/g, '_').toUpperCase();\n\n      if (!resultados.some(r => r.id === idUnico)) {\n        resultados.push({\n          id: idUnico,\n          fecha: fechaISO,\n          categoria: 'ANIMALITOS',\n          loteria: `${operadora} ${hora}`,\n          horaSorteo: hora,\n          numero: codigo,\n          complemento: figura,\n          resultadoOficial: `${codigo} (${figura})`,\n          origen: 'AUTO-WEB OFICIAL',\n          verificado: true\n        });\n      }\n    }\n  }\n}\n\nparseBlocks(htmlAnimalitos, 'ANIMALITOS', false);\nparseBlocks(htmlFrutas, 'ANIMALITOS', true);\n\n// 2. PARSEAR TRIPLES Y SIGNOS VENEZUELA\nif (htmlTriples) {\n  const regexTripleRow = /(\\d{1,2}:\\d{2}\\s*(?:AM|PM))[\\s\\S]{1,400}?\\b(\\d{3,5})\\b(?:\\s*(ARI|TAU|GEM|CAN|LEO|VIR|LIB|ESC|SAG|CAP|ACU|PIS))?/gi;\n  let m;\n  while ((m = regexTripleRow.exec(htmlTriples)) !== null) {\n    const hora = m[1].toUpperCase().replace(/\\s+/g, ' ');\n    const numero = m[2];\n    const signo = m[3] ? m[3].toUpperCase() : null;\n    const cat = signo ? 'CON SIGNO' : (numero.length >= 4 ? '4 CIFRAS' : 'SIN SIGNO');\n    const contexto = cleanText(htmlTriples.substring(Math.max(0, m.index - 500), m.index));\n\n    let nombreLot = 'Triple Oficial';\n    const lots = [\n      'Triple Táchira', 'Triple Zulia', 'Chance en Línea', 'Triple Caliente',\n      'Triple Lago', 'Triple Gato', 'El Arrejuntao', 'Triple Zamorano',\n      'La Ricachona', 'Triple Fácil', 'Trío Activo', 'Triple Popular',\n      'Triple Dorado', 'Triple Fortuna', 'Super Gana', 'Triple Gana', 'Ñapa Gana'\n    ];\n    for (const l of lots) {\n      if (contexto.toUpperCase().includes(l.toUpperCase())) {\n        nombreLot = l;\n        break;\n      }\n    }\n\n    const idUnico = `${nombreLot}_${hora}_${cat}`.replace(/\\s+/g, '_').toUpperCase();\n    if (!resultados.some(r => r.id === idUnico)) {\n      resultados.push({\n        id: idUnico,\n        fecha: fechaISO,\n        categoria: cat,\n        loteria: `${nombreLot} ${hora}`,\n        horaSorteo: hora,\n        numero: numero,\n        complemento: signo || '',\n        resultadoOficial: signo ? `${numero} - ${signo}` : numero,\n        origen: 'AUTO-WEB OFICIAL',\n        verificado: true\n      });\n    }\n  }\n}\n\n// 3. PARSEAR LOTERÍAS DE COLOMBIA (4 CIFRAS, LA 5TA Y ASTROS)\nif (htmlColombia) {\n  const colLots = [\n    { name: 'Bogotá', hora: '11:15 PM' },\n    { name: 'Quindío', hora: '10:30 PM' },\n    { name: 'Medellín', hora: '11:00 PM' },\n    { name: 'Santander', hora: '11:00 PM' },\n    { name: 'Boyacá', hora: '10:40 PM' },\n    { name: 'Cauca', hora: '10:40 PM' },\n    { name: 'Cruz Roja', hora: '10:55 PM' },\n    { name: 'Huila', hora: '10:30 PM' },\n    { name: 'Manizales', hora: '10:30 PM' },\n    { name: 'Cundinamarca', hora: '10:30 PM' },\n    { name: 'Dorado Mañana', hora: '10:55 AM' },\n    { name: 'Dorado Tarde', hora: '3:30 PM' },\n    { name: 'Dorado Noche', hora: '10:05 PM' },\n    { name: 'Culona', hora: '2:30 PM' },\n    { name: 'Culona Noche', hora: '9:30 PM' },\n    { name: 'Astro Sol', hora: '2:30 PM', isSigno: true },\n    { name: 'Astro Luna', hora: '10:30 PM', isSigno: true },\n    { name: 'Pijao de Oro', hora: '2:00 PM' },\n    { name: 'Paisita Día', hora: '1:00 PM' },\n    { name: 'Paisita Noche', hora: '6:00 PM' },\n    { name: 'Chontico Día', hora: '1:00 PM' },\n    { name: 'Chontico Noche', hora: '7:00 PM' },\n    { name: 'Cafeterito Tarde', hora: '12:00 PM' },\n    { name: 'Cafeterito Noche', hora: '10:00 PM' },\n    { name: 'Sinuano Día', hora: '2:30 PM' },\n    { name: 'Sinuano Noche', hora: '10:30 PM' },\n    { name: 'Caribeña Día', hora: '2:30 PM' },\n    { name: 'Caribeña Noche', hora: '10:30 PM' },\n    { name: 'Motilón Tarde', hora: '3:00 PM' },\n    { name: 'Motilón Noche', hora: '9:00 PM' },\n    { name: 'Fantástica Día', hora: '1:00 PM' },\n    { name: 'Fantástica Noche', hora: '8:30 PM' },\n    { name: 'Antioqueñita Día', hora: '10:00 AM' },\n    { name: 'Antioqueñita Tarde', hora: '4:00 PM' }\n  ];\n\n  const cleanCol = cleanText(htmlColombia);\n  for (const lot of colLots) {\n    const idx = cleanCol.toUpperCase().indexOf(lot.name.toUpperCase());\n    if (idx !== -1) {\n      const fragment = cleanCol.substring(idx, idx + 140);\n      const numMatch = fragment.match(/\\b(\\d{3,4})\\b/);\n      if (numMatch) {\n        const num = numMatch[1];\n        const quintaMatch = fragment.match(/5ta\\s*:?\\s*(\\d)/i);\n        const signoMatch = fragment.match(signosRegex);\n        let comp = '';\n        if (lot.isSigno && signoMatch) comp = signoMatch[1].toUpperCase();\n        else if (quintaMatch) comp = `La 5ta: ${quintaMatch[1]}`;\n\n        resultados.push({\n          id: `COL_${lot.name.replace(/\\s+/g, '_').toUpperCase()}`,\n          fecha: fechaISO,\n          categoria: lot.isSigno ? 'CON SIGNO' : '4 CIFRAS',\n          loteria: `${lot.name} ${lot.hora}`,\n          horaSorteo: lot.hora,\n          numero: num,\n          complemento: comp,\n          resultadoOficial: comp ? `${num} [${comp}]` : num,\n          origen: 'AUTO-WEB OFICIAL',\n          verificado: true\n        });\n      }\n    }\n  }\n}\n\nreturn [{\n  json: {\n    banca: 'Banca El Castaño',\n    fechaSincronizacion: now.toISOString(),\n    fechaSorteo: fechaISO,\n    totalResultados: resultados.length,\n    resultados: resultados\n  }\n}];"
+      },
+      "id": "1a2b3c4d-0007-4000-8000-000000000007",
+      "name": "5. Parser Oficial Banca El Castaño",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1420, 260]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "1a2b3c4d-0008-4000-8000-000000000008",
+      "name": "6. Responder a POS / Admin",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1680, 420]
+    }
+  ],
+  "connections": {
+    "Cada 5 Min (8AM a 11PM)": {
+      "main": [
+        [
+          {
+            "node": "1. TuAzar Triples y Signos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Consulta POS": {
+      "main": [
+        [
+          {
+            "node": "1. TuAzar Triples y Signos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. TuAzar Triples y Signos": {
+      "main": [
+        [
+          {
+            "node": "2. TuAzar Animalitos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. TuAzar Animalitos": {
+      "main": [
+        [
+          {
+            "node": "3. TuAzar Fruta Gana",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. TuAzar Fruta Gana": {
+      "main": [
+        [
+          {
+            "node": "4. Loterias Colombia (4 Cifras y 5ta)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. Loterias Colombia (4 Cifras y 5ta)": {
+      "main": [
+        [
+          {
+            "node": "5. Parser Oficial Banca El Castaño",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5. Parser Oficial Banca El Castaño": {
+      "main": [
+        [
+          {
+            "node": "6. Responder a POS / Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
