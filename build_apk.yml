@@ -1,0 +1,55 @@
+name: Compilar APK - Banca El Castaño
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'taquilla_flutter_app/**'
+      - '.github/workflows/build_apk.yml'
+  workflow_dispatch:
+
+jobs:
+  build-android-apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: taquilla_flutter_app
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Configurar Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Preparar wrapper Android si no existe
+        run: |
+          if [ ! -f "android/gradlew" ]; then
+            cp android/app/src/main/AndroidManifest.xml /tmp/AndroidManifest.xml.bak
+            flutter create --platforms=android --project-name banca_fc_taquilla_app --org com.bancafc .
+            cp /tmp/AndroidManifest.xml.bak android/app/src/main/AndroidManifest.xml
+          fi
+
+      - name: Instalar dependencias Dart/Flutter
+        run: flutter pub get
+
+      - name: Analizar código Dart
+        run: flutter analyze --no-fatal-infos
+
+      - name: Compilar APK Release
+        run: flutter build apk --release
+
+      - name: Subir artefacto APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BancaFC-Taquilla-App-APK
+          path: taquilla_flutter_app/build/app/outputs/flutter-apk/app-release.apk
