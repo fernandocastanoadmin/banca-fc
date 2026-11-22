@@ -119,6 +119,12 @@ function mergeDatabases(existingDb, incomingDb, forceOverwrite = false) {
 
   const merged = { ...existingDb, ...incomingDb };
 
+  // 0. Fusionar Receptores por código
+  const receptorMap = new Map();
+  (existingDb.receptores || []).forEach(r => receptorMap.set(String(r.code).toUpperCase(), r));
+  (incomingDb.receptores || []).forEach(r => receptorMap.set(String(r.code).toUpperCase(), r));
+  merged.receptores = Array.from(receptorMap.values());
+
   // 1. Fusionar Agencias por código
   const agencyMap = new Map();
   (existingDb.agencies || []).forEach(a => agencyMap.set(String(a.code), a));
@@ -195,6 +201,7 @@ const server = http.createServer((req, res) => {
       ips: ips,
       posUrl: `http://${ips[0]}:${PORT}/index.html`,
       adminUrl: `http://${ips[0]}:${PORT}/admin.html`,
+      bancaUrl: `http://${ips[0]}:${PORT}/banca.html`,
       appUrl: `http://${ips[0]}:${PORT}/app_movil/index.html`
     }));
     return;
@@ -268,6 +275,8 @@ const server = http.createServer((req, res) => {
     reqPath = '/index.html';
   } else if (reqPath === '/admin' || reqPath === '/panel') {
     reqPath = '/admin.html';
+  } else if (reqPath === '/banca' || reqPath === '/macro') {
+    reqPath = '/banca.html';
   }
 
   const safePath = path.normalize(reqPath).replace(/^(\.\.[\/\\])+/, '');
@@ -300,7 +309,8 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('  BANCA EL CASTAÑO - SERVIDOR CENTRAL MULTIEQUIPO ACTIVO');
   console.log('========================================================================');
   console.log(`💻 EN ESTA LAPTOP (ADMINISTRADOR):`);
-  console.log(`   👉 Panel Central: http://localhost:${PORT}/admin.html`);
+  console.log(`   👉 Banca General: http://localhost:${PORT}/banca.html`);
+  console.log(`   👉 Admin Receptor:http://localhost:${PORT}/admin.html`);
   console.log(`   👉 Taquilla POS:  http://localhost:${PORT}/index.html`);
   console.log(`   📱 App Táctil:    http://localhost:${PORT}/app_movil/index.html`);
   console.log('------------------------------------------------------------------------');

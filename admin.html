@@ -70,9 +70,12 @@
         </div>
         <div>
           <div class="flex flex-wrap items-center gap-2">
-            <h1 class="text-base md:text-lg font-black tracking-wide text-white uppercase">
+            <h1 id="admin-receptor-title" class="text-base md:text-lg font-black tracking-wide text-white uppercase">
               BANCA EL CASTAÑO
             </h1>
+            <span id="header-active-receptor-badge" class="px-2 py-0.5 rounded bg-blue-500/20 border border-blue-400/40 text-sky-300 font-bold text-[10px] uppercase">
+              Receptor: FC-CASTANO
+            </span>
             <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
               <span class="live-dot"></span> EN VIVO POS
             </span>
@@ -81,7 +84,7 @@
             </span>
           </div>
           <p class="text-xs text-slate-400 font-medium">
-            Panel Central Administrativo y Control de Taquillas • Venezuela &amp; Colombia
+            Panel Administrativo del Receptor y Control de Taquillas • Venezuela &amp; Colombia
           </p>
         </div>
       </div>
@@ -126,6 +129,9 @@
 
       <!-- Botones de Acción Rápida en Cabecera -->
       <div class="flex flex-wrap items-center gap-2">
+        <a href="banca.html" class="px-3 py-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/35 text-amber-300 border border-amber-400/50 font-black text-xs flex items-center gap-1.5 transition" title="Ir al Programa Administrativo General de la Banca (Macro Multi-Receptor)">
+          <span>🏛️</span> Banca General (Macro)
+        </a>
         <button type="button" id="btn-header-firebase-config" class="px-3 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-900/40 flex items-center gap-1.5 transition" title="Configurar sincronización web en tiempo real con Google Firebase">
           <span>☁️</span> Nube Firebase / GitHub
         </button>
@@ -134,6 +140,9 @@
         </button>
         <button type="button" id="btn-header-load-results" class="px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-900/30 flex items-center gap-1.5 transition">
           <span>🏆</span> Cargar Resultados / Liquidar
+        </button>
+        <button type="button" id="btn-header-relacion-final" class="px-3 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-lg shadow-teal-900/40 flex items-center gap-1.5 transition" title="Consultar Relación Final (3 Cajas Independientes) por rango de fechas">
+          <span>📊</span> Relación Final
         </button>
         <button type="button" id="btn-header-export-csv" class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-900/40 flex items-center gap-1.5 transition">
           <span>📥</span> Exportar CSV / Excel
@@ -799,6 +808,10 @@
       </div>
 
       <form id="form-agency-crud" class="p-5 space-y-4 max-h-[82vh] overflow-y-auto">
+        <div class="bg-slate-950/90 p-2.5 rounded-xl border border-amber-500/30 flex flex-wrap items-center justify-between gap-2">
+          <label for="ag-receptor" class="text-xs font-bold text-amber-300">🏛️ Receptor Asignado:</label>
+          <select id="ag-receptor" class="bg-slate-900 text-amber-300 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-700 min-w-[240px]"></select>
+        </div>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label class="block text-xs font-bold text-slate-300 mb-1">Código Agencia / Usuario POS *</label>
@@ -1349,6 +1362,61 @@
 
       <div class="bg-slate-950 px-5 py-3 border-t border-slate-800 flex justify-end">
         <button type="button" class="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold" data-close-admin-modal="modal-network-sync">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL RELACIÓN FINAL POR RANGO DE FECHAS (3 CAJAS INDEPENDIENTES)
+       ========================================================================= -->
+  <div id="modal-admin-relacion-final" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-teal-500/50 rounded-2xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="bg-slate-950 px-5 py-3.5 border-b border-slate-800 flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-black uppercase text-white flex items-center gap-2">
+            <span>📊</span> Relación Final — Cajas Independientes por Moneda (Receptor)
+          </h3>
+          <p id="admin-rel-subtitle" class="text-[11px] text-teal-400 font-semibold mt-0.5">
+            🔒 Cero Conversión: Cada caja suma únicamente los tickets emitidos en su propia moneda.
+          </p>
+        </div>
+        <button type="button" class="text-slate-400 hover:text-white text-xl leading-none px-2" data-close-admin-modal="modal-admin-relacion-final">×</button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-950 border border-slate-800 rounded-xl p-3">
+          <div class="flex flex-wrap items-center gap-2.5">
+            <label for="admin-rel-desde" class="text-xs font-bold text-slate-300">Desde:</label>
+            <input type="date" id="admin-rel-desde" class="bg-slate-900 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:border-teal-500">
+            <label for="admin-rel-hasta" class="text-xs font-bold text-slate-300 ml-1">Hasta:</label>
+            <input type="date" id="admin-rel-hasta" class="bg-slate-900 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:border-teal-500">
+            <button type="button" id="btn-admin-rel-calcular" class="px-3.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-black uppercase shadow">
+              Calcular
+            </button>
+          </div>
+          <span id="admin-rel-range-badge" class="text-xs font-bold text-amber-300"></span>
+        </div>
+
+        <div id="admin-rel-boxes-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Renderizado dinámico de las 3 cajas independientes (COP, USD, VES) -->
+        </div>
+      </div>
+
+      <div class="bg-slate-950 px-5 py-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" id="btn-admin-rel-print" class="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold">
+            🖨️ Imprimir Relación
+          </button>
+          <button type="button" id="btn-admin-rel-wa" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">
+            📋 Copiar WhatsApp
+          </button>
+          <button type="button" id="btn-admin-rel-csv" class="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black">
+            📥 Exportar CSV
+          </button>
+        </div>
+        <button type="button" class="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold" data-close-admin-modal="modal-admin-relacion-final">
           Cerrar
         </button>
       </div>

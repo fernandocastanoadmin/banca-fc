@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agencia 1000: AG El Castaño | Usuario: 1000 - [Ventas]</title>
+  <title>Banca El Castaño | Taquilla de Ventas</title>
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -76,7 +76,7 @@
     <header class="main-title-bar">
       <div class="title-bar-left">
         <span style="font-size: 15px;">🎰</span>
-        <span id="window-title-bar-text">Agencia 1000: AG El Castaño | Usuario: 1000 - [Ventas]</span>
+        <span id="window-title-bar-text">Banca El Castaño | Taquilla de Ventas</span>
       </div>
       <div class="title-bar-controls">
         <button type="button" class="win-ctrl-btn" title="Minimizar">_</button>
@@ -168,7 +168,7 @@
       <div class="ribbon-left">
         <span class="status-badge-correlativo" id="header-ticket-correlativo">Ticket #00010919</span>
         <span class="status-badge-currency" id="header-active-currency">COP</span>
-        <span class="status-inset-box" id="header-agency-label">AGENCIA: 1000 - EL CASTAÑO</span>
+        <span class="status-inset-box" id="header-agency-label">AGENCIA: --</span>
       </div>
       <div class="ribbon-right">
         <span class="status-inset-box" id="pos-firebase-status-badge" style="cursor: pointer; font-weight: bold;" title="Clic para configurar conexión con Google Firebase">☁️ Firebase: Sin configurar</span>
@@ -541,9 +541,11 @@
       </div>
       <div class="modal-body" style="max-height: 82vh; overflow-y: auto;">
         <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; align-items: center; justify-content: space-between; background: #e5e7eb; padding: 8px 10px; border: 1px solid #9ca3af;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <label style="font-weight: bold;">Fecha:</label>
-            <input type="text" id="input-cuadre-fecha" class="win-input-text" style="width: 115px; font-weight: bold;" placeholder="DD/MM/YYYY">
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+            <label for="input-cuadre-desde" style="font-weight: bold;">Desde:</label>
+            <input type="date" id="input-cuadre-desde" class="win-input-text" style="width: 135px; font-weight: bold;">
+            <label for="input-cuadre-hasta" style="font-weight: bold;">Hasta:</label>
+            <input type="date" id="input-cuadre-hasta" class="win-input-text" style="width: 135px; font-weight: bold;">
             <label style="font-weight: bold; margin-left: 6px;">Filtro de Caja (Sin Conversión):</label>
             <select id="select-cuadre-moneda" class="win-input-text" style="width: 190px; font-weight: bold;">
               <option value="COP">COP ($ Pesos Colombianos)</option>

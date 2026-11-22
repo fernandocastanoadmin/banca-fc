@@ -8,7 +8,7 @@ function createWindow() {
     height: 800,
     minWidth: 1024,
     minHeight: 700,
-    title: 'Agencia 1000: AG El Castaño | Usuario: 1000 - [Ventas]',
+    title: 'Banca El Castaño | Taquilla de Ventas',
     autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: false,
