@@ -286,6 +286,7 @@ class BancaFcFirebaseSync {
 
     const hasChanges =
       JSON.stringify(localData.tickets || []) !== JSON.stringify(merged.tickets || []) ||
+      JSON.stringify(localData.receptores || []) !== JSON.stringify(merged.receptores || []) ||
       JSON.stringify(localData.agencies || []) !== JSON.stringify(merged.agencies || []) ||
       JSON.stringify(localData.results || {}) !== JSON.stringify(merged.results || {}) ||
       JSON.stringify(localData.collectors || []) !== JSON.stringify(merged.collectors || []);
@@ -314,6 +315,7 @@ class BancaFcFirebaseSync {
         ...localDb,
         ...cloudDb,
         tickets: [...freshLocal, ...(cloudDb.tickets || [])].sort((a, b) => Number(b.ticketId || 0) - Number(a.ticketId || 0)),
+        receptores: cloudDb.receptores || localDb.receptores || [],
         agencies: cloudDb.agencies || localDb.agencies || [],
         collectors: cloudDb.collectors || localDb.collectors || [],
         results: cloudDb.results || {}
@@ -323,6 +325,15 @@ class BancaFcFirebaseSync {
     const merged = { ...localDb, ...cloudDb };
 
     const cloudNewer = !localDb.updatedAt || (cloudDb.updatedAt && cloudDb.updatedAt >= localDb.updatedAt);
+    if (cloudNewer && Array.isArray(cloudDb.receptores)) {
+      merged.receptores = cloudDb.receptores;
+    } else {
+      const recMap = new Map();
+      (localDb.receptores || []).forEach(r => recMap.set(String(r.code).toUpperCase(), r));
+      (cloudDb.receptores || []).forEach(r => recMap.set(String(r.code).toUpperCase(), r));
+      merged.receptores = Array.from(recMap.values());
+    }
+
     if (cloudNewer && Array.isArray(cloudDb.agencies)) {
       merged.agencies = cloudDb.agencies;
     } else {
@@ -411,6 +422,7 @@ class BancaFcFirebaseSync {
             if (currentCloud && Array.isArray(currentCloud.tickets)) {
               dataToSave = this.mergeLocalAndCloud(localMasterData, currentCloud);
               if (typeof window !== 'undefined' && window.BANCA_FC_ROLE === 'ADMIN') {
+                dataToSave.receptores = localMasterData.receptores;
                 dataToSave.agencies = localMasterData.agencies;
                 dataToSave.collectors = localMasterData.collectors;
                 dataToSave.results = localMasterData.results;
@@ -453,7 +465,7 @@ class BancaFcFirebaseSync {
   getShareablePosUrl() {
     const cfg = this.getFirebaseConfig();
     let baseUrl = window.location.href.split('?')[0];
-    baseUrl = baseUrl.replace(/\/admin(\.html)?$/i, '/index.html');
+    baseUrl = baseUrl.replace(/\/(admin|banca)(\.html)?$/i, '/index.html');
     if (cfg && cfg.databaseURL) {
       return `${baseUrl}?fb=${encodeURIComponent(cfg.databaseURL)}`;
     }

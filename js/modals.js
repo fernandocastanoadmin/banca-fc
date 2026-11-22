@@ -503,7 +503,8 @@ class ModalManager {
 
   // 5. MODAL RELACIÓN FINAL (CUADRE DE CAJA - 3 CAJAS INDEPENDIENTES SIN CONVERSIÓN)
   setupCuadreCajaModal() {
-    const dateInput = document.getElementById('input-cuadre-fecha');
+    const desdeInput = document.getElementById('input-cuadre-desde');
+    const hastaInput = document.getElementById('input-cuadre-hasta');
     const curSelect = document.getElementById('select-cuadre-moneda');
     const btnFiltrar = document.getElementById('btn-filtrar-cuadre');
     const btnPrintCuadre = document.getElementById('btn-imprimir-cuadre');
@@ -511,8 +512,9 @@ class ModalManager {
     const threeBoxesGrid = document.getElementById('cuadre-three-boxes-grid');
 
     const today = new Date();
-    const todayFormatted = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
-    if (dateInput) dateInput.value = todayFormatted;
+    const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    if (desdeInput) desdeInput.value = todayIso;
+    if (hastaInput) hastaInput.value = todayIso;
 
     const boxMeta = {
       COP: { title: '🇨🇴 CAJA PESOS (COP $)', headerBg: '#1e3a8a', accent: '#1d4ed8' },
@@ -523,13 +525,23 @@ class ModalManager {
     const calculateAndRenderCuadre = () => {
       const cfg = this.storage.getConfig();
       const comisionPct = Number(cfg.agencyCommissionPct ?? 15);
-      const targetDate = (dateInput?.value || todayFormatted).trim();
+      const rawDesde = (desdeInput?.value || todayIso).trim();
+      const rawHasta = (hastaInput?.value || rawDesde || todayIso).trim();
+      const startIso = rawDesde <= rawHasta ? rawDesde : rawHasta;
+      const endIso = rawDesde <= rawHasta ? rawHasta : rawDesde;
+      const formatHumanDate = (iso) => {
+        const parts = String(iso || '').split('-');
+        return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : iso;
+      };
+      const rangeLabel = startIso === endIso
+        ? formatHumanDate(startIso)
+        : `Desde ${formatHumanDate(startIso)} hasta ${formatHumanDate(endIso)}`;
+
       const targetCurrency = (curSelect?.value || cfg.currency || 'COP').toUpperCase();
       const tickets = this.storage.getTickets();
       const activeAgencyCode = String(cfg.agencyCode || '1000').trim();
 
-      // 1. Filtrar los tickets de esta agencia en la fecha consultada (sin mezclar monedas)
-      //    Fecha normalizada: acepta DD/MM/YYYY, D/M/YYYY o YYYY-MM-DD
+      // 1. Filtrar los tickets de esta agencia en el rango de fechas consultado (sin mezclar monedas)
       const toIso = (s) => {
         const raw = String(s || '').trim();
         const m1 = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
@@ -537,11 +549,10 @@ class ModalManager {
         const m2 = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
         return m2 ? `${m2[1]}-${m2[2]}-${m2[3]}` : raw;
       };
-      const targetIso = toIso(targetDate);
       const agencyDateTickets = tickets.filter(t => {
         const tAgency = String(this.storage.extractAgencyCodeFromTicket(t)).trim();
         const tIso = toIso(this.storage.extractTicketDateIso(t));
-        return tAgency === activeAgencyCode && tIso === targetIso;
+        return tAgency === activeAgencyCode && tIso >= startIso && tIso <= endIso;
       });
 
       // 2. Calcular simultáneamente las 3 Cajas Independientes (COP, USD, VES) con CERO conversión
@@ -648,7 +659,9 @@ class ModalManager {
       }
 
       this.currentCuadreData = {
-        date: targetDate,
+        date: rangeLabel,
+        startIso,
+        endIso,
         currency: targetCurrency,
         comisionPct,
         boxes,
@@ -666,14 +679,16 @@ class ModalManager {
 
     if (btnFiltrar) btnFiltrar.addEventListener('click', calculateAndRenderCuadre);
     if (curSelect) curSelect.addEventListener('change', calculateAndRenderCuadre);
-    if (dateInput) {
-      dateInput.addEventListener('keydown', (e) => {
+    [desdeInput, hastaInput].forEach(inp => {
+      if (!inp) return;
+      inp.addEventListener('change', calculateAndRenderCuadre);
+      inp.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
           calculateAndRenderCuadre();
         }
       });
-    }
+    });
 
     if (btnPrintCuadre) {
       btnPrintCuadre.addEventListener('click', () => {
@@ -727,7 +742,7 @@ class ModalManager {
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `Cuadre_3_Cajas_${d.date.replace(/\//g, '-')}.csv`);
+        link.setAttribute("download", `Cuadre_3_Cajas_${d.startIso}_a_${d.endIso}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

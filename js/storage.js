@@ -85,12 +85,31 @@ function getTodayIso() {
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 }
 
+function getDefaultReceptores() {
+  return [
+    {
+      code: 'FC-CASTANO',
+      name: 'FC EL CASTAÑO',
+      manager: 'Orlando / Administración FC El Castaño',
+      whatsapp: '+573105551000',
+      zone: 'Táchira (VEN) & Norte de Santander (COL)',
+      receptorCommissionPct: 5,
+      currency: 'COP',
+      allowedCurrencies: ['COP', 'USD', 'VES'],
+      firebaseUrl: 'https://banca-fc-castano-default-rtdb.firebaseio.com',
+      status: 'ACTIVO'
+    }
+  ];
+}
+
 function getDefaultAgencies() {
   return [
     {
       code: '1000',
       terminalSerial: '61526296531000',
       name: 'AG PRINCIPAL EL CASTAÑO',
+      receptorCode: 'FC-CASTANO',
+      receptorName: 'FC EL CASTAÑO',
       manager: 'El Castaño',
       whatsapp: '+573105551000',
       zone: 'San Cristóbal - Centro (VEN)',
@@ -106,6 +125,8 @@ function getDefaultAgencies() {
       code: '7336',
       terminalSerial: '61526296537336',
       name: 'AG BARRIO SUCRE',
+      receptorCode: 'FC-CASTANO',
+      receptorName: 'FC EL CASTAÑO',
       manager: 'Carlos Andrés Méndez',
       whatsapp: '+584147007336',
       zone: 'San Cristóbal - Barrio Sucre (VEN)',
@@ -121,6 +142,8 @@ function getDefaultAgencies() {
       code: '7337',
       terminalSerial: '61526296537337',
       name: 'AG CENTRO QUINTA AVENIDA',
+      receptorCode: 'FC-CASTANO',
+      receptorName: 'FC EL CASTAÑO',
       manager: 'María Eugenia Chacón',
       whatsapp: '+584247117337',
       zone: 'San Cristóbal - 5ta Av (VEN)',
@@ -136,6 +159,8 @@ function getDefaultAgencies() {
       code: '7338',
       terminalSerial: '61526296537338',
       name: 'AG CAPACHO INDEPENDENCIA',
+      receptorCode: 'FC-CASTANO',
+      receptorName: 'FC EL CASTAÑO',
       manager: 'José Gregorio Roa',
       whatsapp: '+584127227338',
       zone: 'Capacho Nuevo, Táchira (VEN)',
@@ -151,6 +176,8 @@ function getDefaultAgencies() {
       code: '7339',
       terminalSerial: '61526296537339',
       name: 'AG CÚCUTA CENTRO ALEJANDRÍA',
+      receptorCode: 'FC-CASTANO',
+      receptorName: 'FC EL CASTAÑO',
       manager: 'Luz Marina Peñaloza',
       whatsapp: '+573158887339',
       zone: 'Cúcuta - Centro (COL)',
@@ -166,6 +193,8 @@ function getDefaultAgencies() {
       code: '7340',
       terminalSerial: '61526296537340',
       name: 'AG TÁRIBA PLAZA BOLÍVAR',
+      receptorCode: 'FC-CASTANO',
+      receptorName: 'FC EL CASTAÑO',
       manager: 'Pedro Luis Contreras',
       whatsapp: '+584149997340',
       zone: 'Táriba, Cárdenas (VEN)',
@@ -181,6 +210,8 @@ function getDefaultAgencies() {
       code: '7341',
       terminalSerial: '61526296537341',
       name: 'AG VILLA DEL ROSARIO LA PARADA',
+      receptorCode: 'FC-CASTANO',
+      receptorName: 'FC EL CASTAÑO',
       manager: 'Jorge Eliécer Gómez',
       whatsapp: '+573204447341',
       zone: 'Villa del Rosario (COL)',
@@ -381,9 +412,23 @@ class StorageManager {
       } else {
         const master = JSON.parse(masterRaw);
         let modified = false;
+        if (!master.receptores || !Array.isArray(master.receptores) || master.receptores.length === 0) {
+          master.receptores = getDefaultReceptores();
+          modified = true;
+        }
         if (!master.agencies || !Array.isArray(master.agencies) || master.agencies.length === 0) {
           master.agencies = getDefaultAgencies();
           modified = true;
+        } else {
+          // Asegurar que todas las agencias tengan receptorCode (por defecto FC-CASTANO)
+          const recMap = new Map((master.receptores || []).map(r => [String(r.code), r.name]));
+          master.agencies.forEach(ag => {
+            if (!ag.receptorCode) {
+              ag.receptorCode = 'FC-CASTANO';
+              ag.receptorName = recMap.get('FC-CASTANO') || 'FC EL CASTAÑO';
+              modified = true;
+            }
+          });
         }
         if (!master.collectors || !Array.isArray(master.collectors)) {
           master.collectors = [...DEFAULT_COLLECTORS];
@@ -480,6 +525,7 @@ class StorageManager {
       bancaName: 'BANCA EL CASTAÑO',
       updatedAt: new Date().toISOString(),
       consolidationCurrency: 'COP',
+      receptores: getDefaultReceptores(),
       collectors: [...DEFAULT_COLLECTORS],
       config: config,
       agencies: getDefaultAgencies(),
@@ -498,12 +544,17 @@ class StorageManager {
         this.initializeMasterDatabase();
         return JSON.parse(safeLocalStorage.getItem(STORAGE_KEYS.MASTER_DB));
       }
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed.receptores) || parsed.receptores.length === 0) {
+        parsed.receptores = getDefaultReceptores();
+      }
+      return parsed;
     } catch (e) {
       console.error('Error leyendo banca_fc_data:', e);
       return {
         bancaName: 'BANCA EL CASTAÑO',
         consolidationCurrency: 'COP',
+        receptores: getDefaultReceptores(),
         collectors: [...DEFAULT_COLLECTORS],
         config: { ...DEFAULT_CONFIG },
         agencies: getDefaultAgencies(),
@@ -626,6 +677,12 @@ class StorageManager {
 
     const current = this.getMasterData();
 
+    // 0. Fusionar Receptores / Bancas
+    const recMap = new Map();
+    (current.receptores || getDefaultReceptores()).forEach(r => recMap.set(String(r.code), r));
+    (incoming.receptores || []).forEach(r => recMap.set(String(r.code), r));
+    current.receptores = Array.from(recMap.values());
+
     // 1. Fusionar Agencias
     const agMap = new Map();
     (current.agencies || []).forEach(a => agMap.set(String(a.code), a));
@@ -704,6 +761,217 @@ class StorageManager {
   }
 
   // ==========================================
+  // GESTIÓN DE RECEPTORES / BANCAS (NIVEL MACRO)
+  // ==========================================
+  getReceptores() {
+    const master = this.getMasterData();
+    const list = Array.isArray(master.receptores) && master.receptores.length > 0
+      ? [...master.receptores]
+      : getDefaultReceptores();
+
+    const byCode = new Map();
+    list.forEach(r => {
+      if (r && r.code) byCode.set(String(r.code).toUpperCase(), r);
+    });
+
+    if (!byCode.has('FC-CASTANO')) {
+      byCode.set('FC-CASTANO', getDefaultReceptores()[0]);
+    }
+
+    // Asegurar que cualquier receptorCode huérfano en agencias también aparezca
+    (master.agencies || []).forEach(ag => {
+      const rCode = String(ag.receptorCode || 'FC-CASTANO').toUpperCase();
+      if (!byCode.has(rCode)) {
+        byCode.set(rCode, {
+          code: rCode,
+          name: (ag.receptorName || rCode).toUpperCase(),
+          manager: 'Administración Receptor',
+          whatsapp: '',
+          zone: ag.zone || 'General',
+          receptorCommissionPct: 5,
+          currency: ag.currency || 'COP',
+          allowedCurrencies: ['COP', 'USD', 'VES'],
+          status: 'ACTIVO'
+        });
+      }
+    });
+
+    return Array.from(byCode.values());
+  }
+
+  getReceptorByCode(code) {
+    const clean = String(code || '').trim().toUpperCase();
+    return this.getReceptores().find(r => String(r.code).toUpperCase() === clean) || null;
+  }
+
+  saveReceptor(receptorObj) {
+    const master = this.getMasterData();
+    if (!Array.isArray(master.receptores) || master.receptores.length === 0) {
+      master.receptores = getDefaultReceptores();
+    }
+    const code = String(receptorObj.code || '').trim().toUpperCase().replace(/\s+/g, '-');
+    if (!code) throw new Error('El código del receptor es obligatorio.');
+
+    const idx = master.receptores.findIndex(r => String(r.code).toUpperCase() === code);
+    let allowedCurrencies = Array.isArray(receptorObj.allowedCurrencies)
+      ? receptorObj.allowedCurrencies.filter(c => ['COP', 'USD', 'VES'].includes(c))
+      : ['COP', 'USD', 'VES'];
+    if (allowedCurrencies.length === 0) allowedCurrencies = ['COP'];
+    const defaultCur = ['COP', 'USD', 'VES'].includes(receptorObj.currency) ? receptorObj.currency : allowedCurrencies[0];
+
+    const record = {
+      code,
+      name: (receptorObj.name || `RECEPTOR ${code}`).toUpperCase(),
+      manager: receptorObj.manager || 'Encargado Receptor',
+      whatsapp: receptorObj.whatsapp || '',
+      zone: receptorObj.zone || 'General',
+      receptorCommissionPct: Number(receptorObj.receptorCommissionPct ?? 5),
+      currency: defaultCur,
+      allowedCurrencies,
+      firebaseUrl: receptorObj.firebaseUrl || '',
+      status: receptorObj.status || 'ACTIVO'
+    };
+
+    if (idx !== -1) {
+      master.receptores[idx] = { ...master.receptores[idx], ...record };
+    } else {
+      master.receptores.push(record);
+    }
+
+    // Sincronizar receptorName en todas sus agencias vinculadas
+    if (Array.isArray(master.agencies)) {
+      master.agencies.forEach(ag => {
+        if (String(ag.receptorCode || 'FC-CASTANO').toUpperCase() === code) {
+          ag.receptorCode = code;
+          ag.receptorName = record.name;
+        }
+      });
+    }
+
+    this.saveMasterData(master);
+    return record;
+  }
+
+  toggleReceptorStatus(code) {
+    const master = this.getMasterData();
+    if (!Array.isArray(master.receptores)) master.receptores = getDefaultReceptores();
+    const clean = String(code || '').trim().toUpperCase();
+    const idx = master.receptores.findIndex(r => String(r.code).toUpperCase() === clean);
+    if (idx !== -1) {
+      master.receptores[idx].status = master.receptores[idx].status === 'ACTIVO' ? 'SUSPENDIDO' : 'ACTIVO';
+      this.saveMasterData(master);
+      return master.receptores[idx];
+    }
+    return null;
+  }
+
+  deleteReceptor(code, deleteAgenciesAndTickets = false) {
+    const master = this.getMasterData();
+    const clean = String(code || '').trim().toUpperCase();
+    if (clean === 'FC-CASTANO') {
+      throw new Error('El receptor principal FC-CASTANO (FC El Castaño) no puede ser eliminado.');
+    }
+
+    master.receptores = (master.receptores || []).filter(r => String(r.code).toUpperCase() !== clean);
+    const affectedCodes = new Set(
+      (master.agencies || [])
+        .filter(a => String(a.receptorCode || 'FC-CASTANO').toUpperCase() === clean)
+        .map(a => String(a.code))
+    );
+
+    if (deleteAgenciesAndTickets) {
+      master.agencies = (master.agencies || []).filter(a => String(a.receptorCode || 'FC-CASTANO').toUpperCase() !== clean);
+      if (Array.isArray(master.tickets)) {
+        master.tickets = master.tickets.filter(t => !affectedCodes.has(String(this.extractAgencyCodeFromTicket(t))));
+      }
+    } else {
+      // Reasignar agencias huérfanas al receptor principal FC-CASTANO
+      const fallbackRec = (master.receptores || []).find(r => String(r.code).toUpperCase() === 'FC-CASTANO') || getDefaultReceptores()[0];
+      (master.agencies || []).forEach(a => {
+        if (String(a.receptorCode || 'FC-CASTANO').toUpperCase() === clean) {
+          a.receptorCode = fallbackRec.code;
+          a.receptorName = fallbackRec.name;
+        }
+      });
+    }
+
+    this.saveMasterData(master, true, true);
+    return master.receptores;
+  }
+
+  resetReceptorToZero(code) {
+    const master = this.getMasterData();
+    const clean = String(code || '').trim().toUpperCase();
+    const receptorAgencyCodes = new Set(
+      (master.agencies || [])
+        .filter(a => String(a.receptorCode || 'FC-CASTANO').toUpperCase() === clean)
+        .map(a => String(a.code))
+    );
+    if (Array.isArray(master.tickets)) {
+      master.tickets = master.tickets.filter(t => {
+        const tRec = this.extractReceptorCodeFromAgencyOrTicket(t, master.agencies);
+        const agCode = String(this.extractAgencyCodeFromTicket(t));
+        return tRec !== clean && !receptorAgencyCodes.has(agCode);
+      });
+    }
+    this.saveMasterData(master, true, true);
+    return true;
+  }
+
+  extractReceptorCodeFromAgencyOrTicket(item, agenciesList = null) {
+    if (!item) return 'FC-CASTANO';
+    if (item.receptorCode) return String(item.receptorCode).trim().toUpperCase();
+    const agCode = this.extractAgencyCodeFromTicket(item);
+    const list = Array.isArray(agenciesList) ? agenciesList : this.getAgencies();
+    const foundAg = list.find(a => String(a.code) === String(agCode));
+    if (foundAg && foundAg.receptorCode) {
+      return String(foundAg.receptorCode).trim().toUpperCase();
+    }
+    return 'FC-CASTANO';
+  }
+
+  calculateReceptorFinancials(receptor, allAgencies, periodTickets) {
+    const recCode = String((receptor && receptor.code) || 'FC-CASTANO').toUpperCase();
+    const agencies = (allAgencies || []).filter(a => String(a.receptorCode || 'FC-CASTANO').toUpperCase() === recCode);
+    const agencyCodesSet = new Set(agencies.map(a => String(a.code)));
+
+    const receptorTickets = (periodTickets || []).filter(t => {
+      const tRec = t.receptorCode ? String(t.receptorCode).toUpperCase() : null;
+      if (tRec) return tRec === recCode;
+      const agCode = String(this.extractAgencyCodeFromTicket(t));
+      return agencyCodesSet.has(agCode);
+    });
+
+    const recCommPct = Number((receptor && receptor.receptorCommissionPct) ?? 5);
+    const boxes = { COP: null, USD: null, VES: null };
+
+    ['COP', 'USD', 'VES'].forEach(curKey => {
+      const box = this.calculateCurrencyBoxMetrics(receptorTickets, curKey, 15);
+      const receptorCommission = (box.net * recCommPct) / 100;
+      const macroUtility = box.net - box.commission - receptorCommission - box.totalPrizes;
+      boxes[curKey] = {
+        ...box,
+        receptorCommissionPct: recCommPct,
+        receptorCommission,
+        macroUtility
+      };
+    });
+
+    const activeAgenciesCount = agencies.filter(a => a.status === 'ACTIVA').length;
+    const suspendedAgenciesCount = agencies.filter(a => a.status !== 'ACTIVA').length;
+
+    return {
+      receptor,
+      agencies,
+      agenciesCount: agencies.length,
+      activeAgenciesCount,
+      suspendedAgenciesCount,
+      tickets: receptorTickets,
+      boxes
+    };
+  }
+
+  // ==========================================
   // GESTIÓN DE AGENCIAS / TAQUILLAS Y COBRADORES
   // ==========================================
   getAgencies() {
@@ -750,10 +1018,20 @@ class StorageManager {
         }
       : (idx !== -1 && master.agencies[idx].multipliers ? master.agencies[idx].multipliers : { ...globalMult });
 
+    const receptorCode = String(
+      agencyObj.receptorCode ||
+      (idx !== -1 && master.agencies[idx].receptorCode) ||
+      'FC-CASTANO'
+    ).trim().toUpperCase();
+    const recObj = (master.receptores || getDefaultReceptores()).find(r => String(r.code).toUpperCase() === receptorCode);
+    const receptorName = (agencyObj.receptorName || (recObj && recObj.name) || 'FC EL CASTAÑO').toUpperCase();
+
     const record = {
       code: code,
       terminalSerial: agencyObj.terminalSerial || this.generateTerminalSerial(),
       name: (agencyObj.name || `AGENCIA ${code}`).toUpperCase(),
+      receptorCode: receptorCode,
+      receptorName: receptorName,
       manager: agencyObj.manager || 'Encargado de Taquilla',
       whatsapp: agencyObj.whatsapp || '',
       zone: agencyObj.zone || 'San Cristóbal',
@@ -1261,9 +1539,15 @@ class StorageManager {
     const master = this.getMasterData();
     if (!Array.isArray(master.tickets)) master.tickets = [];
 
-    // Asegurar código de agencia normalizado y fecha de creación (para no perder tickets nuevos en sincronizaciones)
+    // Asegurar código de agencia normalizado, receptor asignado y fecha de creación
     if (!ticket.agencyCode) {
       ticket.agencyCode = this.extractAgencyCodeFromTicket(ticket);
+    }
+    if (!ticket.receptorCode) {
+      const agObj = (master.agencies || []).find(a => String(a.code) === String(ticket.agencyCode));
+      ticket.receptorCode = String((agObj && agObj.receptorCode) || 'FC-CASTANO').toUpperCase();
+      const recObj = (master.receptores || getDefaultReceptores()).find(r => String(r.code).toUpperCase() === ticket.receptorCode);
+      ticket.receptorName = (agObj && agObj.receptorName) || (recObj && recObj.name) || 'FC EL CASTAÑO';
     }
     if (!ticket.createdAt) ticket.createdAt = new Date().toISOString();
     if (!ticket.dateIso) ticket.dateIso = getTodayIso();

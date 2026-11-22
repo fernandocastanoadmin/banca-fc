@@ -50,13 +50,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextNum = String(cfg.nextTicketNumber || 10919).padStart(8, '0');
     nextTicketEl.textContent = `Ticket #${nextNum}`;
   }
+  document.title = 'Banca El Castaño | Taquilla de Ventas';
   const headerAgencyInit = document.getElementById('header-agency-label');
   if (headerAgencyInit) {
-    headerAgencyInit.textContent = `AGENCIA: ${cfg.agencyCode || '1000'} - ${cfg.agencyName || 'EL CASTAÑO'}`;
+    headerAgencyInit.textContent = 'AGENCIA: --';
   }
   const headerTitleInit = document.getElementById('window-title-bar-text');
   if (headerTitleInit) {
-    headerTitleInit.textContent = `Agencia ${cfg.agencyCode || '1000'}: AG ${cfg.agentName || cfg.agencyName || 'El Castaño'} | Usuario: 1000 - [Ventas]`;
+    headerTitleInit.textContent = 'Banca El Castaño | Taquilla de Ventas';
   }
 
   // 4. Módulo de Autenticación y Pantalla de Login
@@ -98,9 +99,11 @@ document.addEventListener('DOMContentLoaded', () => {
     pos.playBeep('success');
 
     // Actualizar título y cabecera con la agencia activa
+    const activeAgencyTitle = `Agencia ${updatedCfg.agencyCode || userVal}: ${updatedCfg.agencyName || 'EL CASTAÑO'} | Usuario: ${userVal} - [Ventas]`;
+    document.title = activeAgencyTitle;
     const headerTitle = document.getElementById('window-title-bar-text');
     if (headerTitle) {
-      headerTitle.textContent = `Agencia ${updatedCfg.agencyCode || userVal}: ${updatedCfg.agencyName || 'EL CASTAÑO'} | Usuario: ${userVal} - [Ventas]`;
+      headerTitle.textContent = activeAgencyTitle;
     }
     const headerAgencyLabel = document.getElementById('header-agency-label');
     if (headerAgencyLabel) {
@@ -420,10 +423,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // Actualizar contadores y parámetros de la taquilla cuando entran cambios en vivo desde Firebase (Admin)
     window.addEventListener('banca_fc_data_updated', () => {
       refreshHeaderCurrencyBadge();
-      const curCfg = storageInstance.getConfig();
-      const headerAgencyLabel = document.getElementById('header-agency-label');
-      if (headerAgencyLabel) {
-        headerAgencyLabel.textContent = `AGENCIA: ${curCfg.agencyCode || '1000'} - ${curCfg.agencyName || 'EL CASTAÑO'}`;
+      if (loginModal && loginModal.classList.contains('hidden')) {
+        const curCfg = storageInstance.getConfig();
+        const activeCode = curCfg.agencyCode || '';
+        const activeName = curCfg.agencyName || '';
+        if (activeCode) {
+          const activeTitle = `Agencia ${activeCode}: ${activeName} | Usuario: ${activeCode} - [Ventas]`;
+          document.title = activeTitle;
+          const headerTitle = document.getElementById('window-title-bar-text');
+          if (headerTitle) headerTitle.textContent = activeTitle;
+          const headerAgencyLabel = document.getElementById('header-agency-label');
+          if (headerAgencyLabel) {
+            headerAgencyLabel.textContent = `AGENCIA: ${activeCode} - ${activeName}`;
+          }
+        }
       }
       pos.updateCounters();
       pos.renderPreTicket();
@@ -447,6 +460,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Menú Salir
     document.getElementById('menu-item-salir')?.addEventListener('click', () => {
+      document.title = 'Banca El Castaño | Taquilla de Ventas';
+      const headerTitle = document.getElementById('window-title-bar-text');
+      if (headerTitle) headerTitle.textContent = 'Banca El Castaño | Taquilla de Ventas';
+      const headerAgencyLabel = document.getElementById('header-agency-label');
+      if (headerAgencyLabel) headerAgencyLabel.textContent = 'AGENCIA: --';
       loginModal?.classList.remove('hidden');
     });
   };

@@ -8,6 +8,12 @@ class BancaFcAdminController {
     this.activeTab = 'tab-agencias';
     this.currentAuditedAgencyCode = null;
     this.currentPreviewTicket = null;
+    const urlParams = (typeof window !== 'undefined' && window.location && window.location.search)
+      ? new URLSearchParams(window.location.search)
+      : null;
+    this.activeReceptorCode = (urlParams && urlParams.get('receptor'))
+      ? String(urlParams.get('receptor')).trim().toUpperCase()
+      : 'FC-CASTANO';
     this.init();
   }
 
@@ -238,6 +244,14 @@ class BancaFcAdminController {
       document.getElementById('res-admin-number')?.focus();
     });
 
+    document.getElementById('btn-header-relacion-final')?.addEventListener('click', () => this.openAdminRelacionFinalModal());
+    document.getElementById('btn-admin-rel-calcular')?.addEventListener('click', () => this.renderAdminRelacionFinal());
+    document.getElementById('admin-rel-desde')?.addEventListener('change', () => this.renderAdminRelacionFinal());
+    document.getElementById('admin-rel-hasta')?.addEventListener('change', () => this.renderAdminRelacionFinal());
+    document.getElementById('btn-admin-rel-print')?.addEventListener('click', () => this.printAdminRelacionFinal());
+    document.getElementById('btn-admin-rel-wa')?.addEventListener('click', () => this.copyAdminRelacionFinalWa());
+    document.getElementById('btn-admin-rel-csv')?.addEventListener('click', () => this.exportAdminRelacionFinalCsv());
+
     document.getElementById('btn-header-export-csv')?.addEventListener('click', () => this.exportGlobalReportCsv());
 
     // Simular venta POS en vivo para pruebas
@@ -409,33 +423,281 @@ class BancaFcAdminController {
     this.refreshAllViews();
   }
 
+  openAdminRelacionFinalModal() {
+    const today = new Date();
+    const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const desdeEl = document.getElementById('admin-rel-desde');
+    const hastaEl = document.getElementById('admin-rel-hasta');
+    if (desdeEl && !desdeEl.value) desdeEl.value = todayIso;
+    if (hastaEl && !hastaEl.value) hastaEl.value = todayIso;
+    this.renderAdminRelacionFinal();
+    document.getElementById('modal-admin-relacion-final')?.classList.remove('hidden');
+  }
+
+  renderAdminRelacionFinal() {
+    const grid = document.getElementById('admin-rel-boxes-grid');
+    if (!grid) return;
+
+    const today = new Date();
+    const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const rawDesde = (document.getElementById('admin-rel-desde')?.value || todayIso).trim();
+    const rawHasta = (document.getElementById('admin-rel-hasta')?.value || rawDesde || todayIso).trim();
+    const startIso = rawDesde <= rawHasta ? rawDesde : rawHasta;
+    const endIso = rawDesde <= rawHasta ? rawHasta : rawDesde;
+
+    const fmtDate = (iso) => {
+      const p = String(iso || '').split('-');
+      return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : iso;
+    };
+    const rangeLabel = startIso === endIso
+      ? fmtDate(startIso)
+      : `Desde ${fmtDate(startIso)} hasta ${fmtDate(endIso)}`;
+
+    const activeRecCode = String(this.activeReceptorCode || 'FC-CASTANO').toUpperCase();
+    const rec = this.storage.getReceptorByCode(activeRecCode) || { code: activeRecCode, name: 'EL CASTAÑO' };
+    const subtitleEl = document.getElementById('admin-rel-subtitle');
+    if (subtitleEl) {
+      subtitleEl.textContent = `Receptor: ${rec.code} (${rec.name}) • 🔒 Cero Conversión entre monedas.`;
+    }
+    const badgeEl = document.getElementById('admin-rel-range-badge');
+    if (badgeEl) badgeEl.textContent = `Periodo: ${rangeLabel}`;
+
+    const agencies = this.storage.getAgencies().filter(ag => String(ag.receptorCode || 'FC-CASTANO').toUpperCase() === activeRecCode);
+    const knownCodes = new Set(agencies.map(a => String(a.code)));
+
+    const rangeTickets = this.storage.getTickets().filter(t => {
+      const tIso = this.storage.extractTicketDateIso(t);
+      if (tIso < startIso || tIso > endIso) return false;
+      const tRec = t.receptorCode ? String(t.receptorCode).toUpperCase() : null;
+      if (tRec) return tRec === activeRecCode;
+      return knownCodes.has(String(this.storage.extractAgencyCodeFromTicket(t)));
+    });
+
+    const totals = {
+      COP: { activeCount: 0, voidCount: 0, totalTicketsCount: 0, gross: 0, voided: 0, net: 0, commission: 0, totalPrizes: 0, bancaUtility: 0 },
+      USD: { activeCount: 0, voidCount: 0, totalTicketsCount: 0, gross: 0, voided: 0, net: 0, commission: 0, totalPrizes: 0, bancaUtility: 0 },
+      VES: { activeCount: 0, voidCount: 0, totalTicketsCount: 0, gross: 0, voided: 0, net: 0, commission: 0, totalPrizes: 0, bancaUtility: 0 }
+    };
+
+    const accumulateBoxes = (boxes) => {
+      ['COP', 'USD', 'VES'].forEach(c => {
+        const b = boxes[c];
+        if (!b) return;
+        totals[c].activeCount += b.activeCount;
+        totals[c].voidCount += b.voidCount;
+        totals[c].totalTicketsCount += b.totalTicketsCount;
+        totals[c].gross += b.gross;
+        totals[c].voided += b.voided;
+        totals[c].net += b.net;
+        totals[c].commission += b.commission;
+        totals[c].totalPrizes += b.totalPrizes;
+        totals[c].bancaUtility += b.bancaUtility;
+      });
+    };
+
+    agencies.forEach(ag => {
+      const m = this.calculateAgencyFinancials(ag, rangeTickets);
+      accumulateBoxes(m.boxes);
+    });
+
+    const orphanTickets = rangeTickets.filter(t => !knownCodes.has(String(this.storage.extractAgencyCodeFromTicket(t))));
+    if (orphanTickets.length > 0) {
+      accumulateBoxes(this.storage.calculateThreeCurrencyBoxes(orphanTickets, 15));
+    }
+
+    const boxMeta = {
+      COP: { title: '🇨🇴 CAJA PESOS (COP $)', headerBg: 'from-blue-900 to-blue-800 border-blue-500/40' },
+      USD: { title: '🇺🇸 CAJA DÓLARES (USD $)', headerBg: 'from-emerald-900 to-emerald-800 border-emerald-500/40' },
+      VES: { title: '🇻🇪 CAJA BOLÍVARES (VES Bs.)', headerBg: 'from-amber-900 to-orange-800 border-amber-500/40' }
+    };
+
+    grid.innerHTML = ['COP', 'USD', 'VES'].map(cur => {
+      const b = totals[cur];
+      const meta = boxMeta[cur];
+      const utilClass = b.bancaUtility >= 0 ? 'text-emerald-400' : 'text-rose-400';
+      return `
+        <div class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+          <div class="bg-gradient-to-r ${meta.headerBg} px-4 py-2.5 border-b font-black text-xs text-white flex items-center justify-between">
+            <span>${meta.title}</span>
+            <span class="text-[10px] bg-slate-950/60 px-2 py-0.5 rounded font-mono">${b.totalTicketsCount} tkt</span>
+          </div>
+          <div class="p-4 space-y-2 text-xs">
+            <div class="flex justify-between border-b border-slate-800 pb-1.5">
+              <span class="text-slate-400">Tickets (Act / Anul):</span>
+              <strong class="font-mono text-slate-200">${b.activeCount} act / ${b.voidCount} anul</strong>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Ventas Brutas:</span>
+              <strong class="font-mono text-white">${this.formatMoney(b.gross, cur)}</strong>
+            </div>
+            <div class="flex justify-between text-rose-400">
+              <span>Tickets Anulados (-):</span>
+              <strong class="font-mono">-${this.formatMoney(b.voided, cur)}</strong>
+            </div>
+            <div class="flex justify-between text-sky-300 border-t border-slate-800 pt-1.5 font-bold">
+              <span>Ventas Netas:</span>
+              <strong class="font-mono">${this.formatMoney(b.net, cur)}</strong>
+            </div>
+            <div class="flex justify-between text-indigo-300">
+              <span>Comisión Agencias (-):</span>
+              <strong class="font-mono">-${this.formatMoney(b.commission, cur)}</strong>
+            </div>
+            <div class="flex justify-between text-amber-300">
+              <span>Premios (-):</span>
+              <strong class="font-mono">-${this.formatMoney(b.totalPrizes, cur)}</strong>
+            </div>
+            <div class="mt-2 pt-2.5 border-t border-slate-800 flex justify-between items-center bg-slate-900 px-3 py-2 rounded-lg">
+              <span class="text-[11px] font-black uppercase text-slate-300">Saldo Banca:</span>
+              <strong class="font-mono text-base font-black ${utilClass}">${this.formatMoney(b.bancaUtility, cur)}</strong>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    this.currentAdminRelacionData = {
+      receptorCode: rec.code,
+      receptorName: rec.name,
+      startIso,
+      endIso,
+      rangeLabel,
+      totals
+    };
+  }
+
+  copyAdminRelacionFinalWa() {
+    const d = this.currentAdminRelacionData;
+    if (!d) return;
+    const sections = ['COP', 'USD', 'VES'].map(cur => {
+      const b = d.totals[cur];
+      return [
+        `💼 *CAJA ${cur}* (${b.activeCount} act / ${b.voidCount} anul)`,
+        `• Bruta: ${this.formatMoney(b.gross, cur)}`,
+        `• Anulados: -${this.formatMoney(b.voided, cur)}`,
+        `• Neta: ${this.formatMoney(b.net, cur)}`,
+        `• Comisión: -${this.formatMoney(b.commission, cur)}`,
+        `• Premios: -${this.formatMoney(b.totalPrizes, cur)}`,
+        `• *SALDO BANCA:* ${this.formatMoney(b.bancaUtility, cur)}`
+      ].join('\n');
+    }).join('\n----------------------------------\n');
+
+    const text = [
+      `📊 *RELACIÓN FINAL - RECEPTOR ${d.receptorCode} (${d.receptorName})*`,
+      `📅 *Periodo:* ${d.rangeLabel}`,
+      `----------------------------------`,
+      sections
+    ].join('\n');
+
+    navigator.clipboard?.writeText(text).catch(() => {});
+    this.showToast('Relación Final copiada para WhatsApp.', '📋');
+  }
+
+  printAdminRelacionFinal() {
+    const d = this.currentAdminRelacionData;
+    if (!d) return;
+    const area = document.getElementById('admin-print-area');
+    if (!area) return;
+    const rowsHtml = ['COP', 'USD', 'VES'].map(cur => {
+      const b = d.totals[cur];
+      return `
+        <div style="border:1px solid #333; padding:8px; margin-bottom:8px;">
+          <strong>CAJA ${cur}</strong> (${b.activeCount} act / ${b.voidCount} anul)<br/>
+          Ventas Brutas: ${this.formatMoney(b.gross, cur)}<br/>
+          Anulados (-): -${this.formatMoney(b.voided, cur)}<br/>
+          Ventas Netas: ${this.formatMoney(b.net, cur)}<br/>
+          Comisión (-): -${this.formatMoney(b.commission, cur)}<br/>
+          Premios (-): -${this.formatMoney(b.totalPrizes, cur)}<br/>
+          <strong>SALDO BANCA ${cur}: ${this.formatMoney(b.bancaUtility, cur)}</strong>
+        </div>
+      `;
+    }).join('');
+    area.innerHTML = `
+      <div style="font-family: Arial, sans-serif; padding: 14px; color: #000;">
+        <h2 style="margin:0 0 4px 0;">RELACIÓN FINAL - RECEPTOR ${this.escapeHtml(d.receptorCode)} (${this.escapeHtml(d.receptorName)})</h2>
+        <div style="margin-bottom:10px;"><strong>Periodo:</strong> ${this.escapeHtml(d.rangeLabel)}</div>
+        ${rowsHtml}
+      </div>
+    `;
+    window.print();
+  }
+
+  exportAdminRelacionFinalCsv() {
+    const d = this.currentAdminRelacionData;
+    if (!d) return;
+    let csv = '\uFEFF';
+    csv += `RELACION FINAL RECEPTOR ${d.receptorCode} (${d.receptorName}),Periodo: ${d.rangeLabel}\n`;
+    csv += 'Moneda,Tickets Activos,Tickets Anulados,Ventas Brutas,Anulados,Ventas Netas,Comision Agencias,Premios,Saldo Banca\n';
+    ['COP', 'USD', 'VES'].forEach(cur => {
+      const b = d.totals[cur];
+      csv += `${cur},${b.activeCount},${b.voidCount},${b.gross.toFixed(2)},${b.voided.toFixed(2)},${b.net.toFixed(2)},${b.commission.toFixed(2)},${b.totalPrizes.toFixed(2)},${b.bancaUtility.toFixed(2)}\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Relacion_Final_${d.receptorCode}_${d.startIso}_a_${d.endIso}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    this.showToast('Relación Final exportada a CSV.', '📥');
+  }
+
   // =========================================================================
-  // 2. ACTUALIZACIÓN GLOBAL DE LOS 6 KPIs Y VISTAS
+  // 2. ACTUALIZACIÓN GLOBAL DE LOS 6 KPIs Y VISTAS (FILTRADO POR RECEPTOR)
   // =========================================================================
+  updateActiveReceptorHeader() {
+    const rec = this.storage.getReceptorByCode(this.activeReceptorCode) || { code: 'FC-CASTANO', name: 'FC EL CASTAÑO' };
+    const titleEl = document.getElementById('admin-receptor-title');
+    const badgeEl = document.getElementById('header-active-receptor-badge');
+    if (titleEl) {
+      titleEl.textContent = rec.code === 'FC-CASTANO' ? 'BANCA EL CASTAÑO' : rec.name;
+    }
+    if (badgeEl) {
+      badgeEl.textContent = `Receptor: ${rec.code} (${rec.name})`;
+    }
+  }
+
   refreshAllViews() {
+    this.updateActiveReceptorHeader();
     const syncEl = document.getElementById('last-sync-timestamp');
     if (syncEl) {
       syncEl.textContent = `Sincronizado: ${new Date().toLocaleTimeString('es-VE')}`;
     }
 
-    const periodTickets = this.getFilteredTicketsByDate();
-    const agencies = this.storage.getAgencies();
+    const relModal = document.getElementById('modal-admin-relacion-final');
+    if (relModal && !relModal.classList.contains('hidden')) {
+      this.renderAdminRelacionFinal();
+    }
+
+    const allPeriodTickets = this.getFilteredTicketsByDate();
+    const allAgencies = this.storage.getAgencies();
 
     // Asegurar que cualquier código de agencia huérfano en tickets también aparezca
-    const knownCodes = new Set(agencies.map(a => String(a.code)));
-    periodTickets.forEach(t => {
+    const knownCodes = new Set(allAgencies.map(a => String(a.code)));
+    allPeriodTickets.forEach(t => {
       const tCode = this.storage.extractAgencyCodeFromTicket(t);
       if (!knownCodes.has(String(tCode))) {
         const autoAgency = this.storage.saveAgency({
           code: tCode,
+          receptorCode: t.receptorCode || this.activeReceptorCode || 'FC-CASTANO',
           name: t.agencia ? t.agencia.replace(`${tCode} - `, '') : `AGENCIA ${tCode}`,
           currency: t.moneda || 'COP',
           commissionPct: 15,
           status: 'ACTIVA'
         });
-        agencies.push(autoAgency);
+        allAgencies.push(autoAgency);
         knownCodes.add(String(tCode));
       }
+    });
+
+    // Filtrar agencias y tickets al Receptor activo en este Panel Administrativo del Receptor
+    const activeRecCode = String(this.activeReceptorCode || 'FC-CASTANO').toUpperCase();
+    const agencies = allAgencies.filter(ag => String(ag.receptorCode || 'FC-CASTANO').toUpperCase() === activeRecCode);
+    const receptorAgencyCodes = new Set(agencies.map(a => String(a.code)));
+    const periodTickets = allPeriodTickets.filter(t => {
+      const tRec = t.receptorCode ? String(t.receptorCode).toUpperCase() : null;
+      if (tRec) return tRec === activeRecCode;
+      return receptorAgencyCodes.has(String(this.storage.extractAgencyCodeFromTicket(t)));
     });
 
     // Filtros activos en la tabla de agencias
@@ -675,7 +937,13 @@ class BancaFcAdminController {
         primaryCurrency = allowedCurrencies[0];
       }
 
+      const recSelectEl = document.getElementById('ag-receptor');
+      const selectedRecCode = (recSelectEl && recSelectEl.value) ? recSelectEl.value : (this.activeReceptorCode || 'FC-CASTANO');
+      const selectedRecObj = this.storage.getReceptorByCode(selectedRecCode);
+
       const agencyData = {
+        receptorCode: selectedRecCode,
+        receptorName: selectedRecObj ? selectedRecObj.name : selectedRecCode,
         code: document.getElementById('ag-code').value.trim(),
         terminalSerial: document.getElementById('ag-serial').value.trim(),
         name: document.getElementById('ag-name').value.trim(),
@@ -715,6 +983,11 @@ class BancaFcAdminController {
 
   openAgencyFormModal(agencyCode = null) {
     this.populateCollectorDropdowns();
+    const recSel = document.getElementById('ag-receptor');
+    if (recSel) {
+      const receptores = this.storage.getReceptores();
+      recSel.innerHTML = receptores.map(r => `<option value="${r.code}">${r.code} - ${r.name}</option>`).join('');
+    }
     const modal = document.getElementById('modal-agency-form');
     const title = document.getElementById('modal-agency-title');
     if (!modal) return;
@@ -727,6 +1000,7 @@ class BancaFcAdminController {
       const allowed = this.storage.getAllowedCurrenciesForAgency(ag.code);
       const agMult = this.storage.getEffectiveMultipliersForAgency(ag.code);
 
+      if (recSel) recSel.value = ag.receptorCode || this.activeReceptorCode || 'FC-CASTANO';
       title.textContent = `✏️ Editar Agencia ${ag.code} - ${ag.name}`;
       document.getElementById('ag-code').value = ag.code;
       document.getElementById('ag-serial').value = ag.terminalSerial || this.storage.generateTerminalSerial();
@@ -764,6 +1038,7 @@ class BancaFcAdminController {
       const nextCode = String(maxCode + 1);
 
       title.textContent = '➕ Crear Nueva Agencia / Taquilla POS';
+      if (recSel) recSel.value = this.activeReceptorCode || 'FC-CASTANO';
       document.getElementById('ag-code').value = nextCode;
       document.getElementById('ag-serial').value = this.storage.generateTerminalSerial();
       document.getElementById('ag-name').value = '';
@@ -1957,7 +2232,9 @@ class BancaFcAdminController {
   renderResultsAndWinnersView() {
     const dateKey = document.getElementById('res-admin-date')?.value || new Date().toISOString().split('T')[0];
     const results = this.storage.getResults(dateKey);
-    const allTickets = this.storage.getTickets();
+    const activeRecCode = String(this.activeReceptorCode || 'FC-CASTANO').toUpperCase();
+    const receptorAgencies = this.storage.getAgencies().filter(a => String(a.receptorCode || 'FC-CASTANO').toUpperCase() === activeRecCode);
+    const allTickets = this.storage.getTickets().filter(t => this.storage.extractReceptorCodeFromAgencyOrTicket(t, receptorAgencies) === activeRecCode);
     const globalCur = this.storage.getConsolidationCurrency();
 
     const resultsTbody = document.getElementById('admin-results-tbody');
@@ -2317,9 +2594,12 @@ class BancaFcAdminController {
   // 8. SIMULADOR DE VENTA POS Y EXPORTACIÓN CSV / EXCEL
   // =========================================================================
   simulateIncomingPosTicket() {
-    const activeAgencies = this.storage.getAgencies().filter(a => a.status === 'ACTIVA');
+    const activeRecCode = String(this.activeReceptorCode || 'FC-CASTANO').toUpperCase();
+    const activeAgencies = this.storage.getAgencies().filter(
+      a => a.status === 'ACTIVA' && String(a.receptorCode || 'FC-CASTANO').toUpperCase() === activeRecCode
+    );
     if (activeAgencies.length === 0) {
-      alert('No hay agencias activas para simular ventas.');
+      alert('No hay agencias activas para simular ventas en este receptor.');
       return;
     }
 
@@ -2369,13 +2649,16 @@ class BancaFcAdminController {
   }
 
   exportGlobalReportCsv() {
-    const periodTickets = this.getFilteredTicketsByDate();
-    const agencies = this.storage.getAgencies();
+    const activeRecCode = String(this.activeReceptorCode || 'FC-CASTANO').toUpperCase();
+    const recObj = this.storage.getReceptorByCode(activeRecCode);
+    const recName = recObj ? recObj.name : activeRecCode;
+    const agencies = this.storage.getAgencies().filter(a => String(a.receptorCode || 'FC-CASTANO').toUpperCase() === activeRecCode);
+    const periodTickets = this.getFilteredTicketsByDate().filter(t => this.storage.extractReceptorCodeFromAgencyOrTicket(t, agencies) === activeRecCode);
 
     let csv = '\uFEFF'; // BOM para Excel UTF-8
-    csv += 'REPORTE MULTIMONEDA POR CAJAS INDEPENDIENTES - BANCA EL CASTAÑO\n';
+    csv += `REPORTE MULTIMONEDA POR CAJAS INDEPENDIENTES - RECEPTOR ${recName} (${activeRecCode})\n`;
     csv += `Fecha Generacion,${new Date().toLocaleString('es-VE')},Contabilidad,3 Cajas Separadas (Sin Conversion)\n\n`;
-    csv += 'Codigo,Agencia,Zona,Cobrador,Estado,Comision %,Caja Moneda,Tickets Activos,Tickets Anulados,Venta Bruta,Anulados,Venta Neta,Comision Agencia,Premios,Utilidad Banca El Castaño\n';
+    csv += 'Codigo,Agencia,Zona,Cobrador,Estado,Comision %,Caja Moneda,Tickets Activos,Tickets Anulados,Venta Bruta,Anulados,Venta Neta,Comision Agencia,Premios,Utilidad Banca\n';
 
     agencies.forEach(ag => {
       const m = this.calculateAgencyFinancials(ag, periodTickets);
