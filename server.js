@@ -144,7 +144,8 @@ function mergeDatabases(existingDb, incomingDb, forceOverwrite = false) {
     const key = getKey(t);
     const prev = ticketMap.get(key);
     if (!prev) {
-      ticketMap.set(key, t);
+      const stamped = t.serverCreatedAt ? t : { ...t, serverCreatedAt: Date.now(), lanServerStamped: true };
+      ticketMap.set(key, stamped);
     } else {
       // Si el ticket ya existía, conservar el estado más reciente (ej. ANULADO, PAGADO, GANADOR)
       const rank = { 'ACTIVO': 1, 'GANADOR': 2, 'PAGADO': 3, 'ANULADO': 4 };
@@ -199,10 +200,26 @@ const server = http.createServer((req, res) => {
       ok: true,
       port: PORT,
       ips: ips,
+      serverMs: Date.now(),
       posUrl: `http://${ips[0]}:${PORT}/index.html`,
       adminUrl: `http://${ips[0]}:${PORT}/admin.html`,
       bancaUrl: `http://${ips[0]}:${PORT}/banca.html`,
       appUrl: `http://${ips[0]}:${PORT}/app_movil/index.html`
+    }));
+    return;
+  }
+
+  // Endpoint de hora oficial autoritativa del servidor LAN
+  if (reqPath === '/api/server-time') {
+    const serverMs = Date.now();
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store'
+    });
+    res.end(JSON.stringify({
+      ok: true,
+      serverMs,
+      iso: new Date(serverMs).toISOString()
     }));
     return;
   }

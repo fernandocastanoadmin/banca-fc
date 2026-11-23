@@ -177,6 +177,11 @@
       </div>
     </div>
 
+    <!-- Banner de Alerta de Seguridad Horaria (Solo visible si falta verificación o el reloj está manipulado) -->
+    <div id="pos-clock-security-banner" class="hidden" style="background: #b91c1c; color: #ffffff; padding: 6px 12px; font-size: 12px; font-weight: 900; text-align: center; border-bottom: 2px solid #7f1d1d;">
+      🚨 ALERTA DE SEGURIDAD: Reloj del equipo manipulado o sin verificación de hora oficial. Sincronice la hora automática para vender.
+    </div>
+
     <!-- ==========================================================
          LAYOUT DE 3 PANELES (TAQUILLA DE ALTA VELOCIDAD)
          ========================================================== -->
@@ -866,13 +871,14 @@
   <div id="print-dedicated-area"></div>
 
   <!-- Scripts Modulares -->
-  <script src="js/catalogs.js"></script>
-  <script src="js/storage.js"></script>
-  <script src="js/firebase-sync.js"></script>
-  <script src="js/auto-results.js"></script>
-  <script src="js/print.js"></script>
-  <script src="js/pos.js"></script>
-  <script src="js/modals.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/server-clock.js?v=20261122"></script>
+  <script src="js/catalogs.js?v=20261122"></script>
+  <script src="js/storage.js?v=20261122"></script>
+  <script src="js/firebase-sync.js?v=20261122"></script>
+  <script src="js/auto-results.js?v=20261122"></script>
+  <script src="js/print.js?v=20261122"></script>
+  <script src="js/pos.js?v=20261122"></script>
+  <script src="js/modals.js?v=20261122"></script>
+  <script src="js/app.js?v=20261122"></script>
 </body>
 </html>
