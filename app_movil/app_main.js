@@ -150,9 +150,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const agEl = document.getElementById('app-header-agency');
     const subEl = document.getElementById('app-header-sub');
     const montoLbl = document.getElementById('lcd-monto-label');
+    const offNow = cloud.getOfficialNow();
 
-    if (agEl) agEl.textContent = `AGENCIA ${code} • ${cur}`;
-    if (subEl) subEl.textContent = `Ticket #${nextNum} • ${cloud.formatTimeOnly12h(new Date())}`;
+    if (agEl) {
+      agEl.textContent = offNow.tampered
+        ? `🚨 RELOJ MANIPULADO • AG ${code}`
+        : `AGENCIA ${code} • ${cur}`;
+    }
+    if (subEl) {
+      const clockTxt = !offNow.verified
+        ? '⏳ Verificando hora...'
+        : (offNow.tampered ? `🚨 Hora Oficial: ${offNow.time12h}` : `🔒 ${offNow.time12h}`);
+      subEl.textContent = `Ticket #${nextNum} • ${clockTxt}`;
+    }
     if (montoLbl) montoLbl.textContent = `MONTO (${cur})`;
     renderQuickAmounts();
   }
@@ -197,9 +207,22 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-header-cloud')?.addEventListener('click', () => switchTab('nube'));
 
   // ==================== PESTAÑA VENDER (POS TOUCH) ====================
+  function getVerifiedClockOrReason() {
+    const offNow = cloud.getOfficialNow();
+    if (!offNow.verified) {
+      return { ok: false, reason: '⏳ Verificando hora oficial con Google Firebase. Conéctese a internet para vender.' };
+    }
+    if (offNow.tampered) {
+      return { ok: false, tampered: true, reason: `🚨 RELOJ DEL TELÉFONO MANIPULADO (Oficial: ${offNow.time12h}). Active la hora automática para vender.` };
+    }
+    return { ok: true, offNow };
+  }
+
   function getOpenLotteries() {
+    const clk = getVerifiedClockOrReason();
+    if (!clk.ok) return [];
     const list = APP_LOTTERY_CATALOGS[state.category] || [];
-    const now = new Date();
+    const now = clk.offNow;
     const q = (document.getElementById('app-lottery-search')?.value || '').trim().toLowerCase();
     return list.filter(lot => {
       if (!appIsLotteryOpen(lot, now, state.showAllWeek)) return false;
@@ -209,7 +232,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function pruneClosedSelections() {
-    const now = new Date();
+    const clk = getVerifiedClockOrReason();
+    if (!clk.ok) {
+      state.selectedLotteries.clear();
+      return;
+    }
+    const now = clk.offNow;
     for (const id of Array.from(state.selectedLotteries)) {
       const lot = appFindLotteryById(id);
       if (!lot || !appIsLotteryOpen(lot, now, state.showAllWeek)) {
@@ -220,11 +248,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderLotteries() {
     pruneClosedSelections();
+    const clk = getVerifiedClockOrReason();
     const open = getOpenLotteries();
     const grid = document.getElementById('app-lotteries-grid');
     const countEl = document.getElementById('app-open-count');
     const selBadge = document.getElementById('app-selected-lot-badge');
-    const now = new Date();
+    const now = clk.ok ? clk.offNow : cloud.getOfficialNow();
 
     if (countEl) countEl.textContent = `${open.length} abiertos`;
     if (selBadge) {
@@ -236,6 +265,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     if (!grid) return;
+
+    if (!clk.ok) {
+      grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:20px; color:${clk.tampered ? '#fca5a5' : '#fbbf24'}; font-weight:800; font-size:12.5px;">${esc(clk.reason)}</div>`;
+      return;
+    }
 
     if (open.length === 0) {
       grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:24px; color:#9ca3af; font-size:12.5px;">No hay sorteos abiertos (cierran 5 min antes)</div>';
@@ -472,6 +506,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function addPlayItem(numberStr, amountVal, signOverride = null, silent = false) {
+    const clk = getVerifiedClockOrReason();
+    if (!clk.ok) {
+      if (!silent) showToast(clk.reason);
+      return false;
+    }
     if (state.selectedLotteries.size === 0) {
       if (!silent) showToast('Seleccione al menos un sorteo abierto');
       return false;
@@ -487,7 +526,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return false;
     }
 
-    const now = new Date();
+    const now = clk.offNow;
     const selectedLots = getOpenLotteries().filter(l => state.selectedLotteries.has(l.id));
     if (selectedLots.length === 0) {
       renderLotteries();
@@ -625,7 +664,12 @@ document.addEventListener('DOMContentLoaded', () => {
   async function submitPreTicket() {
     if (state.submitting || state.preTicketItems.length === 0) return;
 
-    const now = new Date();
+    const clk = getVerifiedClockOrReason();
+    if (!clk.ok) {
+      showToast(clk.reason);
+      return;
+    }
+    const now = clk.offNow;
     const expired = new Set();
     const active = [];
     state.preTicketItems.forEach(p => {
@@ -849,11 +893,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('btn-cmd-rep-ticket')?.addEventListener('click', () => {
+    const clk = getVerifiedClockOrReason();
+    if (!clk.ok) return showToast(clk.reason);
     const last = cloud.getLastPrintedTicket();
     if (!last || !Array.isArray(last.items) || last.items.length === 0) {
       return showToast('Sin tickets previos para repetir');
     }
-    const now = new Date();
+    const now = clk.offNow;
     const valid = [];
     const closed = new Set();
     last.items.forEach(it => {

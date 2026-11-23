@@ -12,6 +12,24 @@ const APP_CLOUD_CFG_KEY = 'banca_fc_firebase_config';
 const APP_MASTER_CACHE_KEY = 'banca_fc_app_master_cache';
 const APP_SESSION_KEY = 'banca_fc_app_session';
 const APP_LAST_TICKET_KEY = 'banca_fc_app_last_ticket';
+const APP_DEVICE_CLOCK_ID_KEY = 'banca_fc_device_clock_id';
+const APP_OFFICIAL_TZ = 'America/Caracas';
+const APP_MAX_DRIFT_MS = 120000;
+const APP_AUDIT_DRIFT_MS = 180000;
+
+const _appCaracasFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: APP_OFFICIAL_TZ,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  weekday: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23'
+});
+const _APP_WEEKDAYS = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+const _appMonoNow = () => (typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now());
 
 const APP_DEFAULT_MULTIPLIERS = {
   triple: 500,
@@ -70,11 +88,286 @@ class AppCloudSync {
     this.isPushing = false;
     this.eventSource = null;
     this.pollTimer = null;
+    this.clockTimer = null;
     this.listeners = new Set();
+
+    // Estado del reloj oficial del servidor (inmune a manipulación del teléfono/PC)
+    this.serverClockVerified = false;
+    this.lastServerUtcMs = null;
+    this.lastSyncPerfMs = null;
+    this.lastDriftMs = 0;
+    this._clockSyncInFlight = null;
+    this.lastTamperAlertAt = 0;
+    this.deviceClockId = this.getOrCreateDeviceClockId();
 
     this.masterData = this.loadMasterCache();
     this.session = this.loadSession();
     this.init();
+  }
+
+  getOrCreateDeviceClockId() {
+    try {
+      let id = localStorage.getItem(APP_DEVICE_CLOCK_ID_KEY);
+      if (id && /^[a-z0-9_-]{6,40}$/i.test(id)) return id;
+      id = `app_${Math.random().toString(36).slice(2, 10)}`;
+      localStorage.setItem(APP_DEVICE_CLOCK_ID_KEY, id);
+      return id;
+    } catch (_) {
+      return `app_${Math.random().toString(36).slice(2, 10)}`;
+    }
+  }
+
+  getVerifiedUtcMs() {
+    if (!this.serverClockVerified || this.lastServerUtcMs === null || this.lastSyncPerfMs === null) {
+      return null;
+    }
+    return Math.round(this.lastServerUtcMs + Math.max(0, _appMonoNow() - this.lastSyncPerfMs));
+  }
+
+  getOfficialParts(utcMs) {
+    const ms = typeof utcMs === 'number' && !isNaN(utcMs) ? utcMs : Date.now();
+    const parts = _appCaracasFormatter.formatToParts(new Date(ms));
+    const map = {};
+    for (const p of parts) {
+      if (p.type !== 'literal') map[p.type] = p.value;
+    }
+    const year = parseInt(map.year, 10);
+    const month = parseInt(map.month, 10);
+    const day = parseInt(map.day, 10);
+    const hour24 = parseInt(map.hour, 10) % 24;
+    const minute = parseInt(map.minute, 10);
+    const second = parseInt(map.second, 10);
+    const dayOfWeek = _APP_WEEKDAYS[map.weekday] !== undefined ? _APP_WEEKDAYS[map.weekday] : 0;
+    const dd = String(day).padStart(2, '0');
+    const mm = String(month).padStart(2, '0');
+    const ampm = hour24 >= 12 ? 'pm' : 'am';
+    const h12 = hour24 % 12 || 12;
+    const minStr = String(minute).padStart(2, '0');
+    const secStr = String(second).padStart(2, '0');
+    return {
+      utcMs: ms,
+      year,
+      month,
+      day,
+      hour24,
+      minute,
+      second,
+      dayOfWeek,
+      isoDate: `${year}-${mm}-${dd}`,
+      dateDDMMYYYY: `${dd}/${mm}/${year}`,
+      formatted12h: `${dd}/${mm}/${year} ${h12}:${minStr}:${secStr} ${ampm}`,
+      time12h: `${h12}:${minStr}:${secStr} ${ampm}`
+    };
+  }
+
+  getOfficialNow() {
+    const serverMs = this.getVerifiedUtcMs();
+    if (serverMs === null) {
+      return { ...this.getOfficialParts(Date.now()), verified: false, tampered: false, driftMs: 0 };
+    }
+    const driftMs = Date.now() - serverMs;
+    this.lastDriftMs = driftMs;
+    return {
+      ...this.getOfficialParts(serverMs),
+      verified: true,
+      tampered: Math.abs(driftMs) > APP_MAX_DRIFT_MS,
+      driftMs
+    };
+  }
+
+  isDeviceClockTampered() {
+    return this.getOfficialNow().tampered;
+  }
+
+  parseDateTime12hToUtcMs(str) {
+    const m = String(str || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+    if (!m) return null;
+    const dd = parseInt(m[1], 10);
+    const mm = parseInt(m[2], 10);
+    const yyyy = parseInt(m[3], 10);
+    let hr = parseInt(m[4], 10);
+    const min = parseInt(m[5], 10);
+    const sec = parseInt(m[6] || '0', 10);
+    const ampm = (m[7] || '').toUpperCase();
+    if (ampm === 'PM' && hr < 12) hr += 12;
+    if (ampm === 'AM' && hr === 12) hr = 0;
+    return Date.UTC(yyyy, mm - 1, dd, hr + 4, min, sec, 0);
+  }
+
+  getDrawCutoffUtcMs(dateIso, drawHour24, drawMinute = 0, cutoffMinutes = 5) {
+    const m = String(dateIso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    const drawUtc = Date.UTC(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10), Number(drawHour24) + 4, Number(drawMinute || 0), 0, 0);
+    return drawUtc - (Number(cutoffMinutes) * 60000);
+  }
+
+  async syncServerTime(force = false) {
+    const elapsed = this.lastSyncPerfMs !== null ? (_appMonoNow() - this.lastSyncPerfMs) : Infinity;
+    if (!force && this.serverClockVerified && elapsed < 15000) {
+      return { ok: true, serverMs: this.getVerifiedUtcMs() };
+    }
+    if (this._clockSyncInFlight) return this._clockSyncInFlight;
+
+    this._clockSyncInFlight = (async () => {
+      let serverMs = null;
+      const dbUrl = (this.databaseURL || '').replace(/\/+$/, '');
+      if (dbUrl.startsWith('https://')) {
+        try {
+          const ctrl = new AbortController();
+          const tmr = setTimeout(() => ctrl.abort(), 5500);
+          const t0 = _appMonoNow();
+          const res = await fetch(`${dbUrl}/banca_fc_server_clock/${encodeURIComponent(this.deviceClockId)}.json`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ serverMs: { '.sv': 'timestamp' } }),
+            cache: 'no-store',
+            signal: ctrl.signal
+          });
+          clearTimeout(tmr);
+          if (res.ok) {
+            const payload = await res.json();
+            const rttHalf = Math.min(2000, Math.max(0, (_appMonoNow() - t0) / 2));
+            if (payload && typeof payload.serverMs === 'number' && isFinite(payload.serverMs)) {
+              serverMs = Math.round(payload.serverMs + rttHalf);
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (serverMs === null && typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('http') && !window.location.hostname.includes('github.io')) {
+        try {
+          const t0 = _appMonoNow();
+          const r = await fetch('/api/server-time', { cache: 'no-store' });
+          if (r.ok) {
+            const j = await r.json();
+            if (j && typeof j.serverMs === 'number') {
+              serverMs = Math.round(j.serverMs + Math.min(1000, Math.max(0, (_appMonoNow() - t0) / 2)));
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (serverMs !== null) {
+        this.lastServerUtcMs = serverMs;
+        this.lastSyncPerfMs = _appMonoNow();
+        this.serverClockVerified = true;
+        const off = this.getOfficialNow();
+        if (off.tampered && this.session?.agencyCode) {
+          this.reportAppTamperAlert(this.session.agencyCode, off).catch(() => {});
+        }
+        this.emitChange();
+        return { ok: true, serverMs, tampered: off.tampered };
+      }
+      return { ok: false, error: 'Sin conexión para verificar hora del servidor' };
+    })();
+
+    try {
+      return await this._clockSyncInFlight;
+    } finally {
+      this._clockSyncInFlight = null;
+    }
+  }
+
+  async reportAppTamperAlert(agencyCode, details = {}) {
+    const now = Date.now();
+    if (now - this.lastTamperAlertAt < 60000) return;
+    const dbUrl = (this.databaseURL || '').replace(/\/+$/, '');
+    if (!dbUrl.startsWith('https://')) return;
+    this.lastTamperAlertAt = now;
+    try {
+      const code = String(agencyCode || 'MOVIL').replace(/[^a-zA-Z0-9_-]/g, '_');
+      await fetch(`${dbUrl}/banca_fc_security_alerts/${encodeURIComponent(code)}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agencyCode: String(agencyCode || ''),
+          deviceTimeIso: new Date().toISOString(),
+          driftMinutes: Math.round(Math.abs(details.driftMs || 0) / 60000),
+          detectedAtServerMs: { '.sv': 'timestamp' },
+          source: 'APP-MOVIL'
+        })
+      });
+    } catch (_) {}
+  }
+
+  async stampTicketInFirebase(ticket) {
+    const dbUrl = (this.databaseURL || '').replace(/\/+$/, '');
+    const cleanSerial = String(ticket.serialSeguridad || Date.now()).replace(/[^a-zA-Z0-9_-]/g, '');
+    const stampKey = `${String(ticket.ticketId).trim()}_${cleanSerial}`;
+    if (dbUrl.startsWith('https://')) {
+      try {
+        const res = await fetch(`${dbUrl}/banca_fc_ticket_stamps/${encodeURIComponent(stampKey)}.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ticketId: String(ticket.ticketId),
+            stampKey,
+            agencyCode: String(ticket.agencyCode || ''),
+            clientFechaHora: String(ticket.fechaHora || ''),
+            clientDeviceEpochMs: Date.now(),
+            serverCreatedAt: { '.sv': 'timestamp' }
+          })
+        });
+        if (res.ok) {
+          const p = await res.json();
+          if (p && typeof p.serverCreatedAt === 'number' && isFinite(p.serverCreatedAt)) {
+            this.lastServerUtcMs = p.serverCreatedAt;
+            this.lastSyncPerfMs = _appMonoNow();
+            this.serverClockVerified = true;
+            return { ok: true, stampKey, serverCreatedAt: p.serverCreatedAt };
+          }
+        }
+      } catch (_) {}
+    }
+    return { ok: false, error: 'No se pudo sellar el ticket en Google Firebase.' };
+  }
+
+  verifyTicketPlayTiming(ticket, play, lot) {
+    if (!ticket) return { blocked: true, reason: 'Ticket inválido' };
+    if (ticket.clockAuditBlocked) return { blocked: true, reason: ticket.clockAuditReason || 'Reloj adulterado' };
+    const serverTs = Number(ticket.serverCreatedAt);
+    if (Number.isFinite(serverTs) && serverTs > 1700000000000) {
+      const sp = this.getOfficialParts(serverTs);
+      const repMs = this.parseDateTime12hToUtcMs(ticket.fechaHora);
+      if (repMs !== null && Math.abs(repMs - serverTs) > APP_AUDIT_DRIFT_MS) {
+        return { blocked: true, reason: 'Hora reportada difiere del servidor' };
+      }
+      if (lot && typeof lot.drawHour24 === 'number') {
+        const cutoff = this.getDrawCutoffUtcMs(sp.isoDate, lot.drawHour24, lot.drawMinute || 0, 5);
+        if (cutoff !== null && serverTs > cutoff) {
+          return { blocked: true, reason: 'Emitido después del cierre oficial (-5 min) según servidor' };
+        }
+      }
+      return { blocked: false };
+    }
+    const baseline = Number(this.masterData?.config?.securityBaselineTicketNumber || 0);
+    const n = parseInt(String(ticket.ticketId || '').replace(/\D/g, ''), 10);
+    if (baseline > 0 && Number.isFinite(n) && n > baseline) {
+      return { blocked: true, reason: 'Ticket nuevo sin sello de hora del servidor' };
+    }
+    return { blocked: false };
+  }
+
+  getTodayIso() {
+    const ms = this.getVerifiedUtcMs();
+    if (ms !== null) return this.getOfficialParts(ms).isoDate;
+    return this.getOfficialParts(Date.now()).isoDate;
+  }
+
+  formatDateTime12h(now = null) {
+    if (now && typeof now.formatted12h === 'string') return now.formatted12h;
+    if (typeof now === 'number') return this.getOfficialParts(now).formatted12h;
+    if (now instanceof Date) return this.getOfficialParts(now.getTime()).formatted12h;
+    const ms = this.getVerifiedUtcMs();
+    return this.getOfficialParts(ms !== null ? ms : Date.now()).formatted12h;
+  }
+
+  formatTimeOnly12h(now = null) {
+    if (now && typeof now.time12h === 'string') return now.time12h;
+    if (typeof now === 'number') return this.getOfficialParts(now).time12h;
+    if (now instanceof Date) return this.getOfficialParts(now.getTime()).time12h;
+    const ms = this.getVerifiedUtcMs();
+    return this.getOfficialParts(ms !== null ? ms : Date.now()).time12h;
   }
 
   onChange(fn) {
@@ -86,32 +379,6 @@ class AppCloudSync {
     this.listeners.forEach(fn => {
       try { fn(this); } catch (_) {}
     });
-  }
-
-  getTodayIso() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  }
-
-  formatDateTime12h(now = new Date()) {
-    const dd = String(now.getDate()).padStart(2, '0');
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const yyyy = now.getFullYear();
-    let hr = now.getHours();
-    const min = String(now.getMinutes()).padStart(2, '0');
-    const sec = String(now.getSeconds()).padStart(2, '0');
-    const ampm = hr >= 12 ? 'pm' : 'am';
-    hr = hr % 12 || 12;
-    return `${dd}/${mm}/${yyyy} ${hr}:${min}:${sec} ${ampm}`;
-  }
-
-  formatTimeOnly12h(now = new Date()) {
-    let hr = now.getHours();
-    const min = String(now.getMinutes()).padStart(2, '0');
-    const sec = String(now.getSeconds()).padStart(2, '0');
-    const ampm = hr >= 12 ? 'PM' : 'AM';
-    hr = hr % 12 || 12;
-    return `${hr}:${min}:${sec} ${ampm}`;
   }
 
   loadMasterCache() {
@@ -231,6 +498,15 @@ class AppCloudSync {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
     }
+    if (this.clockTimer) {
+      clearInterval(this.clockTimer);
+      this.clockTimer = null;
+    }
+
+    this.syncServerTime(true).catch(() => {});
+    this.clockTimer = setInterval(() => {
+      this.syncServerTime(true).catch(() => {});
+    }, 30000);
 
     const endpoint = this.getEndpoint();
     if (!endpoint) {
@@ -442,10 +718,11 @@ class AppCloudSync {
     if (!endpoint) return false;
 
     this.isPushing = true;
+    const verifiedNowMs = this.getVerifiedUtcMs() || Date.now();
     try {
       let dataToSave = { ...localData };
       if (forceOverwriteCloud) {
-        dataToSave.lastResetTimestamp = new Date().toISOString();
+        dataToSave.lastResetTimestamp = new Date(verifiedNowMs).toISOString();
       } else {
         try {
           const getRes = await fetch(endpoint, { cache: 'no-store' });
@@ -458,7 +735,7 @@ class AppCloudSync {
         } catch (_) {}
       }
 
-      dataToSave.updatedAt = new Date().toISOString();
+      dataToSave.updatedAt = new Date(verifiedNowMs).toISOString();
       this.lastRemoteTimestamp = dataToSave.updatedAt;
 
       const putRes = await fetch(endpoint, {
@@ -746,8 +1023,14 @@ class AppCloudSync {
   }
 
   evaluateTicket(ticket, targetDate = null) {
-    if (ticket.estado === 'ANULADO') {
-      return { status: 'ANULADO', totalPrize: 0, winningPlays: [] };
+    if (ticket.estado === 'ANULADO' || ticket.clockAuditBlocked) {
+      return {
+        status: ticket.clockAuditBlocked ? 'BLOQUEADO_HORA' : 'ANULADO',
+        totalPrize: 0,
+        winningPlays: [],
+        clockFraudDetected: Boolean(ticket.clockAuditBlocked),
+        clockAuditReason: ticket.clockAuditReason || ''
+      };
     }
     const agCode = this.extractAgencyCodeFromTicket(ticket);
     const mults = this.getEffectiveMultipliersForAgency(agCode);
@@ -756,7 +1039,16 @@ class AppCloudSync {
 
     let totalPrize = 0;
     const winningPlays = [];
+    let clockFraudDetected = false;
+    let clockAuditReason = '';
     (ticket.items || []).forEach(play => {
+      const lot = typeof appFindLotteryById === 'function' ? appFindLotteryById(play.lotteryId) : null;
+      const timing = this.verifyTicketPlayTiming(ticket, play, lot);
+      if (timing && timing.blocked) {
+        clockFraudDetected = true;
+        clockAuditReason = timing.reason || 'Ticket emitido fuera de horario';
+        return;
+      }
       const offRes = dayResults[play.lotteryId];
       if (offRes) {
         const win = this.checkPlayWinning(play, offRes, mults);
@@ -774,11 +1066,16 @@ class AppCloudSync {
       }
     });
 
+    if (clockFraudDetected) {
+      return { status: 'BLOQUEADO_HORA', totalPrize: 0, winningPlays: [], clockFraudDetected: true, clockAuditReason };
+    }
+
     const isWinner = totalPrize > 0;
     return {
       status: (ticket.estado === 'PAGADO' && isWinner) ? 'PAGADO' : (isWinner ? 'GANADOR' : 'ACTIVO'),
       totalPrize,
-      winningPlays
+      winningPlays,
+      clockFraudDetected: false
     };
   }
 
@@ -786,6 +1083,28 @@ class AppCloudSync {
     if (!Array.isArray(items) || items.length === 0) {
       return { ok: false, error: 'No hay jugadas en el pre-ticket.' };
     }
+
+    // 1. Verificar reloj oficial del servidor en vivo (inmune a manipulación del teléfono/PC)
+    const syncRes = await this.syncServerTime(true);
+    if (!syncRes.ok || !this.serverClockVerified) {
+      return { ok: false, error: '⛔ Sin conexión para verificar hora oficial del servidor. No se puede emitir.' };
+    }
+    const offNow = this.getOfficialNow();
+    if (offNow.tampered) {
+      await this.reportAppTamperAlert(this.session.agencyCode, offNow);
+      return {
+        ok: false,
+        error: `🚨 Reloj del equipo manipulado (hora oficial: ${offNow.time12h}). Active la hora automática del sistema.`
+      };
+    }
+
+    for (const p of items) {
+      const lot = typeof appFindLotteryById === 'function' ? appFindLotteryById(p.lotteryId) : null;
+      if (lot && typeof appIsLotteryOpen === 'function' && !appIsLotteryOpen(lot, offNow)) {
+        return { ok: false, error: `⛔ El sorteo ${p.lotteryName || p.lotteryId} ya cerró (-5 min hora oficial).` };
+      }
+    }
+
     const agencyCode = this.session.agencyCode || '1000';
     const agency = this.getAgencyByCode(agencyCode);
     if (agency && agency.status === 'SUSPENDIDA') {
@@ -820,10 +1139,29 @@ class AppCloudSync {
     const serial = this.generateSecuritySerial();
     const total = items.reduce((s, it) => s + Number(it.amount || 0), 0);
 
+    const prelimTicket = {
+      ticketId,
+      serialSeguridad: serial,
+      agencyCode: String(agencyCode),
+      fechaHora: this.formatDateTime12h(offNow)
+    };
+    const stampRes = await this.stampTicketInFirebase(prelimTicket);
+    if (!stampRes.ok || !stampRes.serverCreatedAt) {
+      return { ok: false, error: '⛔ No se pudo sellar el horario del ticket en Firebase. Verifique su internet.' };
+    }
+
+    const exactParts = this.getOfficialParts(stampRes.serverCreatedAt);
+    for (const p of items) {
+      const lot = typeof appFindLotteryById === 'function' ? appFindLotteryById(p.lotteryId) : null;
+      if (lot && typeof appIsLotteryOpen === 'function' && !appIsLotteryOpen(lot, exactParts)) {
+        return { ok: false, error: `⛔ ${p.lotteryName || p.lotteryId} cerró en el servidor (${exactParts.time12h}).` };
+      }
+    }
+
     const ticket = {
       ticketId,
       serialSeguridad: serial,
-      fechaHora: this.formatDateTime12h(new Date()),
+      fechaHora: this.formatDateTime12h(stampRes.serverCreatedAt),
       agencyCode: String(agencyCode),
       agencia: `${agencyCode} - ${agency?.name || 'EL CASTAÑO'}`,
       usuario: String(agencyCode),
@@ -833,12 +1171,21 @@ class AppCloudSync {
       estado: 'ACTIVO',
       premioCalculado: 0,
       origenApp: 'APP-MOVIL-TOUCH',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      serverCreatedAt: stampRes.serverCreatedAt,
+      serverStampKey: stampRes.stampKey,
+      clockVerified: true,
+      clientDeviceEpochMs: Date.now(),
+      createdAt: new Date(stampRes.serverCreatedAt).toISOString(),
+      updatedAt: new Date(stampRes.serverCreatedAt).toISOString()
     };
 
     const evalRes = this.evaluateTicket(ticket);
-    if (evalRes.totalPrize > 0) {
+    if (evalRes.clockFraudDetected) {
+      ticket.clockAuditBlocked = true;
+      ticket.clockAuditReason = evalRes.clockAuditReason;
+      ticket.premioCalculado = 0;
+      ticket.winningPlays = [];
+    } else if (evalRes.totalPrize > 0) {
       ticket.estado = 'GANADOR';
       ticket.premioCalculado = evalRes.totalPrize;
       ticket.winningPlays = evalRes.winningPlays;
