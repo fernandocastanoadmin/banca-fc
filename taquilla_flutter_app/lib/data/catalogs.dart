@@ -609,7 +609,8 @@ bool isLotteryOpenForSale(
   DateTime? nowDate,
   bool showAllWeekDays = false,
 }) {
-  final now = nowDate ?? DateTime.now();
+  final now = nowDate ??
+      DateTime.now().toUtc().subtract(const Duration(hours: 4));
   final currentDayJs = now.weekday % 7;
 
   if (lot.daysOfWeek != null && !lot.daysOfWeek!.contains(currentDayJs)) {

@@ -59,7 +59,11 @@ class _PosSellScreenState extends State<PosSellScreen> {
   }
 
   void _pruneClosedSelectedLotteries() {
-    final now = DateTime.now();
+    if (!widget.cloud.serverClockVerified || widget.cloud.isDeviceClockTampered) {
+      _selectedLotteries.clear();
+      return;
+    }
+    final now = widget.cloud.officialCaracasNow;
     _selectedLotteries.removeWhere((id) {
       final lot = findLotteryById(id);
       if (lot == null) return true;
@@ -72,8 +76,11 @@ class _PosSellScreenState extends State<PosSellScreen> {
   }
 
   List<LotteryDraw> _getOpenLotteries() {
+    if (!widget.cloud.serverClockVerified || widget.cloud.isDeviceClockTampered) {
+      return [];
+    }
     final list = lotteryCatalogs[_category] ?? [];
-    final now = DateTime.now();
+    final now = widget.cloud.officialCaracasNow;
     final query = _searchCtrl.text.trim().toLowerCase();
     return list.where((lot) {
       final open = isLotteryOpenForSale(
@@ -224,7 +231,18 @@ class _PosSellScreenState extends State<PosSellScreen> {
       return false;
     }
 
-    final now = DateTime.now();
+    if (!widget.cloud.serverClockVerified) {
+      if (!silent) _showToast('⏳ Verificando hora oficial con Google Firebase...');
+      return false;
+    }
+    if (widget.cloud.isDeviceClockTampered) {
+      if (!silent) {
+        _showToast('🚨 Reloj manipulado. Active hora automática para vender.');
+      }
+      return false;
+    }
+
+    final now = widget.cloud.officialCaracasNow;
     final openList = _getOpenLotteries();
     final selectedLots =
         openList.where((l) => _selectedLotteries.contains(l.id)).toList();
@@ -443,7 +461,16 @@ class _PosSellScreenState extends State<PosSellScreen> {
       _showToast('No hay tickets anteriores para repetir');
       return;
     }
-    final now = DateTime.now();
+    if (!widget.cloud.serverClockVerified) {
+      _showToast('⏳ Verificando hora oficial con Google Firebase...');
+      return;
+    }
+    if (widget.cloud.isDeviceClockTampered) {
+      _showToast('🚨 Reloj manipulado. Active hora automática para vender.');
+      return;
+    }
+
+    final now = widget.cloud.officialCaracasNow;
     final valid = <Map<String, dynamic>>[];
     final closed = <String>{};
 
@@ -484,7 +511,16 @@ class _PosSellScreenState extends State<PosSellScreen> {
     if (_submitting || _preTicketItems.isEmpty) return;
 
     // Verificar -5 min antes de enviar
-    final now = DateTime.now();
+    if (!widget.cloud.serverClockVerified) {
+      _showToast('⏳ Verificando hora oficial con Google Firebase...');
+      return;
+    }
+    if (widget.cloud.isDeviceClockTampered) {
+      _showToast('🚨 Reloj manipulado. Active hora automática para vender.');
+      return;
+    }
+
+    final now = widget.cloud.officialCaracasNow;
     final expired = <String>{};
     final active = <Map<String, dynamic>>[];
 
@@ -864,7 +900,7 @@ class _PosSellScreenState extends State<PosSellScreen> {
   }
 
   Widget _buildLotteriesSection(List<LotteryDraw> openLots) {
-    final now = DateTime.now();
+    final now = widget.cloud.officialCaracasNow;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -968,11 +1004,23 @@ class _PosSellScreenState extends State<PosSellScreen> {
           SizedBox(
             height: 156,
             child: openLots.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
-                      'No hay sorteos abiertos disponibles (cierres 5 min antes)',
+                      widget.cloud.isDeviceClockTampered
+                          ? '🚨 Reloj manipulado detectado. Ventas bloqueadas hasta restaurar hora automática.'
+                          : (!widget.cloud.serverClockVerified
+                              ? '⏳ Verificando hora oficial del servidor para habilitar sorteos...'
+                              : 'No hay sorteos abiertos disponibles (cierres 5 min antes)'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white54, fontSize: 13),
+                      style: TextStyle(
+                        color: widget.cloud.isDeviceClockTampered
+                            ? const Color(0xFFFCA5A5)
+                            : Colors.white54,
+                        fontSize: 13,
+                        fontWeight: widget.cloud.isDeviceClockTampered
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
                     ),
                   )
                 : GridView.builder(

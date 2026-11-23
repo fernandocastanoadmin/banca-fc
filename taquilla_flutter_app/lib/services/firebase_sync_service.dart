@@ -97,6 +97,9 @@ class BancaFcFirebaseService extends ChangeNotifier {
   static const String _prefCurrencyKey = 'banca_fc_active_currency';
   static const String _prefLastTicketKey = 'banca_fc_last_printed_ticket';
 
+  static const int _maxDeviceDriftMs = 120000;
+  static const int _ticketAuditDriftMs = 180000;
+
   String _databaseUrl = defaultDatabaseUrl;
   CloudConnectionStatus _status = CloudConnectionStatus.connecting;
   String? _lastError;
@@ -104,6 +107,42 @@ class BancaFcFirebaseService extends ChangeNotifier {
   String? _lastSyncClock;
   bool _isPushing = false;
   Timer? _pollTimer;
+  Timer? _clockTimer;
+
+  bool _serverClockVerified = false;
+  int? _lastServerUtcMs;
+  final Stopwatch _monotonicWatch = Stopwatch();
+  String _deviceClockId = 'flt_${Random().nextInt(999999)}';
+  DateTime? _lastTamperAlertAt;
+
+  bool get serverClockVerified => _serverClockVerified;
+
+  int? get verifiedUtcMs {
+    if (!_serverClockVerified || _lastServerUtcMs == null) return null;
+    return _lastServerUtcMs! + _monotonicWatch.elapsedMilliseconds;
+  }
+
+  static DateTime toCaracasWallClock(int utcMs) {
+    return DateTime.fromMillisecondsSinceEpoch(utcMs, isUtc: true)
+        .subtract(const Duration(hours: 4));
+  }
+
+  DateTime get officialCaracasNow {
+    final vMs = verifiedUtcMs;
+    if (vMs != null) return toCaracasWallClock(vMs);
+    return toCaracasWallClock(DateTime.now().toUtc().millisecondsSinceEpoch);
+  }
+
+  int get currentDeviceDriftMs {
+    final vMs = verifiedUtcMs;
+    if (vMs == null) return 0;
+    return DateTime.now().toUtc().millisecondsSinceEpoch - vMs;
+  }
+
+  bool get isDeviceClockTampered {
+    if (!_serverClockVerified) return false;
+    return currentDeviceDriftMs.abs() > _maxDeviceDriftMs;
+  }
 
   Map<String, dynamic> _masterData = {};
   String? _loggedAgencyCode;
@@ -198,8 +237,180 @@ class BancaFcFirebaseService extends ChangeNotifier {
     return await connect();
   }
 
+  Future<bool> syncServerTime({bool force = false}) async {
+    if (!force &&
+        _serverClockVerified &&
+        _monotonicWatch.elapsedMilliseconds < 15000) {
+      return true;
+    }
+    final uri = _endpoint('/banca_fc_server_clock/$_deviceClockId.json');
+    if (uri == null) return false;
+
+    try {
+      final sw = Stopwatch()..start();
+      final res = await http
+          .put(
+            uri,
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'serverMs': {'.sv': 'timestamp'},
+            }),
+          )
+          .timeout(const Duration(seconds: 6));
+      sw.stop();
+      if (res.statusCode == 200) {
+        final dec = jsonDecode(res.body);
+        if (dec is Map && dec['serverMs'] is num) {
+          final rttHalf = min(2000, max(0, sw.elapsedMilliseconds ~/ 2));
+          _lastServerUtcMs = (dec['serverMs'] as num).toInt() + rttHalf;
+          _monotonicWatch
+            ..reset()
+            ..start();
+          _serverClockVerified = true;
+          if (isDeviceClockTampered && _loggedAgencyCode != null) {
+            unawaited(_reportTamperAlert(_loggedAgencyCode!));
+          }
+          notifyListeners();
+          return true;
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  Future<void> _reportTamperAlert(String agencyCode) async {
+    final now = DateTime.now().toUtc();
+    if (_lastTamperAlertAt != null &&
+        now.difference(_lastTamperAlertAt!).inSeconds < 60) {
+      return;
+    }
+    _lastTamperAlertAt = now;
+    final cleanCode = agencyCode.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final uri = _endpoint('/banca_fc_security_alerts/$cleanCode.json');
+    if (uri == null) return;
+    try {
+      await http
+          .put(
+            uri,
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'agencyCode': agencyCode,
+              'deviceTimeIso': now.toIso8601String(),
+              'driftMinutes': (currentDeviceDriftMs.abs() / 60000).round(),
+              'detectedAtServerMs': {'.sv': 'timestamp'},
+              'source': 'FLUTTER-APP',
+            }),
+          )
+          .timeout(const Duration(seconds: 4));
+    } catch (_) {}
+  }
+
+  Future<({bool ok, int? serverCreatedAt, String? stampKey})>
+      _stampTicketInFirebase(Map<String, dynamic> prelimTicket) async {
+    final tid = '${prelimTicket['ticketId'] ?? ''}'.trim();
+    final serial = '${prelimTicket['serialSeguridad'] ?? ''}'
+        .replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '');
+    final stampKey = '${tid}_$serial';
+    final uri = _endpoint('/banca_fc_ticket_stamps/$stampKey.json');
+    if (uri == null) {
+      return (ok: false, serverCreatedAt: null, stampKey: null);
+    }
+    try {
+      final res = await http
+          .put(
+            uri,
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'ticketId': tid,
+              'stampKey': stampKey,
+              'agencyCode': '${prelimTicket['agencyCode'] ?? ''}',
+              'clientFechaHora': '${prelimTicket['fechaHora'] ?? ''}',
+              'clientDeviceEpochMs':
+                  DateTime.now().toUtc().millisecondsSinceEpoch,
+              'serverCreatedAt': {'.sv': 'timestamp'},
+            }),
+          )
+          .timeout(const Duration(seconds: 6));
+      if (res.statusCode == 200) {
+        final p = jsonDecode(res.body);
+        if (p is Map && p['serverCreatedAt'] is num) {
+          final srv = (p['serverCreatedAt'] as num).toInt();
+          _lastServerUtcMs = srv;
+          _monotonicWatch
+            ..reset()
+            ..start();
+          _serverClockVerified = true;
+          return (ok: true, serverCreatedAt: srv, stampKey: stampKey);
+        }
+      }
+    } catch (_) {}
+    return (ok: false, serverCreatedAt: null, stampKey: null);
+  }
+
+  int? _parseFechaHoraCaracasUtcMs(String fechaHoraStr) {
+    final m = RegExp(
+            r'^(\d{1,2})/(\d{1,2})/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$',
+            caseSensitive: false)
+        .firstMatch(fechaHoraStr.trim());
+    if (m == null) return null;
+    final dd = int.parse(m.group(1)!);
+    final mm = int.parse(m.group(2)!);
+    final yyyy = int.parse(m.group(3)!);
+    var hr = int.parse(m.group(4)!);
+    final min = int.parse(m.group(5)!);
+    final sec = int.parse(m.group(6) ?? '0');
+    final ampm = (m.group(7) ?? '').toUpperCase();
+    if (ampm == 'PM' && hr < 12) hr += 12;
+    if (ampm == 'AM' && hr == 12) hr = 0;
+    return DateTime.utc(yyyy, mm, dd, hr + 4, min, sec).millisecondsSinceEpoch;
+  }
+
+  String? _auditTicketPlayTiming(
+    Map<String, dynamic> ticket,
+    LotteryDraw? lot,
+  ) {
+    if (ticket['clockAuditBlocked'] == true) {
+      return '${ticket['clockAuditReason'] ?? 'Ticket bloqueado por manipulación de horario'}';
+    }
+    final srvRaw = ticket['serverCreatedAt'];
+    final serverTs = srvRaw is num ? srvRaw.toInt() : int.tryParse('$srvRaw');
+    if (serverTs != null && serverTs > 1700000000000) {
+      final repMs = _parseFechaHoraCaracasUtcMs('${ticket['fechaHora'] ?? ''}');
+      if (repMs != null && (repMs - serverTs).abs() > _ticketAuditDriftMs) {
+        return 'Hora reportada (${ticket['fechaHora']}) difiere del servidor';
+      }
+      if (lot != null) {
+        final cNow = toCaracasWallClock(serverTs);
+        final drawUtc = DateTime.utc(
+          cNow.year,
+          cNow.month,
+          cNow.day,
+          lot.drawHour24 + 4,
+          lot.drawMinute,
+        ).subtract(const Duration(minutes: 5)).millisecondsSinceEpoch;
+        if (serverTs > drawUtc) {
+          return 'Emitido después del cierre oficial (-5 min) según servidor';
+        }
+      }
+      return null;
+    }
+
+    final cfg = _masterData['config'];
+    final baseline = cfg is Map
+        ? (int.tryParse('${cfg['securityBaselineTicketNumber'] ?? 0}') ?? 0)
+        : 0;
+    final tktNum =
+        int.tryParse('${ticket['ticketId'] ?? ''}'.replaceAll(RegExp(r'\D'), '')) ??
+            0;
+    if (baseline > 0 && tktNum > baseline) {
+      return 'Ticket nuevo emitido sin sello de hora del servidor';
+    }
+    return null;
+  }
+
   Future<bool> connect() async {
     _pollTimer?.cancel();
+    _clockTimer?.cancel();
     if (!isValidFirebaseUrl(_databaseUrl)) {
       _status = CloudConnectionStatus.unconfigured;
       notifyListeners();
@@ -211,6 +422,10 @@ class BancaFcFirebaseService extends ChangeNotifier {
       notifyListeners();
     }
 
+    unawaited(syncServerTime(force: true));
+    _clockTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      unawaited(syncServerTime(force: true));
+    });
     _pollTimer = Timer.periodic(const Duration(milliseconds: 3000), (_) {
       pullAndMergeFromFirebase(isInitialConnect: false);
     });
@@ -722,6 +937,33 @@ class BancaFcFirebaseService extends ChangeNotifier {
       );
     }
 
+    final syncOk = await syncServerTime(force: true);
+    if (!syncOk || !_serverClockVerified) {
+      return const TicketSubmissionResult(
+        success: false,
+        error:
+            '⛔ No se pudo verificar la hora oficial con el servidor. Verifique su conexión a internet.',
+      );
+    }
+    if (isDeviceClockTampered) {
+      return const TicketSubmissionResult(
+        success: false,
+        error:
+            '🚨 RELOJ DEL TELÉFONO MANIPULADO: Active la fecha y hora automática para poder vender.',
+      );
+    }
+
+    final caracasNow = officialCaracasNow;
+    for (final p in items) {
+      final lot = findLotteryById('${p['lotteryId']}');
+      if (lot != null && !isLotteryOpenForSale(lot, nowDate: caracasNow)) {
+        return TicketSubmissionResult(
+          success: false,
+          error: '⛔ El sorteo ${p['lotteryName']} ya cerró (-5 min hora oficial).',
+        );
+      }
+    }
+
     final agencyCode = _loggedAgencyCode ?? '1000';
     final agency = getAgencyByCode(agencyCode);
     if (agency != null && '${agency['status']}'.toUpperCase() == 'SUSPENDIDA') {
@@ -764,8 +1006,34 @@ class BancaFcFirebaseService extends ChangeNotifier {
     final currentNext = nextTicketNumber;
     final ticketId = currentNext.toString().padLeft(8, '0');
     final serial = _generateSecuritySerial();
-    final now = DateTime.now();
-    final dateStr = formatDateTime12h(now);
+    final prelimDateStr = formatDateTime12h(caracasNow);
+
+    final stampRes = await _stampTicketInFirebase({
+      'ticketId': ticketId,
+      'serialSeguridad': serial,
+      'agencyCode': agencyCode,
+      'fechaHora': prelimDateStr,
+    });
+    if (!stampRes.ok || stampRes.serverCreatedAt == null) {
+      return const TicketSubmissionResult(
+        success: false,
+        error: '⛔ Error registrando sello oficial de hora en Firebase.',
+      );
+    }
+
+    final exactServerWall = toCaracasWallClock(stampRes.serverCreatedAt!);
+    for (final p in items) {
+      final lot = findLotteryById('${p['lotteryId']}');
+      if (lot != null && !isLotteryOpenForSale(lot, nowDate: exactServerWall)) {
+        return TicketSubmissionResult(
+          success: false,
+          error:
+              '⛔ ${p['lotteryName']} cerró en el servidor antes de sellar el ticket.',
+        );
+      }
+    }
+
+    final dateStr = formatDateTime12h(exactServerWall);
     final agencyName = '${agency?['name'] ?? 'EL CASTAÑO'}';
 
     double total = 0;
@@ -774,6 +1042,9 @@ class BancaFcFirebaseService extends ChangeNotifier {
     }
 
     final cleanItems = items.map((e) => Map<String, dynamic>.from(e)).toList();
+    final serverIso =
+        DateTime.fromMillisecondsSinceEpoch(stampRes.serverCreatedAt!, isUtc: true)
+            .toIso8601String();
     final ticket = <String, dynamic>{
       'ticketId': ticketId,
       'serialSeguridad': serial,
@@ -787,12 +1058,20 @@ class BancaFcFirebaseService extends ChangeNotifier {
       'estado': 'ACTIVO',
       'premioCalculado': 0,
       'origenApp': 'FLUTTER-MOVIL',
-      'createdAt': now.toUtc().toIso8601String(),
-      'updatedAt': now.toUtc().toIso8601String(),
+      'serverCreatedAt': stampRes.serverCreatedAt,
+      'serverStampKey': stampRes.stampKey,
+      'clockVerified': true,
+      'clientDeviceEpochMs': DateTime.now().toUtc().millisecondsSinceEpoch,
+      'createdAt': serverIso,
+      'updatedAt': serverIso,
     };
 
     final evalRes = evaluateTicket(ticket);
-    if (evalRes.totalPrize > 0) {
+    if (evalRes.status == 'BLOQUEADO_HORA') {
+      ticket['clockAuditBlocked'] = true;
+      ticket['premioCalculado'] = 0;
+      ticket['winningPlays'] = <dynamic>[];
+    } else if (evalRes.totalPrize > 0) {
       ticket['estado'] = 'GANADOR';
       ticket['premioCalculado'] = evalRes.totalPrize;
       ticket['winningPlays'] = evalRes.winningPlays;
@@ -1110,11 +1389,11 @@ class BancaFcFirebaseService extends ChangeNotifier {
     Map<String, dynamic> ticket, {
     String? targetDateIso,
   }) {
-    if ('${ticket['estado']}' == 'ANULADO') {
-      return const TicketEvaluationResult(
-        status: 'ANULADO',
+    if ('${ticket['estado']}' == 'ANULADO' || ticket['clockAuditBlocked'] == true) {
+      return TicketEvaluationResult(
+        status: ticket['clockAuditBlocked'] == true ? 'BLOQUEADO_HORA' : 'ANULADO',
         totalPrize: 0,
-        winningPlays: [],
+        winningPlays: const [],
       );
     }
 
@@ -1129,6 +1408,15 @@ class BancaFcFirebaseService extends ChangeNotifier {
     for (final rawPlay in (ticket['items'] as List? ?? [])) {
       if (rawPlay is! Map) continue;
       final play = Map<String, dynamic>.from(rawPlay);
+      final lot = findLotteryById('${play['lotteryId']}');
+      final auditErr = _auditTicketPlayTiming(ticket, lot);
+      if (auditErr != null) {
+        return const TicketEvaluationResult(
+          status: 'BLOQUEADO_HORA',
+          totalPrize: 0,
+          winningPlays: [],
+        );
+      }
       final offResRaw = dayResults['${play['lotteryId']}'];
       if (offResRaw is Map) {
         final offRes = Map<String, dynamic>.from(offResRaw);
@@ -1445,6 +1733,7 @@ class BancaFcFirebaseService extends ChangeNotifier {
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _clockTimer?.cancel();
     super.dispose();
   }
 }
