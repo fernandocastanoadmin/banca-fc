@@ -1972,7 +1972,10 @@ class BancaGeneralMacroController {
     });
   }
 
-  renderTicketStatusBadge(status) {
+  renderTicketStatusBadge(status, ticketObj = null) {
+    if (ticketObj && ticketObj.clockAuditBlocked) {
+      return `<span class="badge-pill badge-anulado" title="${this.escapeHtml(ticketObj.clockAuditReason || 'Reloj adulterado / Fuera de horario')}">🚨 RELOJ ADULTERADO</span>`;
+    }
     const st = (status || 'ACTIVO').toUpperCase();
     if (st === 'GANADOR') return `<span class="badge-pill badge-ganador">🏆 GANADOR</span>`;
     if (st === 'PAGADO') return `<span class="badge-pill badge-pagado">💵 PAGADO</span>`;
@@ -2003,7 +2006,7 @@ class BancaGeneralMacroController {
         <td class="text-xs text-slate-200">${playsSummary}</td>
         <td class="text-right font-mono font-bold text-white">${this.formatMoney(t.total, tCur)}</td>
         <td class="text-right font-mono font-bold ${prizeVal > 0 ? 'text-amber-400' : 'text-slate-500'}">${this.formatMoney(prizeVal, tCur)}</td>
-        <td class="text-center">${this.renderTicketStatusBadge(t.estado)}</td>
+        <td class="text-center">${this.renderTicketStatusBadge(t.estado, t)}</td>
         <td class="text-center">
           <div class="inline-flex items-center gap-1">
             <button type="button" class="btn-view-thermal px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-sky-400 text-[11px] font-bold" data-id="${this.escapeHtml(t.ticketId)}">🖨️</button>
@@ -2086,7 +2089,14 @@ class BancaGeneralMacroController {
                 <div class="font-mono font-black text-amber-400">#${this.escapeHtml(t.ticketId)}</div>
                 <div class="font-mono text-[10px] text-slate-400">${this.escapeHtml(t.serialSeguridad)}</div>
               </td>
-              <td class="text-xs text-slate-300">${this.escapeHtml(t.fechaHora)}</td>
+              <td class="text-xs text-slate-300">
+                <div>${this.escapeHtml(t.fechaHora)}</div>
+                ${t.clockAuditBlocked
+                  ? `<div class="text-[10px] text-rose-400 font-bold mt-0.5" title="${this.escapeHtml(t.clockAuditReason || '')}">🚨 Fuera de hora / Adulterado</div>`
+                  : (t.serverCreatedAt
+                    ? `<div class="text-[10px] text-emerald-400 font-semibold mt-0.5">🔒 Hora Servidor</div>`
+                    : '')}
+              </td>
               <td>
                 <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono font-bold text-[9px]">${this.escapeHtml(tRec)} • ${this.escapeHtml(recName)}</span>
                 <div class="font-bold text-white text-xs mt-0.5">${this.escapeHtml(t.agencia)}</div>
@@ -2095,7 +2105,7 @@ class BancaGeneralMacroController {
               <td class="text-left max-w-xs space-y-0.5 py-1.5">${playsDetailHtml}</td>
               <td class="text-right font-mono font-bold text-white">${this.formatMoney(t.total, cur)}</td>
               <td class="text-right font-mono font-bold ${prizeVal > 0 ? 'text-amber-400' : 'text-slate-500'}">${this.formatMoney(prizeVal, cur)}</td>
-              <td class="text-center">${this.renderTicketStatusBadge(t.estado)}</td>
+              <td class="text-center">${this.renderTicketStatusBadge(t.estado, t)}</td>
               <td class="text-center">
                 <div class="inline-flex items-center gap-1">
                   <button type="button" class="btn-view-thermal px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-sky-400 text-[11px] font-bold" data-id="${this.escapeHtml(t.ticketId)}">🖨️</button>
@@ -2125,6 +2135,11 @@ class BancaGeneralMacroController {
       btn.addEventListener('click', () => {
         const ticket = this.storage.getTicketById(btn.dataset.id);
         if (!ticket) return;
+        const evalAudit = this.storage.evaluateTicket(ticket);
+        if (ticket.clockAuditBlocked || evalAudit.clockFraudDetected) {
+          alert(`🚨 PAGO BLOQUEADO POR AUDITORÍA HORARIA:\n\n${evalAudit.clockAuditReason || ticket.clockAuditReason || 'Ticket emitido fuera de horario o con reloj manipulado.'}`);
+          return;
+        }
         let prizeToPay = Number(ticket.premioCalculado || 0);
         if (prizeToPay <= 0) {
           const inputPrize = prompt(`Monto de premio PAGADO para Ticket #${ticket.ticketId} (${ticket.moneda}):`, String(ticket.total * 30));
@@ -2610,7 +2625,7 @@ class BancaGeneralMacroController {
               <td class="text-xs text-slate-200">${detail}</td>
               <td class="text-right font-mono text-slate-300">${this.formatMoney(t.total, cur)}</td>
               <td class="text-right font-mono font-black text-amber-400">${this.formatMoney(prize, cur)}</td>
-              <td class="text-center">${this.renderTicketStatusBadge(t.estado)}</td>
+              <td class="text-center">${this.renderTicketStatusBadge(t.estado, t)}</td>
               <td class="text-center">
                 <div class="inline-flex items-center gap-1">
                   <button type="button" class="btn-view-thermal px-2 py-1 rounded bg-slate-800 text-sky-400 text-[11px] font-bold" data-id="${this.escapeHtml(t.ticketId)}">🖨️</button>
@@ -2888,14 +2903,75 @@ class BancaGeneralMacroController {
   }
 
   bindRealtimeSync() {
+    window.bancaFcServerClock?.startPeriodicSync();
+
     window.addEventListener('storage', (e) => {
       if (e.key === STORAGE_KEYS.MASTER_DB || e.key === STORAGE_KEYS.TICKETS || e.key === STORAGE_KEYS.RESULTS) {
         this.refreshAllViews();
         this.showToast('Movimiento en vivo sincronizado.', '📡');
       }
     });
-    window.addEventListener('banca_fc_data_updated', () => this.refreshAllViews());
+    window.addEventListener('banca_fc_data_updated', () => {
+      this.ensureSecurityBaselineAndAuditTickets();
+      this.refreshAllViews();
+    });
     setInterval(() => this.storage.pullFromRemoteServer(), 3000);
+  }
+
+  ensureSecurityBaselineAndAuditTickets() {
+    try {
+      const cloud = window.bancaFcCloud;
+      if (!cloud || !cloud.isConnected) return;
+      const master = this.storage.getMasterData();
+      if (!master || !master.config) return;
+
+      let changed = false;
+      if (!master.config.securityBaselineTicketNumber) {
+        let maxId = Math.max(0, Number(master.config.nextTicketNumber || 1) - 1);
+        (master.tickets || []).forEach(t => {
+          const n = parseInt(String(t.ticketId || '').replace(/\D/g, ''), 10);
+          if (Number.isFinite(n) && n > maxId) maxId = n;
+        });
+        master.config.securityBaselineTicketNumber = maxId;
+        changed = true;
+        const cfgEndpoint = cloud.getDatabaseEndpoint('/banca_fc_master/config.json');
+        if (cfgEndpoint) {
+          fetch(cfgEndpoint, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ securityBaselineTicketNumber: maxId })
+          }).catch(() => {});
+        }
+      }
+
+      const baseline = Number(master.config.securityBaselineTicketNumber || 0);
+      let fraudFoundCount = 0;
+      (master.tickets || []).forEach(t => {
+        if (t.estado === 'ANULADO') return;
+        const n = parseInt(String(t.ticketId || '').replace(/\D/g, ''), 10);
+        const shouldAudit = Boolean(t.serverCreatedAt) || (baseline > 0 && Number.isFinite(n) && n > baseline);
+        if (!shouldAudit) return;
+        const evalRes = this.storage.evaluateTicket(t);
+        if (evalRes.clockFraudDetected && !t.clockAuditBlocked) {
+          t.clockAuditBlocked = true;
+          t.clockAuditReason = evalRes.clockAuditReason || 'Manipulación de horario detectada';
+          t.premioCalculado = 0;
+          t.premioPagado = 0;
+          t.winningPlays = [];
+          if (t.estado === 'GANADOR') t.estado = 'ACTIVO';
+          t.updatedAt = new Date().toISOString();
+          changed = true;
+          fraudFoundCount++;
+        }
+      });
+
+      if (changed) {
+        this.storage.saveMasterData(master, true, fraudFoundCount > 0);
+        if (fraudFoundCount > 0) {
+          this.showToast(`🚨 AUDITORÍA HORARIA: ${fraudFoundCount} ticket(s) bloqueado(s) por reloj manipulado / fuera de hora.`, '🚨');
+        }
+      }
+    } catch (_) {}
   }
 
   openNetworkSyncModal() {

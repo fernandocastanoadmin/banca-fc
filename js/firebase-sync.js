@@ -413,7 +413,8 @@ class BancaFcFirebaseSync {
     try {
       let dataToSave = { ...localMasterData };
       if (forceOverwriteCloud) {
-        dataToSave.lastResetTimestamp = new Date().toISOString();
+        const verifiedNow = (typeof window !== 'undefined' && window.bancaFcServerClock && window.bancaFcServerClock.getVerifiedUtcMs()) || Date.now();
+        dataToSave.lastResetTimestamp = new Date(verifiedNow).toISOString();
       } else {
         try {
           const getRes = await fetch(endpoint, { cache: 'no-store' });
@@ -433,7 +434,8 @@ class BancaFcFirebaseSync {
         } catch (e) {}
       }
 
-      dataToSave.updatedAt = new Date().toISOString();
+      const verifiedPushMs = (typeof window !== 'undefined' && window.bancaFcServerClock && window.bancaFcServerClock.getVerifiedUtcMs()) || Date.now();
+      dataToSave.updatedAt = new Date(verifiedPushMs).toISOString();
       this.lastRemoteTimestamp = dataToSave.updatedAt;
 
       const putRes = await fetch(endpoint, {

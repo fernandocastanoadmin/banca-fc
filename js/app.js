@@ -17,9 +17,48 @@ document.addEventListener('DOMContentLoaded', () => {
     modals: modals
   };
 
-  // 2. Control de Reloj en Tiempo Real (Formato 12h AM/PM estricto)
+  // 2. Control de Reloj Oficial del Servidor en Tiempo Real (Formato 12h AM/PM estricto UTC-04:00)
+  const clockBannerEl = document.getElementById('pos-clock-security-banner');
   function updateLiveClock() {
     const clockEl = document.getElementById('header-live-clock');
+    const serverClock = window.bancaFcServerClock;
+    if (serverClock) {
+      const offNow = serverClock.getOfficialNow();
+      if (!offNow.verified) {
+        if (clockEl) {
+          clockEl.textContent = '⏳ VERIFICANDO HORA OFICIAL...';
+          clockEl.style.color = '#b45309';
+        }
+        if (clockBannerEl) {
+          clockBannerEl.textContent = '⏳ Verificando hora oficial con Google Firebase / Servidor para habilitar ventas...';
+          clockBannerEl.classList.remove('hidden');
+          clockBannerEl.style.background = '#b45309';
+        }
+        return;
+      }
+      if (offNow.tampered) {
+        const diffMin = Math.round(Math.abs(offNow.driftMs || 0) / 60000);
+        if (clockEl) {
+          clockEl.textContent = `🚨 RELOJ PC DESINCRONIZADO (${diffMin}m) | Oficial: ${offNow.dateDDMMYYYY} ${offNow.time12h}`;
+          clockEl.style.color = '#dc2626';
+        }
+        if (clockBannerEl) {
+          clockBannerEl.textContent = `🚨 VENTAS BLOQUEADAS: El reloj de Windows/equipo difiere ${diffMin} min de la hora oficial (${offNow.dateDDMMYYYY} ${offNow.time12h}). Active la hora automática para poder vender.`;
+          clockBannerEl.classList.remove('hidden');
+          clockBannerEl.style.background = '#b91c1c';
+        }
+        return;
+      }
+      if (clockEl) {
+        clockEl.textContent = `🔒 ${offNow.dateDDMMYYYY} | ${offNow.time12h}`;
+        clockEl.style.color = '#065f46';
+      }
+      if (clockBannerEl) {
+        clockBannerEl.classList.add('hidden');
+      }
+      return;
+    }
+
     if (!clockEl) return;
     const now = new Date();
     const dd = String(now.getDate()).padStart(2, '0');
@@ -33,6 +72,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (hr === 0) hr = 12;
     clockEl.textContent = `${dd}/${mm}/${yyyy} | ${hr}:${min}:${sec} ${ampm}`;
   }
+  window.bancaFcServerClock?.startPeriodicSync(() => storageInstance.getConfig()?.agencyCode);
+  window.addEventListener('banca_fc_server_clock_updated', updateLiveClock);
   setInterval(updateLiveClock, 1000);
   updateLiveClock();
 

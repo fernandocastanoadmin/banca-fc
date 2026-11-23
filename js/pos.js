@@ -16,10 +16,18 @@ class PosEngine {
     this.is5taActive = false;
     this.isCombinadoActive = false;
     this.showAllWeekLotteries = false;
+    this.isSubmittingTicket = false;
     this.autoCloseTimer = null;
 
     this.initAudio();
     this.startAutoCloseMonitor();
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('banca_fc_server_clock_updated', () => {
+        const searchInput = document.getElementById('lottery-search-input');
+        this.renderLotteriesList(searchInput?.value || '');
+        this.updateCounters();
+      });
+    }
   }
 
   initAudio() {
@@ -33,14 +41,46 @@ class PosEngine {
     }
   }
 
+  // Obtiene la hora oficial del servidor o bloquea si el reloj fue adulterado / no está verificado
+  getTrustedClockState() {
+    const sc = typeof window !== 'undefined' ? window.bancaFcServerClock : null;
+    if (!sc) {
+      return { ok: true, officialNow: new Date(), legacyFallback: true };
+    }
+    const offNow = sc.getOfficialNow();
+    if (!offNow.verified) {
+      return {
+        ok: false,
+        reason: '⛔ SIN VERIFICACIÓN DE HORA OFICIAL:\nNo se pudo verificar la hora real con Google Firebase / Servidor. Conéctese a internet para habilitar ventas.'
+      };
+    }
+    if (offNow.tampered) {
+      const diffMin = Math.round(Math.abs(offNow.driftMs || 0) / 60000);
+      const cfg = this.storage.getConfig();
+      sc.reportTamperAlert(cfg.agencyCode, offNow).catch(() => {});
+      return {
+        ok: false,
+        tampered: true,
+        reason: `🚨 RELOJ DEL EQUIPO MANIPULADO (${diffMin} min de diferencia):\n\nLa hora de Windows/Android no coincide con la hora oficial (${offNow.dateDDMMYYYY} ${offNow.time12h}).\nActive "Establecer hora automáticamente" para poder vender.`
+      };
+    }
+    return { ok: true, officialNow: offNow };
+  }
+
   // Monitoreo continuo cada 10 segundos: elimina y desmarca sorteos que entren en los 5 minutos previos al cierre
   startAutoCloseMonitor() {
     if (this.autoCloseTimer) clearInterval(this.autoCloseTimer);
     this.autoCloseTimer = setInterval(() => {
-      const now = new Date();
+      const clockState = this.getTrustedClockState();
+      const now = clockState.ok ? clockState.officialNow : null;
       let removedAnySelected = false;
 
-      if (this.selectedLotteries.size > 0) {
+      if (!now) {
+        if (this.selectedLotteries.size > 0) {
+          this.selectedLotteries.clear();
+          removedAnySelected = true;
+        }
+      } else if (this.selectedLotteries.size > 0) {
         for (const lotId of Array.from(this.selectedLotteries)) {
           const lot = typeof findLotteryById === 'function' ? findLotteryById(lotId) : null;
           if (lot && typeof isLotteryOpenForSale === 'function' && !isLotteryOpenForSale(lot, now, this.showAllWeekLotteries)) {
@@ -95,10 +135,12 @@ class PosEngine {
     } catch (e) {}
   }
 
-  // Devuelve únicamente los sorteos abiertos (faltan más de 5 minutos y corresponden al día actual)
+  // Devuelve únicamente los sorteos abiertos según hora oficial del servidor (-5 minutos)
   getOpenLotteriesForCategory(categoryKey = this.currentCategory) {
+    const clockState = this.getTrustedClockState();
+    if (!clockState.ok) return [];
     const catalog = LOTTERY_CATALOGS[categoryKey] || [];
-    const now = new Date();
+    const now = clockState.officialNow;
     return catalog.filter(lot => {
       if (typeof isLotteryOpenForSale === 'function') {
         return isLotteryOpenForSale(lot, now, this.showAllWeekLotteries);
@@ -186,7 +228,12 @@ class PosEngine {
     });
 
     if (filtered.length === 0) {
-      listContainer.innerHTML = `<div class="empty-list-notice">No hay sorteos abiertos disponibles ${filterText ? `para "${filterText}"` : 'en este horario (cierres 5 min antes)'}.</div>`;
+      const clockState = this.getTrustedClockState();
+      if (!clockState.ok) {
+        listContainer.innerHTML = `<div class="empty-list-notice" style="color:#b91c1c; font-weight:bold; padding:12px;">${clockState.tampered ? '🚨 Reloj del equipo manipulado/desincronizado. Active la hora automática para habilitar sorteos.' : '⏳ Verificando hora oficial con el servidor...'}</div>`;
+      } else {
+        listContainer.innerHTML = `<div class="empty-list-notice">No hay sorteos abiertos disponibles ${filterText ? `para "${filterText}"` : 'en este horario (cierres 5 min antes)'}.</div>`;
+      }
       return;
     }
 
@@ -484,9 +531,17 @@ class PosEngine {
     return { valid: true };
   }
 
-  // Agrega una jugada individual al pre-ticket validando que el sorteo no haya cerrado (-5 min)
+  // Agrega una jugada individual al pre-ticket validando que el sorteo no haya cerrado (-5 min) y el reloj sea oficial
   addPlayItem(numberStr, amountVal, options = {}) {
     const silent = Boolean(options.silent);
+    const clockState = this.getTrustedClockState();
+    if (!clockState.ok) {
+      if (!silent) {
+        alert(clockState.reason);
+        this.playBeep('error');
+      }
+      return false;
+    }
     if (this.selectedLotteries.size === 0) {
       if (!silent) {
         alert('¡Debe seleccionar al menos un sorteo abierto en el panel izquierdo!');
@@ -495,7 +550,7 @@ class PosEngine {
       return false;
     }
 
-    const now = new Date();
+    const now = clockState.officialNow;
     const openCatalog = this.getOpenLotteriesForCategory(this.currentCategory);
     const selectedLots = openCatalog.filter(l => this.selectedLotteries.has(l.id));
 
@@ -791,6 +846,12 @@ class PosEngine {
 
   // Repite el último ticket impreso (filtrando sorteos ya cerrados)
   executeRepetirTicket() {
+    const clockState = this.getTrustedClockState();
+    if (!clockState.ok) {
+      alert(clockState.reason);
+      this.playBeep('error');
+      return;
+    }
     const lastTicket = this.storage.getLastPrintedTicket();
     if (!lastTicket || !lastTicket.items || lastTicket.items.length === 0) {
       alert('No hay tickets anteriores registrados para repetir.');
@@ -798,7 +859,7 @@ class PosEngine {
       return;
     }
 
-    const now = new Date();
+    const now = clockState.officialNow;
     const validItems = [];
     const closedNames = [];
 
@@ -921,8 +982,17 @@ class PosEngine {
     if (lotCountEl) lotCountEl.textContent = this.selectedLotteries.size;
   }
 
-  // Formato de fecha y hora 12h AM/PM obligatorio para los tickets emitidos
-  formatCurrentDateTime12h(now = new Date()) {
+  // Formato de fecha y hora 12h AM/PM obligatorio (UTC-04:00 oficial) para los tickets emitidos
+  formatCurrentDateTime12h(nowInput = null) {
+    const sc = typeof window !== 'undefined' ? window.bancaFcServerClock : null;
+    if (sc) {
+      if (nowInput && typeof nowInput.formatted12h === 'string') return nowInput.formatted12h;
+      if (typeof nowInput === 'number') return sc.formatDateTime12h(nowInput);
+      if (nowInput instanceof Date) return sc.formatDateTime12h(nowInput.getTime());
+      const off = sc.getOfficialNow();
+      if (off && off.formatted12h) return off.formatted12h;
+    }
+    const now = nowInput instanceof Date ? nowInput : new Date();
     const dd = String(now.getDate()).padStart(2, '0');
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const yyyy = now.getFullYear();
@@ -935,117 +1005,186 @@ class PosEngine {
     return `${dd}/${mm}/${yyyy} ${hr}:${min}:${sec} ${ampm}`;
   }
 
-  // Proceso final de emisión e impresión del ticket
-  processTicketSubmission() {
+  // Proceso final de emisión e impresión del ticket (con verificación estricta de hora real del servidor)
+  async processTicketSubmission() {
+    if (this.isSubmittingTicket) return;
     if (this.preTicketItems.length === 0) {
       alert('¡No hay jugadas cargadas en el ticket!');
       this.playBeep('error');
       return;
     }
 
-    // 1. REGLA CRÍTICA: Validar antes de imprimir que ningún sorteo del Pre-Ticket en Curso haya entrado en los 5 minutos de cierre
-    const now = new Date();
-    const expiredPlays = [];
-    const activePlays = [];
+    this.isSubmittingTicket = true;
+    try {
+      const sc = typeof window !== 'undefined' ? window.bancaFcServerClock : null;
+      let officialNow = new Date();
 
-    this.preTicketItems.forEach(play => {
-      const lot = typeof findLotteryById === 'function' ? findLotteryById(play.lotteryId) : null;
-      if (lot && typeof isLotteryOpenForSale === 'function' && !isLotteryOpenForSale(lot, now, this.showAllWeekLotteries)) {
-        expiredPlays.push(play.lotteryName);
-      } else {
-        activePlays.push(play);
-      }
-    });
-
-    if (expiredPlays.length > 0) {
-      this.preTicketItems = activePlays;
-      this.renderPreTicket();
-      this.renderLotteriesList(document.getElementById('lottery-search-input')?.value || '');
-      this.updateCounters();
-      this.playBeep('error');
-      alert(
-        `⛔ CIERRE AUTOMÁTICO DE SORTEO (-5 MINUTOS):\n\n` +
-        `Los siguientes sorteos acaban de cerrar y fueron retirados automáticamente del Pre-Ticket:\n` +
-        `• ${Array.from(new Set(expiredPlays)).join('\n• ')}\n\n` +
-        (activePlays.length > 0 ? 'Presione IMPRIMIR nuevamente si desea emitir las jugadas restantes.' : 'Seleccione otro sorteo abierto.')
-      );
-      return;
-    }
-
-    const cfg = this.storage.getConfig();
-    const agencyInfo = this.storage.getAgencyByCode(cfg.agencyCode);
-    if (agencyInfo && agencyInfo.status === 'SUSPENDIDA') {
-      alert(`⛔ ACCESO DENEGADO: La Agencia ${agencyInfo.code} (${agencyInfo.name}) se encuentra SUSPENDIDA en el Panel Central de Banca El Castaño. Comuníquese con administración.`);
-      this.playBeep('error');
-      return;
-    }
-
-    let total = 0;
-    this.preTicketItems.forEach(p => total += p.amount);
-
-    // Validación de Tope de Riesgo por Número en la Agencia
-    if (agencyInfo && agencyInfo.maxBetLimit > 0) {
-      const existingTickets = this.storage.getTickets().filter(t => t.estado !== 'ANULADO' && String(t.agencyCode || t.usuario) === String(cfg.agencyCode));
-      for (const play of this.preTicketItems) {
-        let currentNumberAccum = 0;
-        existingTickets.forEach(t => {
-          (t.items || []).forEach(it => {
-            if (it.lotteryId === play.lotteryId && String(it.number) === String(play.number)) {
-              currentNumberAccum += Number(it.amount);
-            }
-          });
-        });
-        if (currentNumberAccum + play.amount > agencyInfo.maxBetLimit) {
-          const disponible = Math.max(0, agencyInfo.maxBetLimit - currentNumberAccum);
-          alert(`⚠️ TOPE DE RIESGO EXCEDIDO EN BANCA EL CASTAÑO:\nSorteo: ${play.lotteryName}\nNúmero/Animalito: ${play.number}\nTope Máximo Agencia: ${this.printer.formatCurrency(agencyInfo.maxBetLimit, cfg.currency)}\nDisponible para este número: ${this.printer.formatCurrency(disponible, cfg.currency)}`);
+      if (sc) {
+        const syncRes = await sc.syncServerTime({ force: true });
+        if (!syncRes.ok || !sc.isVerified) {
           this.playBeep('error');
+          alert('⛔ BLOQUEO DE SEGURIDAD:\n\nNo se pudo verificar la hora oficial con el servidor (Google Firebase / Red).\nVerifique su conexión a internet antes de emitir el ticket.');
+          return;
+        }
+        const clockState = this.getTrustedClockState();
+        if (!clockState.ok) {
+          this.playBeep('error');
+          alert(clockState.reason);
+          return;
+        }
+        officialNow = clockState.officialNow;
+      }
+
+      // 1. REGLA CRÍTICA: Validar contra hora oficial del servidor que ningún sorteo haya cerrado (-5 minutos)
+      const expiredPlays = [];
+      const activePlays = [];
+
+      this.preTicketItems.forEach(play => {
+        const lot = typeof findLotteryById === 'function' ? findLotteryById(play.lotteryId) : null;
+        if (lot && typeof isLotteryOpenForSale === 'function' && !isLotteryOpenForSale(lot, officialNow, this.showAllWeekLotteries)) {
+          expiredPlays.push(play.lotteryName);
+        } else {
+          activePlays.push(play);
+        }
+      });
+
+      if (expiredPlays.length > 0) {
+        this.preTicketItems = activePlays;
+        this.renderPreTicket();
+        this.renderLotteriesList(document.getElementById('lottery-search-input')?.value || '');
+        this.updateCounters();
+        this.playBeep('error');
+        alert(
+          `⛔ CIERRE AUTOMÁTICO DE SORTEO (-5 MINUTOS):\n\n` +
+          `Los siguientes sorteos ya cerraron según la hora oficial del servidor y fueron retirados del Pre-Ticket:\n` +
+          `• ${Array.from(new Set(expiredPlays)).join('\n• ')}\n\n` +
+          (activePlays.length > 0 ? 'Presione IMPRIMIR nuevamente si desea emitir las jugadas restantes.' : 'Seleccione otro sorteo abierto.')
+        );
+        return;
+      }
+
+      const cfg = this.storage.getConfig();
+      const agencyInfo = this.storage.getAgencyByCode(cfg.agencyCode);
+      if (agencyInfo && agencyInfo.status === 'SUSPENDIDA') {
+        alert(`⛔ ACCESO DENEGADO: La Agencia ${agencyInfo.code} (${agencyInfo.name}) se encuentra SUSPENDIDA en el Panel Central de Banca El Castaño. Comuníquese con administración.`);
+        this.playBeep('error');
+        return;
+      }
+
+      let total = 0;
+      this.preTicketItems.forEach(p => total += p.amount);
+
+      // Validación de Tope de Riesgo por Número en la Agencia
+      if (agencyInfo && agencyInfo.maxBetLimit > 0) {
+        const existingTickets = this.storage.getTickets().filter(t => t.estado !== 'ANULADO' && String(t.agencyCode || t.usuario) === String(cfg.agencyCode));
+        for (const play of this.preTicketItems) {
+          let currentNumberAccum = 0;
+          existingTickets.forEach(t => {
+            (t.items || []).forEach(it => {
+              if (it.lotteryId === play.lotteryId && String(it.number) === String(play.number)) {
+                currentNumberAccum += Number(it.amount);
+              }
+            });
+          });
+          if (currentNumberAccum + play.amount > agencyInfo.maxBetLimit) {
+            const disponible = Math.max(0, agencyInfo.maxBetLimit - currentNumberAccum);
+            alert(`⚠️ TOPE DE RIESGO EXCEDIDO EN BANCA EL CASTAÑO:\nSorteo: ${play.lotteryName}\nNúmero/Animalito: ${play.number}\nTope Máximo Agencia: ${this.printer.formatCurrency(agencyInfo.maxBetLimit, cfg.currency)}\nDisponible para este número: ${this.printer.formatCurrency(disponible, cfg.currency)}`);
+            this.playBeep('error');
+            return;
+          }
+        }
+      }
+
+      const ticketId = this.storage.getNextTicketNumber();
+      const serial = this.storage.generateSecuritySerial();
+      let dateStr = this.formatCurrentDateTime12h(officialNow);
+      let serverCreatedAt = null;
+      let serverStampKey = null;
+      let clockSource = null;
+
+      if (sc) {
+        const prelimTicket = {
+          ticketId,
+          serialSeguridad: serial,
+          agencyCode: String(cfg.agencyCode || '1000'),
+          fechaHora: dateStr
+        };
+        const stampRes = await sc.stampTicketInFirebase(prelimTicket);
+        if (!stampRes.ok || !stampRes.serverCreatedAt) {
+          this.playBeep('error');
+          alert('⛔ ERROR DE SELLADO EN SERVIDOR:\n\nNo se pudo registrar el sello de hora oficial para este ticket.\nVerifique su conexión e intente de nuevo.');
+          return;
+        }
+        serverCreatedAt = stampRes.serverCreatedAt;
+        serverStampKey = stampRes.stampKey;
+        clockSource = stampRes.source;
+        dateStr = sc.formatDateTime12h(serverCreatedAt);
+
+        // Re-validar contra el instante exacto que devolvió el servidor de Google Firebase
+        const exactServerParts = sc.getOfficialParts(serverCreatedAt);
+        const closedAtStamp = [];
+        this.preTicketItems.forEach(play => {
+          const lot = typeof findLotteryById === 'function' ? findLotteryById(play.lotteryId) : null;
+          if (lot && typeof isLotteryOpenForSale === 'function' && !isLotteryOpenForSale(lot, exactServerParts, this.showAllWeekLotteries)) {
+            closedAtStamp.push(play.lotteryName);
+          }
+        });
+        if (closedAtStamp.length > 0) {
+          this.playBeep('error');
+          alert(`⛔ SORTEO CERRADO EN EL SERVIDOR:\nEl sello oficial del servidor (${exactServerParts.time12h}) llegó después del cierre de:\n• ${Array.from(new Set(closedAtStamp)).join('\n• ')}`);
+          this.renderLotteriesList(document.getElementById('lottery-search-input')?.value || '');
           return;
         }
       }
+
+      const ticket = {
+        ticketId: ticketId,
+        serialSeguridad: serial,
+        fechaHora: dateStr,
+        agencyCode: String(cfg.agencyCode || '1000'),
+        agencia: `${cfg.agencyCode} - ${cfg.agencyName}`,
+        usuario: cfg.terminalId || cfg.agencyCode,
+        moneda: cfg.currency,
+        items: [...this.preTicketItems],
+        total: total,
+        estado: 'ACTIVO',
+        premioCalculado: 0,
+        serverCreatedAt: serverCreatedAt,
+        serverStampKey: serverStampKey,
+        clockVerified: Boolean(serverCreatedAt),
+        clockSource: clockSource,
+        clientDeviceEpochMs: Date.now(),
+        createdAt: serverCreatedAt ? new Date(serverCreatedAt).toISOString() : new Date().toISOString(),
+        updatedAt: serverCreatedAt ? new Date(serverCreatedAt).toISOString() : new Date().toISOString()
+      };
+
+      // Guardar en base de datos local y sincronizar inmediatamente con Firebase y el Panel Administrativo
+      this.storage.saveTicket(ticket);
+      window.dispatchEvent(new CustomEvent('banca_fc_ticket_emitted', { detail: ticket }));
+
+      // Reproducir sonido de éxito de taquilla
+      this.playBeep('success');
+
+      // Disparar vista previa e impresión térmica
+      this.printer.previewAndPrint(ticket, false);
+
+      // Limpiar pre-ticket para la siguiente venta
+      this.preTicketItems = [];
+      this.renderPreTicket();
+      this.updateCounters();
+
+      // Actualizar indicador del próximo ticket correlativo en la cabecera
+      const headerTicketNumEl = document.getElementById('header-ticket-correlativo');
+      if (headerTicketNumEl) {
+        const nextId = String(Number(ticketId) + 1).padStart(8, '0');
+        headerTicketNumEl.textContent = `Ticket #${nextId}`;
+      }
+
+      // Devolver el foco al campo número para la próxima venta
+      this.focusNumberInput();
+    } finally {
+      this.isSubmittingTicket = false;
     }
-
-    const ticketId = this.storage.getNextTicketNumber();
-    const serial = this.storage.generateSecuritySerial();
-    const dateStr = this.formatCurrentDateTime12h(now);
-
-    const ticket = {
-      ticketId: ticketId,
-      serialSeguridad: serial,
-      fechaHora: dateStr,
-      agencyCode: String(cfg.agencyCode || '1000'),
-      agencia: `${cfg.agencyCode} - ${cfg.agencyName}`,
-      usuario: cfg.terminalId || cfg.agencyCode,
-      moneda: cfg.currency,
-      items: [...this.preTicketItems],
-      total: total,
-      estado: 'ACTIVO',
-      premioCalculado: 0
-    };
-
-    // Guardar en base de datos local y sincronizar inmediatamente con Firebase y el Panel Administrativo
-    this.storage.saveTicket(ticket);
-    window.dispatchEvent(new CustomEvent('banca_fc_ticket_emitted', { detail: ticket }));
-
-    // Reproducir sonido de éxito de taquilla
-    this.playBeep('success');
-
-    // Disparar vista previa e impresión térmica
-    this.printer.previewAndPrint(ticket, false);
-
-    // Limpiar pre-ticket para la siguiente venta
-    this.preTicketItems = [];
-    this.renderPreTicket();
-    this.updateCounters();
-
-    // Actualizar indicador del próximo ticket correlativo en la cabecera
-    const headerTicketNumEl = document.getElementById('header-ticket-correlativo');
-    if (headerTicketNumEl) {
-      const nextId = String(Number(ticketId) + 1).padStart(8, '0');
-      headerTicketNumEl.textContent = `Ticket #${nextId}`;
-    }
-
-    // Devolver el foco al campo número para la próxima venta
-    this.focusNumberInput();
   }
 }
 

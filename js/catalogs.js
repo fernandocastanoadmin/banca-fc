@@ -485,16 +485,38 @@ const LOTTERY_CATALOGS = {
   ]
 };
 
-function getRemainingMinutesForLottery(lot, nowDate = new Date()) {
+function _resolveOfficialTimeComponents(nowInput) {
+  if (nowInput && typeof nowInput.hour24 === 'number' && typeof nowInput.minute === 'number') {
+    return {
+      dayOfWeek: typeof nowInput.dayOfWeek === 'number' ? nowInput.dayOfWeek : 0,
+      hour24: nowInput.hour24,
+      minute: nowInput.minute
+    };
+  }
+  if (typeof window !== 'undefined' && window.bancaFcServerClock) {
+    if (nowInput instanceof Date) {
+      const parts = window.bancaFcServerClock.getOfficialParts(nowInput.getTime());
+      return { dayOfWeek: parts.dayOfWeek, hour24: parts.hour24, minute: parts.minute };
+    }
+    const off = window.bancaFcServerClock.getOfficialNow();
+    return { dayOfWeek: off.dayOfWeek, hour24: off.hour24, minute: off.minute };
+  }
+  const d = nowInput instanceof Date ? nowInput : new Date();
+  return { dayOfWeek: d.getDay(), hour24: d.getHours(), minute: d.getMinutes() };
+}
+
+function getRemainingMinutesForLottery(lot, nowDate = null) {
   if (!lot || typeof lot.drawHour24 !== 'number') return 999;
+  const parts = _resolveOfficialTimeComponents(nowDate);
   const drawTotalMinutes = lot.drawHour24 * 60 + (lot.drawMinute || 0);
-  const currentTotalMinutes = nowDate.getHours() * 60 + nowDate.getMinutes();
+  const currentTotalMinutes = parts.hour24 * 60 + parts.minute;
   return drawTotalMinutes - currentTotalMinutes;
 }
 
-function isLotteryOpenForSale(lot, nowDate = new Date(), showAllWeekDays = false) {
+function isLotteryOpenForSale(lot, nowDate = null, showAllWeekDays = false) {
   if (!lot) return false;
-  const currentDay = nowDate.getDay();
+  const parts = _resolveOfficialTimeComponents(nowDate);
+  const currentDay = parts.dayOfWeek;
   if (!showAllWeekDays && Array.isArray(lot.daysOfWeek) && !lot.daysOfWeek.includes(currentDay)) {
     return false;
   }

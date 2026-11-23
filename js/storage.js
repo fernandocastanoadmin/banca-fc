@@ -742,6 +742,7 @@ class StorageManager {
     master.tickets = [];
     master.results = {};
     master.config.nextTicketNumber = 1;
+    master.config.securityBaselineTicketNumber = 0;
     if (!keepAgencies) {
       master.agencies = [getDefaultAgencies()[0]];
     }
@@ -1552,9 +1553,14 @@ class StorageManager {
     if (!ticket.createdAt) ticket.createdAt = new Date().toISOString();
     if (!ticket.dateIso) ticket.dateIso = getTodayIso();
 
-    // Evaluar de inmediato si ya hay resultados cargados para ese sorteo
+    // Evaluar de inmediato si ya hay resultados cargados para ese sorteo (con auditoría horaria)
     const evalRes = this.evaluateTicket(ticket);
-    if (evalRes.totalPrize > 0 && ticket.estado === 'ACTIVO') {
+    if (evalRes.clockFraudDetected) {
+      ticket.clockAuditBlocked = true;
+      ticket.clockAuditReason = evalRes.clockAuditReason || 'Manipulación de horario detectada';
+      ticket.premioCalculado = 0;
+      ticket.winningPlays = [];
+    } else if (evalRes.totalPrize > 0 && ticket.estado === 'ACTIVO') {
       ticket.estado = 'GANADOR';
       ticket.premioCalculado = evalRes.totalPrize;
       ticket.winningPlays = evalRes.winningPlays;
@@ -1915,15 +1921,30 @@ class StorageManager {
     const ticketDate = this.extractTicketDateIso(ticket);
     const dateKey = targetDate || ticketDate;
     const results = this.getResults(dateKey);
+    const cfg = this.getConfig();
+    const sc = typeof window !== 'undefined' ? window.bancaFcServerClock : null;
     let totalPrize = 0;
     const winningPlays = [];
+    const flaggedPlays = [];
+    let clockFraudDetected = Boolean(ticket.clockAuditBlocked);
+    let clockAuditReason = ticket.clockAuditReason || '';
 
     if (ticket.estado === 'ANULADO') {
-      return { status: 'ANULADO', totalPrize: 0, winningPlays: [] };
+      return { status: 'ANULADO', totalPrize: 0, winningPlays: [], flaggedPlays: [], clockFraudDetected: false };
     }
 
     (ticket.items || []).forEach(play => {
+      const lot = typeof findLotteryById === 'function' ? findLotteryById(play.lotteryId) : null;
       const offRes = results[play.lotteryId];
+      if (sc && typeof sc.verifyTicketPlayTiming === 'function') {
+        const audit = sc.verifyTicketPlayTiming(ticket, play, lot, cfg);
+        if (audit && audit.blocked) {
+          clockFraudDetected = true;
+          clockAuditReason = audit.reason || 'Ticket emitido fuera de horario oficial';
+          flaggedPlays.push({ ...play, auditReason: clockAuditReason });
+          return;
+        }
+      }
       if (offRes) {
         const win = this.checkPlayWinning(play, offRes, effectiveMultipliers);
         if (win) {
@@ -1940,11 +1961,24 @@ class StorageManager {
       }
     });
 
+    if (clockFraudDetected) {
+      return {
+        status: 'BLOQUEADO_HORA',
+        totalPrize: 0,
+        winningPlays: [],
+        flaggedPlays,
+        clockFraudDetected: true,
+        clockAuditReason
+      };
+    }
+
     const isWinner = totalPrize > 0;
     return {
       status: (ticket.estado === 'PAGADO' && isWinner) ? 'PAGADO' : (isWinner ? 'GANADOR' : 'ACTIVO'),
       totalPrize,
-      winningPlays
+      winningPlays,
+      flaggedPlays: [],
+      clockFraudDetected: false
     };
   }
 
@@ -1959,9 +1993,21 @@ class StorageManager {
       const ticketDate = this.extractTicketDateIso(ticket);
       if (dateString && ticketDate !== dateString) return;
 
-      // Evaluar contra los resultados oficiales vigentes de esa fecha
+      // Evaluar contra los resultados oficiales vigentes de esa fecha (con auditoría horaria)
       const evalRes = this.evaluateTicket(ticket, ticketDate);
-      if (evalRes.totalPrize > 0) {
+      if (evalRes.clockFraudDetected) {
+        ticket.clockAuditBlocked = true;
+        ticket.clockAuditReason = evalRes.clockAuditReason || 'Manipulación de horario detectada';
+        ticket.premioCalculado = 0;
+        ticket.premioPagado = 0;
+        ticket.winningPlays = [];
+        if (ticket.estado === 'GANADOR') {
+          ticket.estado = 'ACTIVO';
+        }
+        ticket.updatedAt = new Date().toISOString();
+      } else if (evalRes.totalPrize > 0) {
+        delete ticket.clockAuditBlocked;
+        delete ticket.clockAuditReason;
         if (ticket.estado !== 'PAGADO') {
           ticket.estado = 'GANADOR';
         } else {

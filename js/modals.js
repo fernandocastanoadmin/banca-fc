@@ -398,11 +398,12 @@ class ModalManager {
 
       // Evaluar si es ganador contra los resultados autorizados por el Administrador
       const evalRes = this.storage.evaluateTicket(ticket);
-      const isWinner = evalRes.totalPrize > 0;
-      const isPaid = ticket.estado === 'PAGADO';
+      const isWinner = evalRes.totalPrize > 0 && !evalRes.clockFraudDetected;
+      const isClockBlocked = Boolean(evalRes.clockFraudDetected || ticket.clockAuditBlocked);
+      const isPaid = ticket.estado === 'PAGADO' && !isClockBlocked;
       const isAnulado = ticket.estado === 'ANULADO';
 
-      btnPagar.disabled = !isWinner || isPaid || isAnulado;
+      btnPagar.disabled = !isWinner || isPaid || isAnulado || isClockBlocked;
       btnPagar.dataset.ticketId = ticket.ticketId;
       btnPagar.dataset.prize = evalRes.totalPrize;
       btnPagar.dataset.currency = ticket.moneda || 'COP';
@@ -439,7 +440,8 @@ class ModalManager {
             <strong class="text-xl text-success">${this.printer.formatCurrency(evalRes.totalPrize, ticket.moneda)}</strong>
           </div>
           ${winningRows ? `<div class="winning-plays-container"><h4>Aciertos Registrados:</h4>${winningRows}</div>` : ''}
-          ${!isWinner && !isAnulado ? '<div class="alert alert-info">Este ticket no tiene aciertos registrados en los sorteos oficiales publicados por Administración.</div>' : ''}
+          ${isClockBlocked ? `<div class="alert alert-danger" style="background:#fee2e2; color:#991b1b; border:1px solid #ef4444; padding:8px; font-weight:bold;">🚨 PREMIO BLOQUEADO POR AUDITORÍA HORARIA: ${evalRes.clockAuditReason || ticket.clockAuditReason || 'Reloj manipulado / Ticket fuera de hora oficial'}</div>` : ''}
+          ${!isWinner && !isAnulado && !isClockBlocked ? '<div class="alert alert-info">Este ticket no tiene aciertos registrados en los sorteos oficiales publicados por Administración.</div>' : ''}
           ${isPaid ? `<div class="alert alert-success">Ticket PAGADO el ${ticket.fechaPago || 'previamente'} en Caja ${ticket.moneda || 'COP'}.</div>` : ''}
         </div>
       `;
