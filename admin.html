@@ -647,15 +647,68 @@
               </div>
             </div>
 
-            <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4">
-              <h3 class="text-sm font-black uppercase text-amber-400 mb-3">
-                🎯 Tickets Ganadores Detectados y Liquidados (En su Moneda Nativa)
-              </h3>
+            <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-3">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 class="text-sm font-black uppercase text-amber-400">
+                    🎯 Tickets Ganadores Detectados y Liquidados (En su Moneda Nativa)
+                  </h3>
+                  <p id="admin-winners-first-day-info" class="text-[11px] text-slate-400 mt-0.5">
+                    📅 Cargando historial de premios...
+                  </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <button type="button" id="btn-winners-from-first-day" class="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-bold transition" title="Consultar desde el primer día que comenzó a vender la agencia seleccionada">
+                    ⏮️ Desde 1er Día
+                  </button>
+                  <button type="button" id="btn-winners-today" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 text-[11px] font-bold transition" title="Consultar solo los premios de hoy">
+                    ☀️ Hoy
+                  </button>
+                  <button type="button" id="btn-winners-yesterday" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 text-[11px] font-bold transition" title="Consultar solo los premios de ayer">
+                    📆 Ayer
+                  </button>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-end gap-2 bg-slate-900/70 border border-slate-800 rounded-lg p-2.5">
+                <div class="min-w-[180px] flex-1">
+                  <label for="admin-winners-agency-filter" class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Agencia</label>
+                  <select id="admin-winners-agency-filter" class="w-full bg-slate-950 text-slate-200 text-xs rounded-lg px-2 py-1.5 border border-slate-700 font-bold focus:outline-none focus:border-amber-500">
+                    <option value="ALL">Todas las Agencias</option>
+                  </select>
+                </div>
+                <div class="min-w-[135px]">
+                  <label for="admin-winners-date-mode" class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Tipo Consulta</label>
+                  <select id="admin-winners-date-mode" class="w-full bg-slate-950 text-slate-200 text-xs rounded-lg px-2 py-1.5 border border-slate-700 font-bold focus:outline-none focus:border-amber-500">
+                    <option value="RANGE">📆 Varias Fechas</option>
+                    <option value="SINGLE">📌 1 Sola Fecha</option>
+                  </select>
+                </div>
+                <div class="min-w-[135px]">
+                  <label for="admin-winners-date-from" id="admin-winners-date-from-label" class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Desde</label>
+                  <input type="date" id="admin-winners-date-from" class="w-full bg-slate-950 text-white text-xs font-bold rounded-lg px-2 py-1.5 border border-slate-700 focus:outline-none focus:border-amber-500">
+                </div>
+                <div class="min-w-[135px]" id="admin-winners-date-to-wrap">
+                  <label for="admin-winners-date-to" class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Hasta</label>
+                  <input type="date" id="admin-winners-date-to" class="w-full bg-slate-950 text-white text-xs font-bold rounded-lg px-2 py-1.5 border border-slate-700 focus:outline-none focus:border-amber-500">
+                </div>
+                <div class="min-w-[125px]">
+                  <label for="admin-winners-status-filter" class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Estado</label>
+                  <select id="admin-winners-status-filter" class="w-full bg-slate-950 text-slate-200 text-xs rounded-lg px-2 py-1.5 border border-slate-700 font-bold focus:outline-none focus:border-amber-500">
+                    <option value="ALL">Todos</option>
+                    <option value="GANADOR">🏆 Por Pagar</option>
+                    <option value="PAGADO">💵 Pagados</option>
+                  </select>
+                </div>
+              </div>
+
+              <div id="admin-winners-currency-summary" class="flex flex-wrap gap-2 text-xs"></div>
+
               <div class="overflow-x-auto max-h-72 border border-slate-800 rounded-lg">
                 <table class="fc-data-table">
                   <thead>
                     <tr>
-                      <th>Ticket #</th>
+                      <th>Ticket # / Fecha</th>
                       <th>Agencia</th>
                       <th>Detalle Jugada Ganadora</th>
                       <th class="text-right">Apostado</th>
@@ -1433,12 +1486,12 @@
   </div>
 
   <!-- Scripts Modulares Compartidos con el POS + Sincronización Nube Firebase -->
-  <script src="js/server-clock.js?v=20261122"></script>
-  <script src="js/catalogs.js?v=20261122"></script>
-  <script src="js/storage.js?v=20261122"></script>
-  <script src="js/firebase-sync.js?v=20261122"></script>
-  <script src="js/auto-results.js?v=20261122"></script>
-  <script src="js/print.js?v=20261122"></script>
-  <script src="js/admin.js?v=20261122"></script>
+  <script src="js/server-clock.js?v=20261125"></script>
+  <script src="js/catalogs.js?v=20261125"></script>
+  <script src="js/storage.js?v=20261125"></script>
+  <script src="js/firebase-sync.js?v=20261125"></script>
+  <script src="js/auto-results.js?v=20261125"></script>
+  <script src="js/print.js?v=20261125"></script>
+  <script src="js/admin.js?v=20261125"></script>
 </body>
 </html>

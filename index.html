@@ -505,11 +505,26 @@
 
         <!-- Lista de Tickets Ganadores de esta Agencia ya liquidados por el Administrador -->
         <div style="border-top: 1px solid #9ca3af; padding-top: 8px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 6px;">
             <span style="font-size: 12px; font-weight: bold; color: #1e3a8a;">
-              🏆 Tickets Ganadores de esta Agencia (Liquidados por el Programa Administrativo):
+              🏆 Tickets Ganadores de esta Agencia (Liquidados por Administración):
             </span>
             <span id="pos-winning-tickets-count" style="font-size: 11px; font-weight: bold; color: #15803d;">0 ganadores</span>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; background: #f3f4f6; padding: 6px 8px; border: 1px solid #d1d5db; font-size: 11px;">
+            <select id="pos-winners-date-mode" class="win-input-text" style="padding: 2px 4px; font-weight: bold;">
+              <option value="RANGE">Varias Fechas</option>
+              <option value="SINGLE">1 Sola Fecha</option>
+            </select>
+            <label for="pos-winners-date-from" id="pos-winners-date-from-label" style="font-weight: bold;">Desde:</label>
+            <input type="date" id="pos-winners-date-from" class="win-input-text" style="padding: 2px 4px;">
+            <span id="pos-winners-date-to-wrap" style="display: inline-flex; align-items: center; gap: 4px;">
+              <label for="pos-winners-date-to" style="font-weight: bold;">Hasta:</label>
+              <input type="date" id="pos-winners-date-to" class="win-input-text" style="padding: 2px 4px;">
+            </span>
+            <button type="button" id="btn-pos-winners-first-day" class="win-btn" style="padding: 2px 6px; font-weight: bold;">1er Día</button>
+            <button type="button" id="btn-pos-winners-today" class="win-btn" style="padding: 2px 6px;">Hoy</button>
+            <button type="button" id="btn-pos-winners-yesterday" class="win-btn" style="padding: 2px 6px;">Ayer</button>
           </div>
           <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc; background: #fff;">
             <table class="pos-table-clean">
@@ -871,14 +886,14 @@
   <div id="print-dedicated-area"></div>
 
   <!-- Scripts Modulares -->
-  <script src="js/server-clock.js?v=20261122"></script>
-  <script src="js/catalogs.js?v=20261122"></script>
-  <script src="js/storage.js?v=20261122"></script>
-  <script src="js/firebase-sync.js?v=20261122"></script>
-  <script src="js/auto-results.js?v=20261122"></script>
-  <script src="js/print.js?v=20261122"></script>
-  <script src="js/pos.js?v=20261122"></script>
-  <script src="js/modals.js?v=20261122"></script>
-  <script src="js/app.js?v=20261122"></script>
+  <script src="js/server-clock.js?v=20261125"></script>
+  <script src="js/catalogs.js?v=20261125"></script>
+  <script src="js/storage.js?v=20261125"></script>
+  <script src="js/firebase-sync.js?v=20261125"></script>
+  <script src="js/auto-results.js?v=20261125"></script>
+  <script src="js/print.js?v=20261125"></script>
+  <script src="js/pos.js?v=20261125"></script>
+  <script src="js/modals.js?v=20261125"></script>
+  <script src="js/app.js?v=20261125"></script>
 </body>
 </html>
